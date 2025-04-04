@@ -1,20 +1,23 @@
+
 import { Vendor } from '../types';
 
 // Common prefixes and suffixes to remove from transaction descriptions
 const COMMON_PREFIXES = [
   "POS PURCHASE ", "PURCHASE ", "FNB PAYMENT ", "PAYMENT ", "CARD PURCHASE ", 
   "DEBIT ORDER ", "EFT PAYMENT ", "DIRECT DEBIT ", "TRANSFER ", "ATM WITHDRAWAL ",
-  "CREDIT ", "DEBIT ", "POS ", "TFR "
+  "CREDIT ", "DEBIT ", "POS ", "TFR ", "TRANSACTION ", "PAYMENT TO "
 ];
 
 const COMMON_SUFFIXES = [
   " ACCOUNT", " CARD", " PAYMENT", " DEBIT", " CREDIT", " TRANSFER", " TXN", " TRANSACTION",
-  " WITHDRAW", " DEPOSIT", " FEE", " CHARGE", " SERVICE", " LLC", " INC", " LTD", " LIMITED"
+  " WITHDRAW", " DEPOSIT", " FEE", " CHARGE", " SERVICE", " LLC", " INC", " LTD", " LIMITED",
+  " PTY", " (PTY)", " (PTY) LTD", " TECHNOLOGIES", " TECHNOLOGY", " SOLUTIONS", " CC"
 ];
 
 // Words to remove entirely
 const WORDS_TO_REMOVE = [
-  "THE", "A", "AN", "AND", "OR", "AT", "ON", "IN", "TO", "FOR", "BY", "WITH", "FROM"
+  "THE", "A", "AN", "AND", "OR", "AT", "ON", "IN", "TO", "FOR", "BY", "WITH", "FROM",
+  "OF", "LTD", "LLC", "INC", "CO", "CORP", "CORPORATION", "PTY", "LIMITED"
 ];
 
 /**
@@ -46,6 +49,8 @@ export function extractVendorName(description: string): string {
   vendor = vendor.replace(/\b[A-Z0-9]{10,}\b/g, ""); // Remove long alphanumeric strings
   vendor = vendor.replace(/REF:\s*\S+/gi, ""); // Remove reference numbers
   vendor = vendor.replace(/\d{2}\/\d{2}\/\d{2,4}/g, ""); // Remove dates
+  vendor = vendor.replace(/\d+\.\d+/g, ""); // Remove decimal numbers
+  vendor = vendor.replace(/\(\d+\)/g, ""); // Remove numbers in parentheses
   
   // Split into words and filter out words to remove
   const words = vendor.split(/\s+/).filter(word => 

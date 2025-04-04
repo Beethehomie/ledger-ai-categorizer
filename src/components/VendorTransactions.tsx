@@ -39,7 +39,7 @@ const VendorTransactions: React.FC = () => {
   
   return (
     <div className="space-y-6">
-      <Card className="border-finance-gray-light">
+      <Card className="border-finance-gray-light hover:shadow-md transition-all">
         <CardHeader>
           <CardTitle className="text-finance-blue flex items-center gap-2">
             <Store className="h-5 w-5" />
@@ -78,7 +78,7 @@ const VendorTransactions: React.FC = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-finance-green border-finance-green"
+                  className="text-finance-green border-finance-green hover-scale"
                   onClick={() => handleVendorApproval(selectedVendor, true)}
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -87,7 +87,7 @@ const VendorTransactions: React.FC = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-finance-red border-finance-red"
+                  className="text-finance-red border-finance-red hover-scale"
                   onClick={() => handleVendorApproval(selectedVendor, false)}
                 >
                   <AlertTriangle className="h-4 w-4 mr-2" />
@@ -101,7 +101,7 @@ const VendorTransactions: React.FC = () => {
       
       {selectedVendor ? (
         <div className="animate-fade-in">
-          <Card>
+          <Card className="hover:shadow-md transition-all">
             <CardHeader>
               <CardTitle className="text-lg">Transactions for {selectedVendor}</CardTitle>
             </CardHeader>
@@ -112,7 +112,7 @@ const VendorTransactions: React.FC = () => {
         </div>
       ) : (
         <div className="text-center py-8 text-muted-foreground animate-fade-in">
-          <Store className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+          <Store className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50 animate-bounce-subtle" />
           <p>Select a vendor to view their transactions</p>
         </div>
       )}

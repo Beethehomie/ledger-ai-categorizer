@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,9 +62,9 @@ const FileUpload: React.FC = () => {
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full hover:shadow-md transition-all">
       <CardHeader>
-        <CardTitle className="text-finance-blue">Upload Bank Statement</CardTitle>
+        <CardTitle className="text-primary">Upload Bank Statement</CardTitle>
         <CardDescription>
           Upload a CSV file containing bank statement data to categorize transactions
         </CardDescription>
@@ -71,7 +72,7 @@ const FileUpload: React.FC = () => {
       <CardContent>
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center ${
-            dragActive ? 'border-primary bg-secondary/50' : 'border-gray-300'
+            dragActive ? 'border-primary bg-secondary/50' : 'border-muted'
           } transition-colors duration-200 ease-in-out`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -80,7 +81,7 @@ const FileUpload: React.FC = () => {
         >
           <div className="flex flex-col items-center justify-center space-y-4">
             <div className="p-3 rounded-full bg-primary/10">
-              <UploadCloud className="h-10 w-10 text-finance-blue" />
+              <UploadCloud className={`h-10 w-10 text-primary ${dragActive ? 'animate-bounce-subtle' : ''}`} />
             </div>
             <div>
               <p className="text-lg font-medium">Drag and drop your CSV file here</p>
@@ -96,6 +97,7 @@ const FileUpload: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => document.getElementById('file-upload')?.click()}
+              className="hover-scale"
             >
               Browse Files
             </Button>
@@ -103,16 +105,16 @@ const FileUpload: React.FC = () => {
         </div>
 
         {selectedFile && (
-          <div className="mt-4 p-4 border rounded-md bg-background">
+          <div className="mt-4 p-4 border rounded-md bg-background animate-fade-in">
             <div className="flex items-center space-x-2">
-              <FileSpreadsheet className="h-5 w-5 text-finance-green" />
+              <FileSpreadsheet className="h-5 w-5 text-finance-green animate-pulse" />
               <div className="flex-1 truncate">
                 <p className="font-medium">{selectedFile.name}</p>
                 <p className="text-sm text-muted-foreground">
                   {(selectedFile.size / 1024).toFixed(1)} KB
                 </p>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => setSelectedFile(null)}>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedFile(null)} className="hover-scale">
                 Remove
               </Button>
             </div>
@@ -128,7 +130,7 @@ const FileUpload: React.FC = () => {
         <Button
           onClick={processFile}
           disabled={!selectedFile || loading}
-          className="bg-finance-green hover:bg-finance-green-light"
+          className="bg-finance-green hover:bg-finance-green-light hover-scale"
         >
           {loading ? 'Processing...' : 'Process Transactions'}
         </Button>

@@ -221,7 +221,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all', ven
                 <TableCell className="text-center">
                   {transaction.isVerified ? (
                     <div className="flex items-center justify-center">
-                      <CheckCircle className="h-5 w-5 text-finance-green" />
+                      <CheckCircle className="h-5 w-5 text-finance-green animate-pulse" />
                     </div>
                   ) : transaction.aiSuggestion ? (
                     <div className="flex items-center justify-center text-finance-yellow">
@@ -241,7 +241,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all', ven
                         <Button 
                           size="icon" 
                           variant="ghost" 
-                          className="h-8 w-8 text-finance-green"
+                          className="h-8 w-8 text-finance-green hover-scale"
                           onClick={() => handleVerify(transaction, transaction.aiSuggestion!)}
                         >
                           <Check className="h-4 w-4" />
@@ -250,7 +250,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all', ven
                       <Button 
                         size="icon" 
                         variant="ghost" 
-                        className="h-8 w-8 text-finance-red"
+                        className="h-8 w-8 text-finance-red hover-scale"
                       >
                         <X className="h-4 w-4" />
                       </Button>
