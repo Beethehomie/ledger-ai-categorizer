@@ -39,9 +39,9 @@ const VendorTransactions: React.FC = () => {
   
   return (
     <div className="space-y-6">
-      <Card className="border-finance-gray-light hover:shadow-md transition-all">
+      <Card className="border-[hsl(var(--border))] hover:shadow-md transition-all">
         <CardHeader>
-          <CardTitle className="text-finance-blue flex items-center gap-2">
+          <CardTitle className="text-[hsl(var(--primary))] flex items-center gap-2">
             <Store className="h-5 w-5" />
             Vendor Analysis
           </CardTitle>
@@ -65,7 +65,7 @@ const VendorTransactions: React.FC = () => {
                       <span>{vendor.name}</span>
                       <span className="text-xs text-muted-foreground">({vendor.count})</span>
                       {vendor.verified && (
-                        <BadgeCheck className="h-4 w-4 text-finance-green" />
+                        <BadgeCheck className="h-4 w-4 text-[hsl(var(--finance-soft-green))]" />
                       )}
                     </div>
                   </SelectItem>
@@ -78,7 +78,7 @@ const VendorTransactions: React.FC = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-finance-green border-finance-green hover-scale"
+                  className="text-[hsl(var(--finance-soft-green))] border-[hsl(var(--finance-soft-green))] hover-scale"
                   onClick={() => handleVendorApproval(selectedVendor, true)}
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -87,7 +87,7 @@ const VendorTransactions: React.FC = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-finance-red border-finance-red hover-scale"
+                  className="text-[hsl(var(--finance-soft-red))] border-[hsl(var(--finance-soft-red))] hover-scale"
                   onClick={() => handleVendorApproval(selectedVendor, false)}
                 >
                   <AlertTriangle className="h-4 w-4 mr-2" />

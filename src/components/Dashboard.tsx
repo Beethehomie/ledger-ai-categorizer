@@ -26,10 +26,10 @@ const Dashboard: React.FC = () => {
         <div className="lg:col-span-1 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <FileUpload />
           
-          {/* New Goal Progress Visualization */}
+          {/* Goal Progress Visualization with updated nude colors */}
           <div className="mt-6 bg-[hsl(var(--finance-nude-gray))] rounded-lg p-6 border border-[hsl(var(--border))] shadow-sm animate-fade-in hover:shadow-md transition-all">
             <div className="flex items-center mb-4">
-              <User className="h-8 w-8 mr-3 p-1.5 rounded-full bg-[hsl(var(--finance-soft-blue))] text-white" />
+              <User className="h-8 w-8 mr-3 p-1.5 rounded-full bg-[hsl(var(--primary))] text-white" />
               <div>
                 <h3 className="font-medium text-[hsl(var(--finance-nude-dark))]">Financial Goal Progress</h3>
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">Tracking toward $100k</p>
@@ -50,10 +50,13 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               
-              {/* Progress fill */}
+              {/* Progress fill with nude gradient */}
               <div 
                 className="progress-fill animate-fill-up" 
-                style={{ '--fill-height': `${progressPercentage}%` } as React.CSSProperties}
+                style={{ 
+                  '--fill-height': `${progressPercentage}%`,
+                  background: 'linear-gradient(180deg, hsl(var(--finance-beige)) 0%, hsl(var(--primary)) 100%)'
+                } as React.CSSProperties}
               ></div>
               
               {/* Avatar */}
@@ -62,7 +65,7 @@ const Dashboard: React.FC = () => {
                 style={{ bottom: `${progressPercentage}%` }}
               >
                 <div className="relative">
-                  <div className="h-12 w-12 rounded-full bg-[hsl(var(--finance-soft-blue))] flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-full bg-[hsl(var(--primary))] flex items-center justify-center">
                     <DollarSign className="h-6 w-6 text-white" />
                   </div>
                   <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-[hsl(var(--finance-nude-dark))] text-white text-xs px-2 py-1 rounded">

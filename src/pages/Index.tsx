@@ -7,7 +7,7 @@ import { User } from 'lucide-react';
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-[hsl(24,7%,40%)] text-white shadow-md">
+      <header className="bg-[hsl(var(--primary))] text-white shadow-md">
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
             <div>
@@ -36,8 +36,8 @@ const Index = () => {
         </BookkeepingProvider>
       </main>
 
-      <footer className="bg-[hsl(24,5%,96%)] border-t mt-auto">
-        <div className="container mx-auto px-4 py-4 text-center text-sm text-[hsl(24,5%,45%)]">
+      <footer className="bg-[hsl(var(--muted))] border-t mt-auto">
+        <div className="container mx-auto px-4 py-4 text-center text-sm text-[hsl(var(--muted-foreground))]">
           <p>© 2025 Ledger AI Categorizer - Automated financial categorization and reporting</p>
         </div>
       </footer>

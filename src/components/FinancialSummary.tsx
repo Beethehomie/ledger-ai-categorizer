@@ -18,15 +18,15 @@ const FinancialSummary: React.FC = () => {
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in">
-      <Card>
+      <Card className="border-[hsl(var(--border))] hover:shadow-md transition-all">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
             Total Income
           </CardTitle>
-          <DollarSign className="h-4 w-4 text-finance-green" />
+          <DollarSign className="h-4 w-4 text-[hsl(var(--finance-soft-green))]" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-finance-green">
+          <div className="text-2xl font-bold text-[hsl(var(--finance-soft-green))]">
             {formatCurrency(financialSummary.totalIncome)}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -35,15 +35,15 @@ const FinancialSummary: React.FC = () => {
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="border-[hsl(var(--border))] hover:shadow-md transition-all">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
             Total Expenses
           </CardTitle>
-          <ArrowDownRight className="h-4 w-4 text-finance-red" />
+          <ArrowDownRight className="h-4 w-4 text-[hsl(var(--finance-soft-red))]" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-finance-red">
+          <div className="text-2xl font-bold text-[hsl(var(--finance-soft-red))]">
             {formatCurrency(financialSummary.totalExpenses)}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -52,16 +52,16 @@ const FinancialSummary: React.FC = () => {
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="border-[hsl(var(--border))] hover:shadow-md transition-all">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
             Net Profit
           </CardTitle>
-          <LineChart className="h-4 w-4 text-finance-blue" />
+          <LineChart className="h-4 w-4 text-[hsl(var(--finance-beige))]" />
         </CardHeader>
         <CardContent>
           <div className={`text-2xl font-bold ${
-            financialSummary.netProfit >= 0 ? 'text-finance-green' : 'text-finance-red'
+            financialSummary.netProfit >= 0 ? 'text-[hsl(var(--finance-soft-green))]' : 'text-[hsl(var(--finance-soft-red))]'
           }`}>
             {formatCurrency(financialSummary.netProfit)}
           </div>

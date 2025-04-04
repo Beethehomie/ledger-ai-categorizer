@@ -1,116 +1,113 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 30 25% 98%;
-    --foreground: 24 10% 10%;
+    --background: 30 15% 96%;
+    --foreground: 28 10% 25%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 24 10% 10%;
+    --card: 30 10% 98%;
+    --card-foreground: 28 10% 25%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 24 10% 10%;
+    --popover: 30 10% 98%;
+    --popover-foreground: 28 10% 25%;
 
-    --primary: 24 7% 40%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 25 25% 35%;
+    --primary-foreground: 30 20% 98%;
 
-    --secondary: 24 5% 94%;
-    --secondary-foreground: 24 10% 20%;
+    --secondary: 25 15% 94%;
+    --secondary-foreground: 28 10% 25%;
 
-    --muted: 24 5% 96%;
-    --muted-foreground: 24 5% 45%;
+    --muted: 25 10% 92%;
+    --muted-foreground: 25 10% 45%;
 
-    --accent: 24 7% 92%;
-    --accent-foreground: 24 10% 20%;
+    --accent: 25 15% 90%;
+    --accent-foreground: 28 10% 25%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 30 20% 98%;
 
-    --border: 24 5% 90%;
-    --input: 24 5% 90%;
-    --ring: 24 7% 40%;
+    --border: 25 15% 85%;
+    --input: 25 15% 85%;
+    --ring: 25 25% 35%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 30 20% 98%;
-    --sidebar-foreground: 24 5.3% 26.1%;
-    --sidebar-primary: 24 5.9% 10%;
-    --sidebar-primary-foreground: 30 20% 98%;
-    --sidebar-accent: 24 4.8% 95.9%;
-    --sidebar-accent-foreground: 24 5.9% 10%;
-    --sidebar-border: 24 13% 91%;
-    --sidebar-ring: 24 10% 50%;
+    --sidebar-background: 30 15% 96%;
+    --sidebar-foreground: 28 10% 35%;
+    --sidebar-primary: 25 25% 35%;
+    --sidebar-primary-foreground: 30 15% 98%;
+    --sidebar-accent: 25 15% 90%;
+    --sidebar-accent-foreground: 28 10% 25%;
+    --sidebar-border: 25 15% 85%;
+    --sidebar-ring: 25 20% 50%;
 
-    /* New finance colors with more nude tones */
-    --finance-beige: 34 41% 83%;
-    --finance-nude-gray: 260 33% 97%;
-    --finance-nude-dark: 260 5% 25%;
-    --finance-soft-green: 110 57% 95%;
-    --finance-soft-red: 0 71% 77%;
-    --finance-soft-yellow: 43 100% 77%;
-    --finance-soft-blue: 219 79% 66%;
+    /* Updated finance colors to more nude tones */
+    --finance-beige: 30 30% 85%;
+    --finance-nude-gray: 25 15% 92%;
+    --finance-nude-dark: 28 10% 25%;
+    --finance-soft-green: 95 15% 70%;
+    --finance-soft-red: 5 50% 70%;
+    --finance-soft-yellow: 40 60% 75%;
+    --finance-soft-blue: 210 25% 60%;
   }
 
   .dark {
-    --background: 24 10% 10%;
-    --foreground: 30 20% 90%;
+    --background: 28 10% 15%;
+    --foreground: 30 15% 85%;
 
-    --card: 24 10% 10%;
-    --card-foreground: 30 20% 90%;
+    --card: 28 10% 15%;
+    --card-foreground: 30 15% 85%;
 
-    --popover: 24 10% 10%;
-    --popover-foreground: 30 20% 90%;
+    --popover: 28 10% 15%;
+    --popover-foreground: 30 15% 85%;
 
-    --primary: 30 20% 90%;
-    --primary-foreground: 24 10% 10%;
+    --primary: 25 20% 60%;
+    --primary-foreground: 28 10% 15%;
 
-    --secondary: 24 5% 20%;
-    --secondary-foreground: 30 20% 90%;
+    --secondary: 25 10% 25%;
+    --secondary-foreground: 30 15% 85%;
 
-    --muted: 24 5% 25%;
-    --muted-foreground: 24 5% 65%;
+    --muted: 25 10% 30%;
+    --muted-foreground: 25 10% 60%;
 
-    --accent: 24 5% 25%;
-    --accent-foreground: 30 20% 90%;
+    --accent: 25 10% 30%;
+    --accent-foreground: 30 15% 85%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 60% 35%;
+    --destructive-foreground: 0 0% 95%;
 
-    --border: 24 5% 25%;
-    --input: 24 5% 25%;
-    --ring: 24 5% 65%;
+    --border: 25 10% 30%;
+    --input: 25 10% 30%;
+    --ring: 25 20% 60%;
     
-    --sidebar-background: 24 5.9% 10%;
-    --sidebar-foreground: 24 4.8% 95.9%;
-    --sidebar-primary: 24 6.3% 60%;
+    --sidebar-background: 28 10% 15%;
+    --sidebar-foreground: 25 10% 85%;
+    --sidebar-primary: 25 20% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 24 3.7% 15.9%;
-    --sidebar-accent-foreground: 24 4.8% 95.9%;
-    --sidebar-border: 24 3.7% 15.9%;
-    --sidebar-ring: 24 6.3% 60%;
+    --sidebar-accent: 25 10% 20%;
+    --sidebar-accent-foreground: 25 10% 85%;
+    --sidebar-border: 25 10% 20%;
+    --sidebar-ring: 25 20% 60%;
 
-    /* Dark mode finance colors */
-    --finance-beige: 34 25% 40%;
-    --finance-nude-gray: 260 10% 20%;
-    --finance-nude-dark: 260 5% 15%;
-    --finance-soft-green: 110 25% 35%;
-    --finance-soft-red: 0 50% 40%;
-    --finance-soft-yellow: 43 70% 45%;
-    --finance-soft-blue: 219 50% 40%;
+    /* Dark mode finance colors with nude tones */
+    --finance-beige: 30 20% 45%;
+    --finance-nude-gray: 25 10% 30%;
+    --finance-nude-dark: 28 10% 20%;
+    --finance-soft-green: 95 15% 40%;
+    --finance-soft-red: 5 40% 50%;
+    --finance-soft-yellow: 40 40% 50%;
+    --finance-soft-blue: 210 20% 45%;
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+* {
+  @apply border-border;
+}
 
-  body {
-    @apply bg-background text-foreground;
-  }
+body {
+  @apply bg-background text-foreground;
 }
 
 ::-webkit-scrollbar {
