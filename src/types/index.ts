@@ -1,0 +1,32 @@
+
+export type TransactionType = "income" | "expense" | "asset" | "liability" | "equity";
+export type StatementType = "profit_loss" | "balance_sheet";
+
+export interface Transaction {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  category?: string;
+  type?: TransactionType;
+  statementType?: StatementType;
+  isVerified: boolean;
+  aiSuggestion?: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  type: TransactionType;
+  statementType: StatementType;
+  keywords: string[];
+}
+
+export interface FinancialSummary {
+  totalIncome: number;
+  totalExpenses: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  netProfit: number;
+}
