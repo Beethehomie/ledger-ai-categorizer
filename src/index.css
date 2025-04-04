@@ -43,6 +43,15 @@
     --sidebar-accent-foreground: 24 5.9% 10%;
     --sidebar-border: 24 13% 91%;
     --sidebar-ring: 24 10% 50%;
+
+    /* New finance colors with more nude tones */
+    --finance-beige: 34 41% 83%;
+    --finance-nude-gray: 260 33% 97%;
+    --finance-nude-dark: 260 5% 25%;
+    --finance-soft-green: 110 57% 95%;
+    --finance-soft-red: 0 71% 77%;
+    --finance-soft-yellow: 43 100% 77%;
+    --finance-soft-blue: 219 79% 66%;
   }
 
   .dark {
@@ -82,6 +91,15 @@
     --sidebar-accent-foreground: 24 4.8% 95.9%;
     --sidebar-border: 24 3.7% 15.9%;
     --sidebar-ring: 24 6.3% 60%;
+
+    /* Dark mode finance colors */
+    --finance-beige: 34 25% 40%;
+    --finance-nude-gray: 260 10% 20%;
+    --finance-nude-dark: 260 5% 15%;
+    --finance-soft-green: 110 25% 35%;
+    --finance-soft-red: 0 50% 40%;
+    --finance-soft-yellow: 43 70% 45%;
+    --finance-soft-blue: 219 50% 40%;
   }
 }
 
@@ -155,6 +173,48 @@
   animation: pulse 2s infinite ease-in-out;
 }
 
+/* New animations */
+@keyframes fill-up {
+  from {
+    height: 0%;
+  }
+  to {
+    height: var(--fill-height, 75%);
+  }
+}
+
+.animate-fill-up {
+  animation: fill-up 1.5s ease-out forwards;
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+@keyframes grow {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.animate-grow {
+  animation: grow 0.8s ease-out forwards;
+}
+
 .transition-all {
   transition: all 0.3s ease;
 }
@@ -171,4 +231,30 @@
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Progress container styles */
+.progress-container {
+  position: relative;
+  background: hsl(var(--muted));
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(180deg, hsl(var(--finance-soft-green)) 0%, hsl(var(--finance-soft-blue)) 100%);
+  border-radius: 0 0 1rem 1rem;
+}
+
+.goal-marker {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background-color: hsl(var(--finance-soft-red));
+  left: 0;
 }

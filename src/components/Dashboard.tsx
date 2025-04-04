@@ -7,11 +7,16 @@ import VendorTransactions from "./VendorTransactions";
 import FinancialSummary from "./FinancialSummary";
 import ChartSection from "./ChartSection";
 import { useBookkeeping } from '@/context/BookkeepingContext';
-import { Store, FileText, PieChart, AlertCircle, BarChart3 } from "lucide-react";
+import { Store, FileText, PieChart, AlertCircle, BarChart3, User, DollarSign, Target } from "lucide-react";
 
 const Dashboard: React.FC = () => {
   const { transactions } = useBookkeeping();
   const unverifiedCount = transactions.filter(t => !t.isVerified).length;
+  
+  // Calculate progress towards goal (for demonstration)
+  const goalAmount = 100000;
+  const currentAmount = 45000; // For demo, 45% of goal
+  const progressPercentage = (currentAmount / goalAmount) * 100;
   
   return (
     <div className="space-y-6">
@@ -20,6 +25,53 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <FileUpload />
+          
+          {/* New Goal Progress Visualization */}
+          <div className="mt-6 bg-[hsl(var(--finance-nude-gray))] rounded-lg p-6 border border-[hsl(var(--border))] shadow-sm animate-fade-in hover:shadow-md transition-all">
+            <div className="flex items-center mb-4">
+              <User className="h-8 w-8 mr-3 p-1.5 rounded-full bg-[hsl(var(--finance-soft-blue))] text-white" />
+              <div>
+                <h3 className="font-medium text-[hsl(var(--finance-nude-dark))]">Financial Goal Progress</h3>
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">Tracking toward $100k</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-[hsl(var(--muted-foreground))]">Current: ${currentAmount.toLocaleString()}</span>
+              <span className="text-sm text-[hsl(var(--muted-foreground))]">Goal: ${goalAmount.toLocaleString()}</span>
+            </div>
+            
+            <div className="relative h-64 progress-container">
+              {/* Goal marker at 80% */}
+              <div className="goal-marker" style={{ bottom: '80%' }}>
+                <div className="absolute -right-16 -top-4 flex items-center animate-pulse">
+                  <Target className="h-4 w-4 text-[hsl(var(--finance-soft-red))]" />
+                  <span className="text-xs text-[hsl(var(--finance-soft-red))]">Milestone</span>
+                </div>
+              </div>
+              
+              {/* Progress fill */}
+              <div 
+                className="progress-fill animate-fill-up" 
+                style={{ '--fill-height': `${progressPercentage}%` } as React.CSSProperties}
+              ></div>
+              
+              {/* Avatar */}
+              <div 
+                className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 animate-bounce-subtle"
+                style={{ bottom: `${progressPercentage}%` }}
+              >
+                <div className="relative">
+                  <div className="h-12 w-12 rounded-full bg-[hsl(var(--finance-soft-blue))] flex items-center justify-center">
+                    <DollarSign className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-[hsl(var(--finance-nude-dark))] text-white text-xs px-2 py-1 rounded">
+                    {progressPercentage.toFixed(0)}% Complete
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         
         <div className="lg:col-span-2 animate-fade-in" style={{ animationDelay: '0.3s' }}>
@@ -27,7 +79,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
       
-      <div className="bg-card rounded-lg shadow-sm border border-finance-gray-light animate-fade-in hover:shadow-md transition-all" style={{ animationDelay: '0.5s' }}>
+      <div className="bg-[hsl(var(--card))] rounded-lg shadow-sm border border-[hsl(var(--border))] animate-fade-in hover:shadow-md transition-all" style={{ animationDelay: '0.5s' }}>
         <Tabs defaultValue="all">
           <div className="px-4 pt-4">
             <TabsList className="grid w-full grid-cols-5">
@@ -39,7 +91,7 @@ const Dashboard: React.FC = () => {
                 <AlertCircle className="h-4 w-4 mr-1" />
                 Unverified
                 {unverifiedCount > 0 && (
-                  <span className="absolute -right-1 -top-1 bg-finance-red text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                  <span className="absolute -right-1 -top-1 bg-[hsl(var(--finance-soft-red))] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
                     {unverifiedCount}
                   </span>
                 )}
@@ -59,23 +111,23 @@ const Dashboard: React.FC = () => {
             </TabsList>
           </div>
           
-          <TabsContent value="all" className="m-0 p-4 animate-fade-in">
+          <TabsContent value="all" className="m-0 p-4 animate-slide-in-left">
             <TransactionTable filter="all" />
           </TabsContent>
           
-          <TabsContent value="unverified" className="m-0 p-4 animate-fade-in">
+          <TabsContent value="unverified" className="m-0 p-4 animate-slide-in-left">
             <TransactionTable filter="unverified" />
           </TabsContent>
           
-          <TabsContent value="pl" className="m-0 p-4 animate-fade-in">
+          <TabsContent value="pl" className="m-0 p-4 animate-slide-in-left">
             <TransactionTable filter="profit_loss" />
           </TabsContent>
           
-          <TabsContent value="bs" className="m-0 p-4 animate-fade-in">
+          <TabsContent value="bs" className="m-0 p-4 animate-slide-in-left">
             <TransactionTable filter="balance_sheet" />
           </TabsContent>
           
-          <TabsContent value="vendors" className="m-0 p-4 animate-fade-in">
+          <TabsContent value="vendors" className="m-0 p-4 animate-slide-in-left">
             <VendorTransactions />
           </TabsContent>
         </Tabs>
