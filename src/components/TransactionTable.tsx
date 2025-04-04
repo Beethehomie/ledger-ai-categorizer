@@ -154,37 +154,38 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all' }) =
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="" disabled>Select a category</SelectItem>
+                        {/* Replace empty values with unique non-empty identifiers */}
+                        <SelectItem value="select-placeholder" disabled>Select a category</SelectItem>
                         
-                        <SelectItem value="" disabled className="font-bold text-finance-blue">Income</SelectItem>
+                        <SelectItem value="header-income" disabled className="font-bold text-finance-blue">Income</SelectItem>
                         {categoriesByType.income.map(category => (
                           <SelectItem key={category.id} value={category.name}>
                             {category.name}
                           </SelectItem>
                         ))}
                         
-                        <SelectItem value="" disabled className="font-bold text-finance-blue mt-2">Expenses</SelectItem>
+                        <SelectItem value="header-expense" disabled className="font-bold text-finance-blue mt-2">Expenses</SelectItem>
                         {categoriesByType.expense.map(category => (
                           <SelectItem key={category.id} value={category.name}>
                             {category.name}
                           </SelectItem>
                         ))}
                         
-                        <SelectItem value="" disabled className="font-bold text-finance-blue mt-2">Assets</SelectItem>
+                        <SelectItem value="header-asset" disabled className="font-bold text-finance-blue mt-2">Assets</SelectItem>
                         {categoriesByType.asset.map(category => (
                           <SelectItem key={category.id} value={category.name}>
                             {category.name}
                           </SelectItem>
                         ))}
                         
-                        <SelectItem value="" disabled className="font-bold text-finance-blue mt-2">Liabilities</SelectItem>
+                        <SelectItem value="header-liability" disabled className="font-bold text-finance-blue mt-2">Liabilities</SelectItem>
                         {categoriesByType.liability.map(category => (
                           <SelectItem key={category.id} value={category.name}>
                             {category.name}
                           </SelectItem>
                         ))}
                         
-                        <SelectItem value="" disabled className="font-bold text-finance-blue mt-2">Equity</SelectItem>
+                        <SelectItem value="header-equity" disabled className="font-bold text-finance-blue mt-2">Equity</SelectItem>
                         {categoriesByType.equity.map(category => (
                           <SelectItem key={category.id} value={category.name}>
                             {category.name}
