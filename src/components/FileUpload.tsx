@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UploadCloud, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
-import { toast } from '@/components/ui/sonner';
+import { toast } from '@/utils/toast';
 
 const FileUpload: React.FC = () => {
   const { uploadCSV, loading } = useBookkeeping();

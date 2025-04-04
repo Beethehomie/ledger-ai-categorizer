@@ -1,9 +1,8 @@
-
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Transaction, Category, FinancialSummary } from '../types';
 import { mockTransactions, mockCategories } from '../data/mockData';
 import { parseCSV, categorizeByCriteria, analyzeTransactionWithAI } from '../utils/csvParser';
-import { toast } from '@/components/ui/sonner';
+import { toast } from '@/utils/toast';
 
 interface BookkeepingContextType {
   transactions: Transaction[];
