@@ -1,3 +1,4 @@
+import { Vendor } from '../types';
 
 // Common prefixes and suffixes to remove from transaction descriptions
 const COMMON_PREFIXES = [
