@@ -22,16 +22,19 @@ import {
   Check,
   Clock,
   X,
+  Store,
 } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
 import { cn } from '@/lib/utils';
+import { toast } from '@/utils/toast';
 
 interface TransactionTableProps {
-  filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet';
+  filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor';
+  vendorName?: string;
 }
 
-const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all' }) => {
+const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all', vendorName }) => {
   const { transactions, categories, verifyTransaction } = useBookkeeping();
   const [sortField, setSortField] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -44,6 +47,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all' }) =
       return transaction.statementType === 'profit_loss';
     } else if (filter === 'balance_sheet') {
       return transaction.statementType === 'balance_sheet';
+    } else if (filter === 'by_vendor' && vendorName) {
+      return transaction.vendor === vendorName;
     }
     return true;
   });
@@ -60,6 +65,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all' }) =
       return sortDirection === 'asc'
         ? a.description.localeCompare(b.description)
         : b.description.localeCompare(a.description);
+    } else if (sortField === 'vendor') {
+      return sortDirection === 'asc'
+        ? (a.vendor || '').localeCompare(b.vendor || '')
+        : (b.vendor || '').localeCompare(a.vendor || '');
     }
     return 0;
   });
@@ -96,7 +105,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all' }) =
   };
 
   return (
-    <div className="w-full overflow-auto">
+    <div className="w-full overflow-auto animate-fade-in">
       <Table>
         <TableHeader>
           <TableRow>
@@ -105,6 +114,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all' }) =
             </TableHead>
             <TableHead className="cursor-pointer" onClick={() => handleSort('description')}>
               Description {sortField === 'description' && (sortDirection === 'asc' ? '↑' : '↓')}
+            </TableHead>
+            <TableHead className="cursor-pointer" onClick={() => handleSort('vendor')}>
+              Vendor {sortField === 'vendor' && (sortDirection === 'asc' ? '↑' : '↓')}
             </TableHead>
             <TableHead className="cursor-pointer text-right" onClick={() => handleSort('amount')}>
               Amount {sortField === 'amount' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -118,7 +130,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all' }) =
         <TableBody>
           {sortedTransactions.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                 No transactions to display
               </TableCell>
             </TableRow>
@@ -127,10 +139,15 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all' }) =
               <TableRow key={transaction.id} className={cn(
                 transaction.isVerified ? "" : "bg-muted/30",
                 transaction.type === 'income' || transaction.amount > 0 ? "border-l-2 border-l-finance-green" : "",
-                transaction.type === 'expense' && transaction.amount < 0 ? "border-l-2 border-l-finance-red" : ""
+                transaction.type === 'expense' && transaction.amount < 0 ? "border-l-2 border-l-finance-red" : "",
+                "transition-all hover:bg-muted/30"
               )}>
                 <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                 <TableCell>{transaction.description}</TableCell>
+                <TableCell className="flex items-center gap-1">
+                  <Store className="h-4 w-4 text-finance-gray" />
+                  {transaction.vendor || "Unknown"}
+                </TableCell>
                 <TableCell 
                   className={cn(
                     "text-right font-medium",
@@ -154,7 +171,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all' }) =
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {/* Replace empty values with unique non-empty identifiers */}
                         <SelectItem value="select-placeholder" disabled>Select a category</SelectItem>
                         
                         <SelectItem value="header-income" disabled className="font-bold text-finance-blue">Income</SelectItem>

@@ -12,6 +12,8 @@ export interface Transaction {
   statementType?: StatementType;
   isVerified: boolean;
   aiSuggestion?: string;
+  vendor?: string;
+  vendorVerified?: boolean;
 }
 
 export interface Category {
@@ -20,6 +22,15 @@ export interface Category {
   type: TransactionType;
   statementType: StatementType;
   keywords: string[];
+}
+
+export interface Vendor {
+  name: string;
+  category: string;
+  type: TransactionType;
+  statementType: StatementType;
+  occurrences: number;
+  verified: boolean;
 }
 
 export interface FinancialSummary {
