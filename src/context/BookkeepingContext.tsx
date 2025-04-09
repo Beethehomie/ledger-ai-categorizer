@@ -1,10 +1,12 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Transaction, Category, FinancialSummary, Vendor } from '../types';
-import { mockTransactions, mockCategories } from '../data/mockData';
-import { parseCSV, categorizeByCriteria, analyzeTransactionWithAI } from '../utils/csvParser';
+import { mockCategories } from '../data/mockData';
+import { parseCSV } from '../utils/csvParser';
 import { extractVendorName } from '../utils/vendorExtractor';
 import { toast } from '@/utils/toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
 
 interface BookkeepingContextType {
   transactions: Transaction[];
@@ -12,6 +14,7 @@ interface BookkeepingContextType {
   vendors: Vendor[];
   financialSummary: FinancialSummary;
   loading: boolean;
+  aiAnalyzeLoading: boolean;
   addTransactions: (newTransactions: Transaction[]) => void;
   updateTransaction: (updatedTransaction: Transaction) => void;
   verifyTransaction: (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => void;
@@ -24,6 +27,7 @@ interface BookkeepingContextType {
   ) => Transaction[];
   getVendorsList: () => { name: string; count: number; verified: boolean; }[];
   calculateFinancialSummary: () => void;
+  analyzeTransactionWithAI: (transaction: Transaction) => Promise<any>;
 }
 
 const initialFinancialSummary: FinancialSummary = {
@@ -38,18 +42,49 @@ const initialFinancialSummary: FinancialSummary = {
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 
 export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    // Add vendor names to existing mock transactions
-    return mockTransactions.map(t => ({
-      ...t,
-      vendor: extractVendorName(t.description),
-      vendorVerified: false
-    }));
-  });
+  const { session } = useAuth();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>(mockCategories);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary>(initialFinancialSummary);
   const [loading, setLoading] = useState<boolean>(false);
+  const [aiAnalyzeLoading, setAiAnalyzeLoading] = useState<boolean>(false);
+
+  // Load vendors from Supabase
+  useEffect(() => {
+    if (!session) return;
+
+    const fetchVendors = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('vendor_categorizations')
+          .select('*');
+          
+        if (error) {
+          console.error('Error fetching vendors:', error);
+          return;
+        }
+        
+        if (data) {
+          // Convert from database format to our app's format
+          const vendorsFromDB: Vendor[] = data.map(v => ({
+            name: v.vendor_name,
+            category: v.category,
+            type: v.type as Transaction['type'],
+            statementType: v.statement_type as Transaction['statementType'],
+            occurrences: v.occurrences,
+            verified: v.verified
+          }));
+          
+          setVendors(vendorsFromDB);
+        }
+      } catch (err) {
+        console.error('Error in fetchVendors:', err);
+      }
+    };
+    
+    fetchVendors();
+  }, [session]);
 
   const calculateFinancialSummary = () => {
     const summary: FinancialSummary = {
@@ -140,7 +175,40 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     calculateFinancialSummary();
   };
 
-  const verifyTransaction = (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => {
+  const analyzeTransactionWithAI = async (transaction: Transaction) => {
+    if (!session) {
+      toast.error('You must be logged in to use AI categorization');
+      return null;
+    }
+    
+    setAiAnalyzeLoading(true);
+    
+    try {
+      // Get category names to pass to the AI
+      const categoryNames = categories.map(c => c.name);
+      
+      // Call our edge function to analyze the transaction
+      const { data, error } = await supabase.functions.invoke('analyze-transaction', {
+        body: { 
+          description: transaction.description,
+          amount: transaction.amount,
+          existingCategories: categoryNames
+        }
+      });
+      
+      if (error) throw error;
+      
+      return data;
+    } catch (err: any) {
+      console.error('Error analyzing transaction with AI:', err);
+      toast.error('Failed to analyze transaction with AI');
+      return null;
+    } finally {
+      setAiAnalyzeLoading(false);
+    }
+  };
+
+  const verifyTransaction = async (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => {
     setTransactions(prev => 
       prev.map(transaction => {
         if (transaction.id === id) { 
@@ -154,31 +222,69 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
           };
           
           // Update vendor database when a transaction is verified
-          if (updatedTransaction.vendor) {
-            const existingVendorIndex = vendors.findIndex(v => v.name === updatedTransaction.vendor);
-            
-            if (existingVendorIndex >= 0) {
-              // Update existing vendor
-              const updatedVendors = [...vendors];
-              updatedVendors[existingVendorIndex].occurrences += 1;
+          if (updatedTransaction.vendor && session) {
+            const updateVendorInSupabase = async () => {
+              const existingVendorIndex = vendors.findIndex(v => v.name === updatedTransaction.vendor);
               
-              // Mark vendor as verified if it has occurred enough times
-              if (updatedVendors[existingVendorIndex].occurrences >= 5) {
-                updatedVendors[existingVendorIndex].verified = true;
+              if (existingVendorIndex >= 0) {
+                // Update existing vendor in Supabase
+                const { error } = await supabase
+                  .from('vendor_categorizations')
+                  .update({
+                    occurrences: vendors[existingVendorIndex].occurrences + 1,
+                    last_used: new Date().toISOString()
+                  })
+                  .eq('vendor_name', updatedTransaction.vendor);
+                  
+                if (error) console.error('Error updating vendor in Supabase:', error);
+                
+                // Update local vendor state
+                const updatedVendors = [...vendors];
+                updatedVendors[existingVendorIndex].occurrences += 1;
+                
+                // Mark vendor as verified if it has occurred enough times
+                if (updatedVendors[existingVendorIndex].occurrences >= 5) {
+                  updatedVendors[existingVendorIndex].verified = true;
+                  
+                  // Update verified status in Supabase
+                  supabase
+                    .from('vendor_categorizations')
+                    .update({ verified: true })
+                    .eq('vendor_name', updatedTransaction.vendor)
+                    .then(({ error }) => {
+                      if (error) console.error('Error updating vendor verified status:', error);
+                    });
+                }
+                
+                setVendors(updatedVendors);
+              } else {
+                // Add new vendor to Supabase
+                const { error } = await supabase
+                  .from('vendor_categorizations')
+                  .insert({
+                    vendor_name: updatedTransaction.vendor,
+                    category,
+                    type,
+                    statement_type: statementType,
+                    occurrences: 1,
+                    verified: false
+                  });
+                  
+                if (error) console.error('Error adding vendor to Supabase:', error);
+                
+                // Add to local state
+                setVendors([...vendors, {
+                  name: updatedTransaction.vendor,
+                  category,
+                  type,
+                  statementType,
+                  occurrences: 1,
+                  verified: false
+                }]);
               }
-              
-              setVendors(updatedVendors);
-            } else {
-              // Add new vendor to database
-              setVendors([...vendors, {
-                name: updatedTransaction.vendor,
-                category,
-                type,
-                statementType,
-                occurrences: 1,
-                verified: false
-              }]);
-            }
+            };
+            
+            updateVendorInSupabase().catch(console.error);
           }
           
           return updatedTransaction;
@@ -190,60 +296,85 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     toast.success('Transaction verified');
   };
   
-  const verifyVendor = (vendorName: string, approved: boolean) => {
-    const updatedVendors = vendors.map(vendor => 
-      vendor.name === vendorName ? { ...vendor, verified: approved } : vendor
-    );
+  const verifyVendor = async (vendorName: string, approved: boolean) => {
+    if (!session) {
+      toast.error('You must be logged in to verify vendors');
+      return;
+    }
     
-    setVendors(updatedVendors);
-    toast.success(`Vendor ${approved ? 'approved' : 'rejected'}`);
+    try {
+      // Update in Supabase
+      const { error } = await supabase
+        .from('vendor_categorizations')
+        .update({ verified: approved })
+        .eq('vendor_name', vendorName);
+        
+      if (error) throw error;
+      
+      // Update local state
+      const updatedVendors = vendors.map(vendor => 
+        vendor.name === vendorName ? { ...vendor, verified: approved } : vendor
+      );
+      
+      setVendors(updatedVendors);
+      toast.success(`Vendor ${approved ? 'approved' : 'rejected'}`);
+    } catch (err: any) {
+      console.error('Error verifying vendor:', err);
+      toast.error('Failed to update vendor status');
+    }
   };
 
-  const uploadCSV = (csvString: string) => {
+  const uploadCSV = async (csvString: string) => {
     setLoading(true);
     try {
       const parsedTransactions = parseCSV(csvString);
       
       // Process with AI for uncategorized transactions and extract vendor names
-      const processedTransactions = parsedTransactions.map(transaction => {
-        const vendor = extractVendorName(transaction.description);
+      const processTransactions = async () => {
+        const processedTransactions = [];
         
-        // Check if we have a verified vendor that matches
-        const matchedVendor = vendors.find(v => 
-          v.name === vendor && v.verified && v.occurrences >= 5
-        );
-        
-        if (matchedVendor) {
-          // Auto-categorize based on vendor history
-          return {
-            ...transaction,
-            vendor,
-            vendorVerified: true,
-            category: matchedVendor.category,
-            type: matchedVendor.type,
-            statementType: matchedVendor.statementType,
-            isVerified: true
-          };
-        } else if (!transaction.category) {
-          // Use AI for uncategorized transactions
-          const aiResult = analyzeTransactionWithAI(transaction);
-          return {
-            ...transaction,
-            vendor,
-            vendorVerified: false,
-            aiSuggestion: aiResult.aiSuggestion
-          };
+        for (const transaction of parsedTransactions) {
+          const vendor = extractVendorName(transaction.description);
+          
+          // Check if we have a verified vendor that matches
+          const matchedVendor = vendors.find(v => 
+            v.name === vendor && v.verified && v.occurrences >= 5
+          );
+          
+          if (matchedVendor) {
+            // Auto-categorize based on vendor history
+            processedTransactions.push({
+              ...transaction,
+              vendor,
+              vendorVerified: true,
+              category: matchedVendor.category,
+              type: matchedVendor.type,
+              statementType: matchedVendor.statementType,
+              isVerified: true
+            });
+          } else if (!transaction.category && session) {
+            // Use AI for uncategorized transactions
+            const aiResult = await analyzeTransactionWithAI(transaction);
+            processedTransactions.push({
+              ...transaction,
+              vendor,
+              vendorVerified: false,
+              aiSuggestion: aiResult?.category
+            });
+          } else {
+            processedTransactions.push({
+              ...transaction,
+              vendor,
+              vendorVerified: false
+            });
+          }
         }
         
-        return {
-          ...transaction,
-          vendor,
-          vendorVerified: false
-        };
-      });
+        addTransactions(processedTransactions);
+        toast.success(`Successfully processed ${processedTransactions.length} transactions`);
+      };
       
-      addTransactions(processedTransactions);
-      toast.success(`Successfully processed ${processedTransactions.length} transactions`);
+      await processTransactions();
     } catch (error) {
       console.error('Error uploading CSV:', error);
       toast.error('Error processing CSV file');
@@ -299,9 +430,9 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       .sort((a, b) => b.count - a.count);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     calculateFinancialSummary();
-  }, []);
+  }, [transactions]);
 
   const value = {
     transactions,
@@ -309,6 +440,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     vendors,
     financialSummary,
     loading,
+    aiAnalyzeLoading,
     addTransactions,
     updateTransaction,
     verifyTransaction,
@@ -317,6 +449,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     getFilteredTransactions,
     getVendorsList,
     calculateFinancialSummary,
+    analyzeTransactionWithAI,
   };
 
   return (

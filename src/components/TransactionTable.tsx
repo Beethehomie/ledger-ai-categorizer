@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -23,6 +23,7 @@ import {
   Clock,
   X,
   Store,
+  Sparkles
 } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
@@ -35,9 +36,16 @@ interface TransactionTableProps {
 }
 
 const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all', vendorName }) => {
-  const { transactions, categories, verifyTransaction } = useBookkeeping();
+  const { 
+    transactions, 
+    categories, 
+    verifyTransaction, 
+    analyzeTransactionWithAI,
+    aiAnalyzeLoading
+  } = useBookkeeping();
   const [sortField, setSortField] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   // Filter transactions based on the filter prop
   const filteredTransactions = transactions.filter(transaction => {
@@ -101,6 +109,36 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all', ven
         selectedCategory.type,
         selectedCategory.statementType
       );
+    }
+  };
+
+  // Handle AI analysis of a transaction
+  const handleAIAnalyze = async (transaction: Transaction) => {
+    setProcessingId(transaction.id);
+    try {
+      const result = await analyzeTransactionWithAI(transaction);
+      
+      if (result && result.category) {
+        const updatedTransaction = {
+          ...transaction,
+          aiSuggestion: result.category
+        };
+        
+        toast.success(
+          <div>
+            <div className="font-medium">AI Suggestion</div>
+            <div className="text-sm">Category: {result.category}</div>
+            <div className="text-xs text-muted-foreground">Confidence: {Math.round(result.confidence * 100)}%</div>
+          </div>
+        );
+      } else {
+        toast.error('Could not get AI suggestion for this transaction');
+      }
+    } catch (error) {
+      console.error('Error in AI analysis:', error);
+      toast.error('Failed to analyze transaction with AI');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -237,6 +275,21 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all', ven
                 <TableCell className="text-center">
                   {!transaction.isVerified && (
                     <div className="flex space-x-1 justify-center">
+                      {!transaction.aiSuggestion && !aiAnalyzeLoading && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-finance-blue hover-scale"
+                          onClick={() => handleAIAnalyze(transaction)}
+                          disabled={processingId === transaction.id}
+                        >
+                          {processingId === transaction.id ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          ) : (
+                            <Sparkles className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
                       {transaction.aiSuggestion && (
                         <Button 
                           size="icon" 

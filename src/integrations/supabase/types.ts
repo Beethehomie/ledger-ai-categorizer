@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bank_connections: {
+        Row: {
+          active: boolean | null
+          api_details: Json | null
+          bank_name: string
+          connection_type: string
+          created_at: string | null
+          id: string
+          last_sync: string | null
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          api_details?: Json | null
+          bank_name: string
+          connection_type: string
+          created_at?: string | null
+          id?: string
+          last_sync?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          api_details?: Json | null
+          bank_name?: string
+          connection_type?: string
+          created_at?: string | null
+          id?: string
+          last_sync?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           "Account Category": string | null
@@ -24,6 +57,45 @@ export type Database = {
           "Account Category"?: string | null
           "Client Type"?: string | null
           Vendor?: string | null
+        }
+        Relationships: []
+      }
+      vendor_categorizations: {
+        Row: {
+          category: string
+          confidence: number | null
+          created_at: string | null
+          id: string
+          last_used: string | null
+          occurrences: number | null
+          statement_type: string
+          type: string
+          vendor_name: string
+          verified: boolean | null
+        }
+        Insert: {
+          category: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          last_used?: string | null
+          occurrences?: number | null
+          statement_type: string
+          type: string
+          vendor_name: string
+          verified?: boolean | null
+        }
+        Update: {
+          category?: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          last_used?: string | null
+          occurrences?: number | null
+          statement_type?: string
+          type?: string
+          vendor_name?: string
+          verified?: boolean | null
         }
         Relationships: []
       }
