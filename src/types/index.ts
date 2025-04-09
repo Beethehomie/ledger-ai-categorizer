@@ -47,15 +47,6 @@ export interface FinancialSummary {
   cashBalance: number;
 }
 
-export interface BankConnection {
-  id: string;
-  bank_name: string;
-  display_name?: string;
-  connection_type: string;
-  api_details: any;
-  last_sync: string | null;
-}
-
 export interface AIAnalysisResult {
   category: string;
   type: TransactionType;

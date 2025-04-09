@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -25,7 +24,7 @@ import {
   Store,
   Sparkles,
   Plus,
-  Bank
+  Building
 } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
@@ -66,7 +65,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
 
-  // Filter transactions based on the filter prop
   const filteredTransactions = transactions.filter(transaction => {
     if (filter === 'unverified') {
       return !transaction.isVerified;
@@ -80,7 +78,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     return true;
   });
 
-  // Sort transactions
   const sortedTransactions = [...filteredTransactions].sort((a, b) => {
     if (sortField === 'date') {
       const dateA = new Date(a.date).getTime();
@@ -109,7 +106,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     }
   };
 
-  // Group categories by type
   const categoriesByType: Record<string, Category[]> = {
     income: categories.filter(c => c.type === 'income'),
     expense: categories.filter(c => c.type === 'expense'),
@@ -118,7 +114,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     equity: categories.filter(c => c.type === 'equity'),
   };
 
-  // Handle verification of a transaction
   const handleVerify = (transaction: Transaction, categoryName: string) => {
     const selectedCategory = categories.find(c => c.name === categoryName);
     if (selectedCategory) {
@@ -131,7 +126,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     }
   };
 
-  // Handle AI analysis of a transaction
   const handleAIAnalyze = async (transaction: Transaction) => {
     setProcessingId(transaction.id);
     try {
@@ -152,7 +146,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     }
   };
 
-  // Get bank name for display
   const getBankName = (transaction: Transaction) => {
     if (!transaction.bankAccountId) return "Unknown";
     
@@ -160,7 +153,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     return connection?.display_name || connection?.bank_name || "Unknown";
   };
 
-  // Render confidence score indicator
   const renderConfidenceScore = (score?: number) => {
     if (score === undefined) return null;
     
@@ -384,7 +376,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                   {tableColumns.find(col => col.id === 'bankAccount')?.visible && (
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Bank className="h-4 w-4 text-finance-gray" />
+                        <Building className="h-4 w-4 text-finance-gray" />
                         <span>{getBankName(transaction)}</span>
                       </div>
                     </TableCell>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,11 +9,11 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/utils/toast';
 import { Plus, RefreshCw, Trash2, LinkIcon, DatabaseIcon, Edit } from 'lucide-react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
-import { BankConnection, BankConnectionRow } from '@/types/supabase';
+import { BankConnectionRow } from '@/types/supabase';
 import FileUpload from './FileUpload';
 
 interface EditConnectionProps {
-  connection: BankConnection;
+  connection: BankConnectionRow;
   onSave: (id: string, displayName: string) => void;
   onCancel: () => void;
 }
@@ -44,7 +43,7 @@ const EditConnection: React.FC<EditConnectionProps> = ({ connection, onSave, onC
 };
 
 const BankConnections: React.FC = () => {
-  const [connections, setConnections] = useState<BankConnection[]>([]);
+  const [connections, setConnections] = useState<BankConnectionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -70,17 +69,7 @@ const BankConnections: React.FC = () => {
         
       if (error) throw error;
       
-      // Convert database rows to our app's BankConnection type
-      const formattedConnections: BankConnection[] = (data || []).map((row: BankConnectionRow) => ({
-        id: row.id,
-        bank_name: row.bank_name,
-        display_name: row.display_name,
-        connection_type: row.connection_type,
-        last_sync: row.last_sync,
-        api_details: row.api_details
-      }));
-      
-      setConnections(formattedConnections);
+      setConnections(data || []);
     } catch (error: any) {
       toast.error(`Error fetching connections: ${error.message}`);
     } finally {
@@ -111,17 +100,7 @@ const BankConnections: React.FC = () => {
       
       toast.success('Bank connection added successfully');
       
-      // Convert the returned data to our app's BankConnection type
-      const newConnections: BankConnection[] = (data || []).map((row: BankConnectionRow) => ({
-        id: row.id,
-        bank_name: row.bank_name,
-        display_name: row.display_name,
-        connection_type: row.connection_type,
-        last_sync: row.last_sync,
-        api_details: row.api_details
-      }));
-      
-      setConnections([...connections, ...newConnections]);
+      setConnections([...connections, ...(data || [])]);
       setShowAddForm(false);
       setNewConnection({ bank_name: '', display_name: '', connection_type: 'csv' });
     } catch (error: any) {
@@ -158,7 +137,6 @@ const BankConnections: React.FC = () => {
         
       if (error) throw error;
       
-      // Update local state
       setConnections(prev => 
         prev.map(conn => 
           conn.id === id ? { ...conn, display_name: displayName } : conn
@@ -172,19 +150,17 @@ const BankConnections: React.FC = () => {
     }
   };
 
-  const handleSyncBank = async (connection: BankConnection) => {
+  const handleSyncBank = async (connection: BankConnectionRow) => {
     if (!user) return;
     
     try {
       setSyncing(connection.id);
       
-      // For CSV type, we don't do anything - user will upload manually
       if (connection.connection_type === 'csv') {
         toast.info('Please use the CSV upload feature for this connection');
         return;
       }
       
-      // For API type, call our edge function
       const { data, error } = await supabase.functions.invoke('sync-bank-transactions', {
         body: { connectionId: connection.id }
       });
@@ -192,7 +168,6 @@ const BankConnections: React.FC = () => {
       if (error) throw error;
       
       if (data.transactions && data.transactions.length > 0) {
-        // Format the transactions for our app
         const formattedTransactions = data.transactions.map((t: any) => ({
           id: crypto.randomUUID(),
           date: t.date,
@@ -203,14 +178,12 @@ const BankConnections: React.FC = () => {
           bankAccountName: connection.display_name || connection.bank_name
         }));
         
-        // Add the transactions to our app
         addTransactions(formattedTransactions);
         toast.success(`Synchronized ${formattedTransactions.length} transactions`);
       } else {
         toast.info('No new transactions found');
       }
       
-      // Refresh the connections list to get updated last_sync
       fetchConnections();
       
     } catch (error: any) {
