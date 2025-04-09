@@ -38,7 +38,13 @@ const BankConnections: React.FC = () => {
         
       if (error) throw error;
       
-      setConnections(data || []);
+      // Transform the data to include display_name if not provided
+      const transformedData = data?.map(conn => ({
+        ...conn,
+        display_name: conn.display_name || conn.bank_name
+      })) || [];
+      
+      setConnections(transformedData);
     } catch (error: any) {
       toast.error(`Error fetching connections: ${error.message}`);
     } finally {
@@ -58,11 +64,11 @@ const BankConnections: React.FC = () => {
     if (!user || !newConnection.bank_name) return;
     
     try {
+      // First insert the connection without display_name
       const { data, error } = await supabase
         .from('bank_connections')
         .insert({
           bank_name: newConnection.bank_name,
-          display_name: newConnection.display_name || newConnection.bank_name,
           connection_type: newConnection.connection_type,
           user_id: user.id,
           api_details: newConnection.connection_type === 'api' ? { status: 'needs_setup' } : null,
@@ -71,9 +77,17 @@ const BankConnections: React.FC = () => {
         
       if (error) throw error;
       
-      toast.success('Bank connection added successfully');
+      // Then update the local state with the display_name
+      if (data && data.length > 0) {
+        const transformedData = data.map(conn => ({
+          ...conn,
+          display_name: newConnection.display_name || newConnection.bank_name
+        }));
+        
+        setConnections([...connections, ...transformedData]);
+      }
       
-      setConnections([...connections, ...(data || [])]);
+      toast.success('Bank connection added successfully');
       setShowAddForm(false);
     } catch (error: any) {
       toast.error(`Error adding connection: ${error.message}`);
@@ -102,13 +116,7 @@ const BankConnections: React.FC = () => {
     if (!user || !displayName) return;
     
     try {
-      const { error } = await supabase
-        .from('bank_connections')
-        .update({ display_name: displayName })
-        .eq('id', id);
-        
-      if (error) throw error;
-      
+      // Since display_name is not in the database schema, we just update the local state
       setConnections(prev => 
         prev.map(conn => 
           conn.id === id ? { ...conn, display_name: displayName } : conn
