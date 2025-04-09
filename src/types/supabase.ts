@@ -1,4 +1,5 @@
 
+
 export type BankConnectionRow = {
   id: string;
   bank_name: string;
@@ -23,3 +24,4 @@ export type VendorCategorizationRow = {
   last_used: string | null;
   created_at: string | null;
 }
+
