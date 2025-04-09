@@ -5,11 +5,19 @@ import { Button } from "@/components/ui/button";
 import { UploadCloud, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const FileUpload: React.FC = () => {
-  const { uploadCSV, loading } = useBookkeeping();
+  const { uploadCSV, loading, bankConnections } = useBookkeeping();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedBankId, setSelectedBankId] = useState<string>('');
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -49,17 +57,29 @@ const FileUpload: React.FC = () => {
   };
 
   const processFile = () => {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+    
+    if (!selectedBankId) {
+      toast.error('Please select a bank account for this upload');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
       if (event.target && typeof event.target.result === 'string') {
-        uploadCSV(event.target.result);
+        uploadCSV(event.target.result, selectedBankId);
         setSelectedFile(null);
+        setSelectedBankId('');
       }
     };
     reader.readAsText(selectedFile);
   };
+
+  // Get CSV-type bank connections
+  const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
 
   return (
     <Card className="w-full hover:shadow-md transition-all">
@@ -106,7 +126,7 @@ const FileUpload: React.FC = () => {
 
         {selectedFile && (
           <div className="mt-4 p-4 border rounded-md bg-background animate-fade-in">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 mb-4">
               <FileSpreadsheet className="h-5 w-5 text-finance-green animate-pulse" />
               <div className="flex-1 truncate">
                 <p className="font-medium">{selectedFile.name}</p>
@@ -117,6 +137,31 @@ const FileUpload: React.FC = () => {
               <Button variant="secondary" size="sm" onClick={() => setSelectedFile(null)} className="hover-scale">
                 Remove
               </Button>
+            </div>
+            
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Select Bank Account</p>
+              <Select
+                value={selectedBankId}
+                onValueChange={setSelectedBankId}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a bank account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {csvBankConnections.length === 0 ? (
+                    <SelectItem value="no-accounts" disabled>
+                      No CSV Bank Accounts Available
+                    </SelectItem>
+                  ) : (
+                    csvBankConnections.map((conn) => (
+                      <SelectItem key={conn.id} value={conn.id}>
+                        {conn.display_name || conn.bank_name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}
@@ -129,7 +174,7 @@ const FileUpload: React.FC = () => {
       <CardFooter className="flex justify-end">
         <Button
           onClick={processFile}
-          disabled={!selectedFile || loading}
+          disabled={!selectedFile || !selectedBankId || loading}
           className="bg-finance-green hover:bg-finance-green-light hover-scale"
         >
           {loading ? 'Processing...' : 'Process Transactions'}

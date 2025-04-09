@@ -8,6 +8,7 @@ export type BankConnectionRow = {
   user_id: string | null;
   active: boolean | null;
   created_at: string | null;
+  display_name?: string;
 }
 
 export type VendorCategorizationRow = {

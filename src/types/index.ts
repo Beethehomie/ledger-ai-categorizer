@@ -1,6 +1,7 @@
 
 export type TransactionType = "income" | "expense" | "asset" | "liability" | "equity";
 export type StatementType = "profit_loss" | "balance_sheet";
+export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR";
 
 export interface Transaction {
   id: string;
@@ -14,6 +15,9 @@ export interface Transaction {
   aiSuggestion?: string;
   vendor?: string;
   vendorVerified?: boolean;
+  confidenceScore?: number;
+  bankAccountId?: string;
+  bankAccountName?: string;
 }
 
 export interface Category {
@@ -40,11 +44,13 @@ export interface FinancialSummary {
   totalLiabilities: number;
   totalEquity: number;
   netProfit: number;
+  cashBalance: number;
 }
 
 export interface BankConnection {
   id: string;
   bank_name: string;
+  display_name?: string;
   connection_type: string;
   api_details: any;
   last_sync: string | null;
@@ -57,4 +63,25 @@ export interface AIAnalysisResult {
   confidence: number;
   vendorName: string;
   source: 'ai' | 'database';
+}
+
+export interface FinancialGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline?: string;
+}
+
+export interface CurrencySettings {
+  code: Currency;
+  symbol: string;
+  locale: string;
+  decimalPlaces: number;
+}
+
+export interface TableColumn {
+  id: string;
+  name: string;
+  visible: boolean;
 }

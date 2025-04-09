@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FileUpload from "./FileUpload";
 import TransactionTable from "./TransactionTable";
@@ -7,19 +7,50 @@ import VendorTransactions from "./VendorTransactions";
 import FinancialSummary from "./FinancialSummary";
 import ChartSection from "./ChartSection";
 import { useBookkeeping } from '@/context/BookkeepingContext';
-import { Store, FileText, PieChart, AlertCircle, BarChart3, User, DollarSign, Target } from "lucide-react";
+import { useSettings } from '@/context/SettingsContext';
+import DateRangeSelector from './DateRangeSelector';
+import CurrencySelector from './CurrencySelector';
+import { Store, FileText, PieChart, AlertCircle, BarChart3, User, DollarSign, Target, Edit } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import GoalEditor from './GoalEditor';
 
 const Dashboard: React.FC = () => {
-  const { transactions } = useBookkeeping();
-  const unverifiedCount = transactions.filter(t => !t.isVerified).length;
+  const { transactions, filterTransactionsByDate } = useBookkeeping();
+  const { 
+    currency, 
+    setCurrency, 
+    dateRange, 
+    setDateRange,
+    financialGoal,
+    updateFinancialGoal
+  } = useSettings();
   
-  // Calculate progress towards goal (for demonstration)
-  const goalAmount = 100000;
-  const currentAmount = 45000; // For demo, 45% of goal
-  const progressPercentage = (currentAmount / goalAmount) * 100;
+  const [isGoalEditorOpen, setIsGoalEditorOpen] = useState(false);
+  const [filteredTransactions, setFilteredTransactions] = useState(transactions);
+  
+  const unverifiedCount = filteredTransactions.filter(t => !t.isVerified).length;
+  
+  // Calculate progress towards goal
+  const progressPercentage = (financialGoal.currentAmount / financialGoal.targetAmount) * 100;
+  
+  // Update filtered transactions when date range or transactions change
+  useEffect(() => {
+    setFilteredTransactions(
+      filterTransactionsByDate(dateRange.startDate, dateRange.endDate)
+    );
+  }, [dateRange, transactions, filterTransactionsByDate]);
   
   return (
     <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <DateRangeSelector 
+          startDate={dateRange.startDate} 
+          endDate={dateRange.endDate} 
+          onRangeChange={setDateRange} 
+        />
+        <CurrencySelector value={currency} onChange={setCurrency} />
+      </div>
+      
       <FinancialSummary />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -28,17 +59,39 @@ const Dashboard: React.FC = () => {
           
           {/* Goal Progress Visualization with updated nude colors */}
           <div className="mt-6 bg-[hsl(var(--finance-nude-gray))] rounded-lg p-6 border border-[hsl(var(--border))] shadow-sm animate-fade-in hover:shadow-md transition-all">
-            <div className="flex items-center mb-4">
-              <User className="h-8 w-8 mr-3 p-1.5 rounded-full bg-[hsl(var(--primary))] text-white" />
-              <div>
-                <h3 className="font-medium text-[hsl(var(--finance-nude-dark))]">Financial Goal Progress</h3>
-                <p className="text-sm text-[hsl(var(--muted-foreground))]">Tracking toward $100k</p>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <User className="h-8 w-8 mr-3 p-1.5 rounded-full bg-[hsl(var(--primary))] text-white" />
+                <div>
+                  <h3 className="font-medium text-[hsl(var(--finance-nude-dark))]">Financial Goal Progress</h3>
+                  <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                    {financialGoal.name}
+                  </p>
+                </div>
               </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setIsGoalEditorOpen(true)}
+                className="h-8 w-8"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
             </div>
             
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-[hsl(var(--muted-foreground))]">Current: ${currentAmount.toLocaleString()}</span>
-              <span className="text-sm text-[hsl(var(--muted-foreground))]">Goal: ${goalAmount.toLocaleString()}</span>
+              <span className="text-sm text-[hsl(var(--muted-foreground))]">
+                Current: {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: currency
+                }).format(financialGoal.currentAmount)}
+              </span>
+              <span className="text-sm text-[hsl(var(--muted-foreground))]">
+                Goal: {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: currency
+                }).format(financialGoal.targetAmount)}
+              </span>
             </div>
             
             <div className="relative h-64 progress-container">
@@ -90,9 +143,9 @@ const Dashboard: React.FC = () => {
                 <FileText className="h-4 w-4 mr-1" />
                 All
               </TabsTrigger>
-              <TabsTrigger value="unverified" className="relative transition-all duration-200">
+              <TabsTrigger value="for-review" className="relative transition-all duration-200">
                 <AlertCircle className="h-4 w-4 mr-1" />
-                Unverified
+                For Review
                 {unverifiedCount > 0 && (
                   <span className="absolute -right-1 -top-1 bg-[hsl(var(--finance-soft-red))] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
                     {unverifiedCount}
@@ -115,26 +168,34 @@ const Dashboard: React.FC = () => {
           </div>
           
           <TabsContent value="all" className="m-0 p-4 animate-slide-in-left">
-            <TransactionTable filter="all" />
+            <TransactionTable filter="all" transactions={filteredTransactions} />
           </TabsContent>
           
-          <TabsContent value="unverified" className="m-0 p-4 animate-slide-in-left">
-            <TransactionTable filter="unverified" />
+          <TabsContent value="for-review" className="m-0 p-4 animate-slide-in-left">
+            <TransactionTable filter="unverified" transactions={filteredTransactions} />
           </TabsContent>
           
           <TabsContent value="pl" className="m-0 p-4 animate-slide-in-left">
-            <TransactionTable filter="profit_loss" />
+            <TransactionTable filter="profit_loss" transactions={filteredTransactions} />
           </TabsContent>
           
           <TabsContent value="bs" className="m-0 p-4 animate-slide-in-left">
-            <TransactionTable filter="balance_sheet" />
+            <TransactionTable filter="balance_sheet" transactions={filteredTransactions} />
           </TabsContent>
           
           <TabsContent value="vendors" className="m-0 p-4 animate-slide-in-left">
-            <VendorTransactions />
+            <VendorTransactions transactions={filteredTransactions} />
           </TabsContent>
         </Tabs>
       </div>
+      
+      <GoalEditor
+        goal={financialGoal}
+        currency={currency}
+        onSave={updateFinancialGoal}
+        isOpen={isGoalEditorOpen}
+        onClose={() => setIsGoalEditorOpen(false)}
+      />
     </div>
   );
 };

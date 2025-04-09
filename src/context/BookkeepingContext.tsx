@@ -1,13 +1,15 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Transaction, Category, FinancialSummary, Vendor } from '../types';
+import { Transaction, Category, FinancialSummary, Vendor, Currency } from '../types';
 import { mockCategories } from '../data/mockData';
 import { parseCSV } from '../utils/csvParser';
 import { extractVendorName } from '../utils/vendorExtractor';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { VendorCategorizationRow } from '@/types/supabase';
+import { VendorCategorizationRow, BankConnectionRow } from '@/types/supabase';
+import { useSettings } from './SettingsContext';
+import { BankConnection } from '@/types/supabase';
 
 interface BookkeepingContextType {
   transactions: Transaction[];
@@ -16,19 +18,25 @@ interface BookkeepingContextType {
   financialSummary: FinancialSummary;
   loading: boolean;
   aiAnalyzeLoading: boolean;
+  bankConnections: BankConnection[];
   addTransactions: (newTransactions: Transaction[]) => void;
   updateTransaction: (updatedTransaction: Transaction) => void;
   verifyTransaction: (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => void;
   verifyVendor: (vendorName: string, approved: boolean) => void;
-  uploadCSV: (csvString: string) => void;
+  uploadCSV: (csvString: string, bankConnectionId?: string) => void;
   getFilteredTransactions: (
     statementType?: Transaction['statementType'], 
     verified?: boolean,
     vendor?: string
   ) => Transaction[];
+  filterTransactionsByDate: (
+    startDate?: Date,
+    endDate?: Date
+  ) => Transaction[];
   getVendorsList: () => { name: string; count: number; verified: boolean; }[];
   calculateFinancialSummary: () => void;
   analyzeTransactionWithAI: (transaction: Transaction) => Promise<any>;
+  getBankConnectionById: (id: string) => BankConnection | undefined;
 }
 
 const initialFinancialSummary: FinancialSummary = {
@@ -38,15 +46,18 @@ const initialFinancialSummary: FinancialSummary = {
   totalLiabilities: 0,
   totalEquity: 0,
   netProfit: 0,
+  cashBalance: 0,
 };
 
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 
 export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { session } = useAuth();
+  const { currency } = useSettings();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>(mockCategories);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [bankConnections, setBankConnections] = useState<BankConnection[]>([]);
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary>(initialFinancialSummary);
   const [loading, setLoading] = useState<boolean>(false);
   const [aiAnalyzeLoading, setAiAnalyzeLoading] = useState<boolean>(false);
@@ -87,6 +98,43 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     fetchVendors();
   }, [session]);
 
+  // Load bank connections from Supabase
+  useEffect(() => {
+    if (!session) return;
+
+    const fetchBankConnections = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('bank_connections')
+          .select('*')
+          .order('bank_name', { ascending: true });
+          
+        if (error) {
+          console.error('Error fetching bank connections:', error);
+          return;
+        }
+        
+        if (data) {
+          // Convert from database format to our app's format
+          const connectionsFromDB: BankConnection[] = data.map((c: BankConnectionRow) => ({
+            id: c.id,
+            bank_name: c.bank_name,
+            display_name: c.display_name,
+            connection_type: c.connection_type,
+            last_sync: c.last_sync,
+            api_details: c.api_details
+          }));
+          
+          setBankConnections(connectionsFromDB);
+        }
+      } catch (err) {
+        console.error('Error in fetchBankConnections:', err);
+      }
+    };
+    
+    fetchBankConnections();
+  }, [session]);
+
   const calculateFinancialSummary = () => {
     const summary: FinancialSummary = {
       totalIncome: 0,
@@ -95,6 +143,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       totalLiabilities: 0,
       totalEquity: 0,
       netProfit: 0,
+      cashBalance: 0,
     };
 
     transactions.forEach(transaction => {
@@ -105,15 +154,19 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       switch(transaction.type) {
         case 'income':
           summary.totalIncome += amount;
+          summary.cashBalance += amount;
           break;
         case 'expense':
           summary.totalExpenses += amount;
+          summary.cashBalance -= amount;
           break;
         case 'asset':
           summary.totalAssets += amount;
+          summary.cashBalance -= amount; // Assuming purchasing an asset reduces cash
           break;
         case 'liability':
           summary.totalLiabilities += amount;
+          summary.cashBalance += amount; // Assuming taking on liability increases cash
           break;
         case 'equity':
           summary.totalEquity += amount;
@@ -134,7 +187,8 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       return {
         ...transaction,
         vendor,
-        vendorVerified: false
+        vendorVerified: false,
+        confidenceScore: Math.random() * 0.5 + 0.5 // Random confidence score between 0.5 and 1.0 for demo
       };
     });
     
@@ -198,6 +252,20 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       });
       
       if (error) throw error;
+      
+      // Update transaction with AI suggestion and confidence score
+      setTransactions(prev => 
+        prev.map(t => {
+          if (t.id === transaction.id && data) {
+            return {
+              ...t,
+              aiSuggestion: data.category,
+              confidenceScore: data.confidence
+            };
+          }
+          return t;
+        })
+      );
       
       return data;
     } catch (err: any) {
@@ -325,10 +393,16 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   };
 
-  const uploadCSV = async (csvString: string) => {
+  const uploadCSV = async (csvString: string, bankConnectionId?: string) => {
     setLoading(true);
     try {
       const parsedTransactions = parseCSV(csvString);
+      
+      // If bankConnectionId is provided, get the connection details
+      let bankConnection: BankConnection | undefined;
+      if (bankConnectionId) {
+        bankConnection = bankConnections.find(conn => conn.id === bankConnectionId);
+      }
       
       // Process with AI for uncategorized transactions and extract vendor names
       const processTransactions = async () => {
@@ -336,6 +410,13 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         
         for (const transaction of parsedTransactions) {
           const vendor = extractVendorName(transaction.description);
+          const confidenceScore = Math.random() * 0.5 + 0.5; // Random confidence score between 0.5 and 1.0 for demo
+          
+          // Add bank connection info if provided
+          if (bankConnectionId && bankConnection) {
+            transaction.bankAccountId = bankConnectionId;
+            transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
+          }
           
           // Check if we have a verified vendor that matches
           const matchedVendor = vendors.find(v => 
@@ -351,7 +432,8 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
               category: matchedVendor.category,
               type: matchedVendor.type,
               statementType: matchedVendor.statementType,
-              isVerified: true
+              isVerified: true,
+              confidenceScore: 1.0 // 100% confidence for verified vendors
             });
           } else if (!transaction.category && session) {
             // Use AI for uncategorized transactions
@@ -360,13 +442,15 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
               ...transaction,
               vendor,
               vendorVerified: false,
-              aiSuggestion: aiResult?.category
+              aiSuggestion: aiResult?.category,
+              confidenceScore
             });
           } else {
             processedTransactions.push({
               ...transaction,
               vendor,
-              vendorVerified: false
+              vendorVerified: false,
+              confidenceScore
             });
           }
         }
@@ -408,6 +492,33 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     });
   };
   
+  const filterTransactionsByDate = (
+    startDate?: Date,
+    endDate?: Date
+  ) => {
+    if (!startDate && !endDate) {
+      return transactions;
+    }
+    
+    return transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      
+      if (startDate && endDate) {
+        return transactionDate >= startDate && transactionDate <= endDate;
+      }
+      
+      if (startDate && !endDate) {
+        return transactionDate >= startDate;
+      }
+      
+      if (!startDate && endDate) {
+        return transactionDate <= endDate;
+      }
+      
+      return true;
+    });
+  };
+  
   const getVendorsList = () => {
     // Get a list of all unique vendors with their transaction counts
     const vendorCounts: Record<string, { count: number; verified: boolean }> = {};
@@ -431,6 +542,10 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       .sort((a, b) => b.count - a.count);
   };
 
+  const getBankConnectionById = (id: string) => {
+    return bankConnections.find(conn => conn.id === id);
+  };
+
   useEffect(() => {
     calculateFinancialSummary();
   }, [transactions]);
@@ -442,15 +557,18 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     financialSummary,
     loading,
     aiAnalyzeLoading,
+    bankConnections,
     addTransactions,
     updateTransaction,
     verifyTransaction,
     verifyVendor,
     uploadCSV,
     getFilteredTransactions,
+    filterTransactionsByDate,
     getVendorsList,
     calculateFinancialSummary,
     analyzeTransactionWithAI,
+    getBankConnectionById,
   };
 
   return (

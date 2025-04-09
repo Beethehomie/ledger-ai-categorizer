@@ -1,14 +1,20 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import Dashboard from '@/components/Dashboard';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, Wallet, PieChart, FileText, Settings } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import BankConnections from '@/components/BankConnections';
+import { useSettings } from '@/context/SettingsContext';
+import CurrencySelector from '@/components/CurrencySelector';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import TransactionTable from '@/components/TransactionTable';
+import { useBookkeeping } from '@/context/BookkeepingContext';
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const { currency, setCurrency } = useSettings();
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -22,7 +28,9 @@ const Index = () => {
               </p>
             </div>
             
-            <div className="flex items-center space-x-2 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            <div className="flex items-center space-x-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <CurrencySelector value={currency} onChange={setCurrency} />
+              
               <div className="flex items-center gap-2">
                 <div className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-all cursor-pointer">
                   <User className="h-5 w-5 text-white" />
@@ -45,14 +53,7 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-8 flex-grow">
         <BookkeepingProvider>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="md:col-span-2">
-              <Dashboard />
-            </div>
-            <div className="md:col-span-1">
-              <BankConnections />
-            </div>
-          </div>
+          <AppContent />
         </BookkeepingProvider>
       </main>
 
@@ -62,6 +63,59 @@ const Index = () => {
         </div>
       </footer>
     </div>
+  );
+};
+
+const AppContent = () => {
+  const { transactions } = useBookkeeping();
+  
+  return (
+    <Tabs defaultValue="reports" className="w-full">
+      <div className="mb-6">
+        <TabsList className="w-full grid grid-cols-4">
+          <TabsTrigger value="reports">
+            <PieChart className="h-4 w-4 mr-2" />
+            Reports
+          </TabsTrigger>
+          <TabsTrigger value="transactions">
+            <FileText className="h-4 w-4 mr-2" />
+            Transactions
+          </TabsTrigger>
+          <TabsTrigger value="banking">
+            <Wallet className="h-4 w-4 mr-2" />
+            Banking
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      
+      <TabsContent value="reports" className="mt-0">
+        <Dashboard />
+      </TabsContent>
+      
+      <TabsContent value="transactions" className="mt-0">
+        <div className="bg-[hsl(var(--card))] rounded-lg shadow-sm border border-[hsl(var(--border))] p-6">
+          <h2 className="text-2xl font-bold mb-6">Transaction Management</h2>
+          <TransactionTable filter="all" transactions={transactions} />
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="banking" className="mt-0">
+        <div className="grid grid-cols-1 gap-6">
+          <BankConnections />
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="settings" className="mt-0">
+        <div className="bg-[hsl(var(--card))] rounded-lg shadow-sm border border-[hsl(var(--border))] p-6">
+          <h2 className="text-2xl font-bold mb-6">Settings</h2>
+          <p className="text-muted-foreground">Application settings will appear here.</p>
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 };
 

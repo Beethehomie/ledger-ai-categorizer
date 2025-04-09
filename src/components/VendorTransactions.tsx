@@ -21,14 +21,22 @@ import {
   Store, 
   CheckCircle, 
   AlertTriangle,
-  BadgeCheck
+  BadgeCheck,
+  Plus
 } from "lucide-react";
 import { toast } from '@/utils/toast';
 import { cn } from '@/lib/utils';
+import { Transaction } from '@/types';
+import VendorEditor from './VendorEditor';
 
-const VendorTransactions: React.FC = () => {
-  const { getVendorsList, verifyVendor } = useBookkeeping();
+interface VendorTransactionsProps {
+  transactions: Transaction[];
+}
+
+const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions }) => {
+  const { getVendorsList, verifyVendor, categories } = useBookkeeping();
   const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
+  const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
   
   const vendorsList = getVendorsList();
   
@@ -46,7 +54,7 @@ const VendorTransactions: React.FC = () => {
             Vendor Analysis
           </CardTitle>
           <CardDescription>
-            Select a vendor to view all their transactions
+            Select a vendor to view all their transactions or add a new vendor
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -73,8 +81,20 @@ const VendorTransactions: React.FC = () => {
               </SelectContent>
             </Select>
             
+            <div className="flex items-center gap-2 animate-fade-in">
+              <Button
+                size="sm"
+                variant="outline"
+                className="hover-scale"
+                onClick={() => setIsVendorEditorOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add New Vendor
+              </Button>
+            </div>
+            
             {selectedVendor && (
-              <div className="flex items-center gap-2 animate-fade-in">
+              <div className="flex items-center gap-2 ml-auto animate-fade-in">
                 <Button
                   size="sm"
                   variant="outline"
@@ -106,7 +126,7 @@ const VendorTransactions: React.FC = () => {
               <CardTitle className="text-lg">Transactions for {selectedVendor}</CardTitle>
             </CardHeader>
             <CardContent>
-              <TransactionTable filter="by_vendor" vendorName={selectedVendor} />
+              <TransactionTable filter="by_vendor" vendorName={selectedVendor} transactions={transactions} />
             </CardContent>
           </Card>
         </div>
@@ -116,6 +136,16 @@ const VendorTransactions: React.FC = () => {
           <p>Select a vendor to view their transactions</p>
         </div>
       )}
+      
+      <VendorEditor
+        categories={categories}
+        onSave={(vendor) => {
+          toast.success(`Added new vendor: ${vendor.name}`);
+          setIsVendorEditorOpen(false);
+        }}
+        isOpen={isVendorEditorOpen}
+        onClose={() => setIsVendorEditorOpen(false)}
+      />
     </div>
   );
 };
