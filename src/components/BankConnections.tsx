@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,12 @@ interface EditConnectionProps {
   connection: BankConnectionRow;
   onSave: (id: string, displayName: string) => void;
   onCancel: () => void;
+}
+
+interface NewConnectionState {
+  bank_name: string;
+  display_name: string;
+  connection_type: string;
 }
 
 const EditConnection: React.FC<EditConnectionProps> = ({ connection, onSave, onCancel }) => {
@@ -48,7 +55,7 @@ const BankConnections: React.FC = () => {
   const [syncing, setSyncing] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newConnection, setNewConnection] = useState({
+  const [newConnection, setNewConnection] = useState<NewConnectionState>({
     bank_name: '',
     display_name: '',
     connection_type: 'csv', // Default to CSV
