@@ -1,18 +1,35 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.0';
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface BankConnection {
-  id: string;
-  bank_name: string;
-  connection_type: string;
-  api_details: any;
-}
+// Mock function to simulate getting transactions from a bank API
+const fetchTransactionsFromBank = async (connectionId) => {
+  // This would normally connect to a real bank API
+  // For demo purposes, return mock transactions
+  return [
+    {
+      date: new Date().toISOString().split('T')[0],
+      description: "Sample Bank Transaction - Monthly Salary",
+      amount: 5000.00
+    },
+    {
+      date: new Date().toISOString().split('T')[0],
+      description: "Sample Bank Transaction - Office Supplies",
+      amount: -120.50
+    },
+    {
+      date: new Date().toISOString().split('T')[0],
+      description: "Sample Bank Transaction - Client Payment",
+      amount: 1500.00
+    }
+  ];
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -23,76 +40,46 @@ serve(async (req) => {
   try {
     const { connectionId } = await req.json();
     
-    // Create a new Supabase client
-    const supabaseUrl = 'https://vfzzjnpkqbljhfdbbrqn.supabase.co';
-    const supabaseKey = req.headers.get('Authorization')?.split(' ')[1] ?? '';
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    // Get the user ID from the JWT
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing Authorization header');
+    if (!connectionId) {
+      throw new Error("Connection ID is required");
     }
 
-    // Fetch the bank connection details
-    const { data: connection, error: connectionError } = await supabase
-      .from('bank_connections')
-      .select('*')
-      .eq('id', connectionId)
-      .single();
+    console.log(`Syncing transactions for connection ID: ${connectionId}`);
 
-    if (connectionError || !connection) {
-      throw new Error(`Failed to fetch bank connection: ${connectionError?.message}`);
+    // In a real implementation, we would:
+    // 1. Retrieve the connection details from the database
+    // 2. Use those details to authenticate with the bank's API
+    // 3. Fetch real transactions
+    // For this demo, we'll use mock data
+    const transactions = await fetchTransactionsFromBank(connectionId);
+    
+    // Update the last_sync timestamp in the database
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    if (supabaseUrl && supabaseKey) {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      await supabase
+        .from('bank_connections')
+        .update({ last_sync: new Date().toISOString() })
+        .eq('id', connectionId);
     }
     
-    // This would be where we connect to various banking APIs
-    // For now, we'll simulate a successful connection with placeholder data
-    const mockTransactions = [
-      {
-        date: new Date().toISOString().split('T')[0],
-        description: 'API TEST: Office Supplies Store',
-        amount: -125.75,
-      },
-      {
-        date: new Date().toISOString().split('T')[0], 
-        description: 'API TEST: Client Payment XYZ Corp',
-        amount: 1500.00,
-      },
-      {
-        date: new Date().toISOString().split('T')[0],
-        description: 'API TEST: Monthly Software Subscription',
-        amount: -49.99,
-      }
-    ];
-    
-    // Update the last sync time
-    await supabase
-      .from('bank_connections')
-      .update({ last_sync: new Date().toISOString() })
-      .eq('id', connectionId);
-    
-    // Return the transactions
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Bank synchronization successful',
-        transactions: mockTransactions,
-        connection: {
-          id: connection.id,
-          bank_name: connection.bank_name, 
-          last_sync: new Date().toISOString()
-        }
+      JSON.stringify({ 
+        success: true, 
+        transactions: transactions 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-    
   } catch (error) {
-    console.error('Error syncing bank transactions:', error);
+    console.error("Error in sync-bank-transactions function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      JSON.stringify({ error: error.message || "Unknown error occurred" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }

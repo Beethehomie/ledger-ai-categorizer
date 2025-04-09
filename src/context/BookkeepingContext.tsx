@@ -7,6 +7,7 @@ import { extractVendorName } from '../utils/vendorExtractor';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { VendorCategorizationRow } from '@/types/supabase';
 
 interface BookkeepingContextType {
   transactions: Transaction[];
@@ -67,13 +68,13 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         
         if (data) {
           // Convert from database format to our app's format
-          const vendorsFromDB: Vendor[] = data.map(v => ({
+          const vendorsFromDB: Vendor[] = data.map((v: VendorCategorizationRow) => ({
             name: v.vendor_name,
             category: v.category,
             type: v.type as Transaction['type'],
             statementType: v.statement_type as Transaction['statementType'],
-            occurrences: v.occurrences,
-            verified: v.verified
+            occurrences: v.occurrences || 1,
+            verified: v.verified || false
           }));
           
           setVendors(vendorsFromDB);

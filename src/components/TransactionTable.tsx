@@ -125,11 +125,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ filter = 'all', ven
         };
         
         toast.success(
-          <div>
-            <div className="font-medium">AI Suggestion</div>
-            <div className="text-sm">Category: {result.category}</div>
-            <div className="text-xs text-muted-foreground">Confidence: {Math.round(result.confidence * 100)}%</div>
-          </div>
+          `AI Suggestion: ${result.category} (Confidence: ${Math.round(result.confidence * 100)}%)`
         );
       } else {
         toast.error('Could not get AI suggestion for this transaction');

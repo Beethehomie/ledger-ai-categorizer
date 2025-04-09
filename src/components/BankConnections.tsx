@@ -10,14 +10,8 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/utils/toast';
 import { Plus, RefreshCw, Trash2, LinkIcon, DatabaseIcon } from 'lucide-react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
-
-interface BankConnection {
-  id: string;
-  bank_name: string;
-  connection_type: string;
-  last_sync: string | null;
-  api_details: any;
-}
+import { BankConnection } from '@/types';
+import { BankConnectionRow } from '@/types/supabase';
 
 const BankConnections: React.FC = () => {
   const [connections, setConnections] = useState<BankConnection[]>([]);
@@ -44,7 +38,16 @@ const BankConnections: React.FC = () => {
         
       if (error) throw error;
       
-      setConnections(data || []);
+      // Convert database rows to our app's BankConnection type
+      const formattedConnections: BankConnection[] = (data || []).map((row: BankConnectionRow) => ({
+        id: row.id,
+        bank_name: row.bank_name,
+        connection_type: row.connection_type,
+        last_sync: row.last_sync,
+        api_details: row.api_details
+      }));
+      
+      setConnections(formattedConnections);
     } catch (error: any) {
       toast.error(`Error fetching connections: ${error.message}`);
     } finally {
@@ -73,10 +76,19 @@ const BankConnections: React.FC = () => {
       if (error) throw error;
       
       toast.success('Bank connection added successfully');
-      setConnections([...(data || []), ...connections]);
+      
+      // Convert the returned data to our app's BankConnection type
+      const newConnections: BankConnection[] = (data || []).map((row: BankConnectionRow) => ({
+        id: row.id,
+        bank_name: row.bank_name,
+        connection_type: row.connection_type,
+        last_sync: row.last_sync,
+        api_details: row.api_details
+      }));
+      
+      setConnections([...connections, ...newConnections]);
       setShowAddForm(false);
       setNewConnection({ bank_name: '', connection_type: 'csv' });
-      fetchConnections();
     } catch (error: any) {
       toast.error(`Error adding connection: ${error.message}`);
     }
