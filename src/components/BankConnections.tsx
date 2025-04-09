@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,42 +12,9 @@ import { Plus, RefreshCw, Trash2, LinkIcon, DatabaseIcon, Edit } from 'lucide-re
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { BankConnectionRow } from '@/types/supabase';
 import FileUpload from './FileUpload';
-
-interface EditConnectionProps {
-  connection: BankConnectionRow;
-  onSave: (id: string, displayName: string) => void;
-  onCancel: () => void;
-}
-
-interface NewConnectionState {
-  bank_name: string;
-  display_name: string;
-  connection_type: string;
-}
-
-const EditConnection: React.FC<EditConnectionProps> = ({ connection, onSave, onCancel }) => {
-  const [displayName, setDisplayName] = useState(connection.display_name || connection.bank_name);
-  
-  return (
-    <div className="p-3 border rounded-md mt-2 animate-fade-in">
-      <Label htmlFor="display-name" className="text-sm">Display Name</Label>
-      <Input 
-        id="display-name" 
-        value={displayName} 
-        onChange={(e) => setDisplayName(e.target.value)} 
-        className="mb-2 mt-1"
-      />
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button size="sm" onClick={() => onSave(connection.id, displayName)}>
-          Save
-        </Button>
-      </div>
-    </div>
-  );
-};
+import { ConnectionList } from './bank-connections/ConnectionList';
+import { AddConnectionForm } from './bank-connections/AddConnectionForm';
+import { EditConnection } from './bank-connections/EditConnection';
 
 const BankConnections: React.FC = () => {
   const [connections, setConnections] = useState<BankConnectionRow[]>([]);
@@ -55,11 +22,6 @@ const BankConnections: React.FC = () => {
   const [syncing, setSyncing] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newConnection, setNewConnection] = useState<NewConnectionState>({
-    bank_name: '',
-    display_name: '',
-    connection_type: 'csv', // Default to CSV
-  });
   
   const { user } = useAuth();
   const { addTransactions } = useBookkeeping();
@@ -88,7 +50,11 @@ const BankConnections: React.FC = () => {
     fetchConnections();
   }, [user]);
 
-  const handleAddConnection = async () => {
+  const handleAddConnection = async (newConnection: {
+    bank_name: string;
+    display_name: string;
+    connection_type: string;
+  }) => {
     if (!user || !newConnection.bank_name) return;
     
     try {
@@ -109,7 +75,6 @@ const BankConnections: React.FC = () => {
       
       setConnections([...connections, ...(data || [])]);
       setShowAddForm(false);
-      setNewConnection({ bank_name: '', display_name: '', connection_type: 'csv' });
     } catch (error: any) {
       toast.error(`Error adding connection: ${error.message}`);
     }
@@ -230,138 +195,35 @@ const BankConnections: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {connections.map(connection => (
-                    <div key={connection.id}>
-                      <div className="flex items-center justify-between p-3 border rounded-md bg-card hover:bg-accent/20 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-primary/10 p-2 rounded-full">
-                            {connection.connection_type === 'api' ? (
-                              <LinkIcon className="h-5 w-5 text-primary" />
-                            ) : (
-                              <DatabaseIcon className="h-5 w-5 text-primary" />
-                            )}
-                          </div>
-                          <div>
-                            <h4 className="font-medium">
-                              {connection.display_name || connection.bank_name}
-                              {connection.display_name && connection.display_name !== connection.bank_name && (
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({connection.bank_name})
-                                </span>
-                              )}
-                            </h4>
-                            <p className="text-xs text-muted-foreground">
-                              {connection.connection_type === 'api' ? 'API Connection' : 'CSV Upload'}
-                              {connection.last_sync && ` · Last sync: ${new Date(connection.last_sync).toLocaleString()}`}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => setEditingId(connection.id)}
-                            className="hover-scale"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleSyncBank(connection)}
-                            disabled={syncing === connection.id}
-                            className="hover-scale"
-                          >
-                            <RefreshCw className={`h-4 w-4 mr-1 ${syncing === connection.id ? 'animate-spin' : ''}`} />
-                            {syncing === connection.id ? 'Syncing...' : 'Sync Now'}
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => handleDeleteConnection(connection.id)}
-                            className="text-destructive hover:bg-destructive/10 hover-scale"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {editingId === connection.id && (
-                        <EditConnection 
-                          connection={connection}
-                          onSave={handleUpdateDisplayName}
-                          onCancel={() => setEditingId(null)}
-                        />
-                      )}
-                    </div>
-                  ))}
+                  <ConnectionList 
+                    connections={connections}
+                    syncing={syncing}
+                    editingId={editingId}
+                    onEdit={setEditingId}
+                    onSync={handleSyncBank}
+                    onDelete={handleDeleteConnection}
+                    onSave={handleUpdateDisplayName}
+                    onCancelEdit={() => setEditingId(null)}
+                  />
                 </div>
               )}
               
-              {showAddForm && (
-                <div className="border rounded-md p-4 bg-card mt-4 animate-fade-in">
-                  <h3 className="font-medium mb-3">Add New Bank Connection</h3>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="bank_name">Bank Name</Label>
-                      <Input 
-                        id="bank_name" 
-                        value={newConnection.bank_name}
-                        onChange={(e) => setNewConnection({...newConnection, bank_name: e.target.value})}
-                        placeholder="Enter bank name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="display_name">Display Name (Optional)</Label>
-                      <Input 
-                        id="display_name" 
-                        value={newConnection.display_name}
-                        onChange={(e) => setNewConnection({...newConnection, display_name: e.target.value})}
-                        placeholder="Enter display name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="connection_type">Connection Type</Label>
-                      <Select 
-                        value={newConnection.connection_type}
-                        onValueChange={(value) => setNewConnection({...newConnection, connection_type: value})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select connection type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="csv">CSV Upload</SelectItem>
-                          <SelectItem value="api">API Connection (Demo)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setShowAddForm(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        onClick={handleAddConnection}
-                        disabled={!newConnection.bank_name}
-                      >
-                        Add Connection
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {!showAddForm && connections.length > 0 && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowAddForm(true)}
-                  className="w-full hover-scale"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Another Bank Connection
-                </Button>
+              {showAddForm ? (
+                <AddConnectionForm 
+                  onAdd={handleAddConnection}
+                  onCancel={() => setShowAddForm(false)}
+                />
+              ) : (
+                connections.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowAddForm(true)}
+                    className="w-full hover-scale"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Another Bank Connection
+                  </Button>
+                )
               )}
             </div>
           )}
