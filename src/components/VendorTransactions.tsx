@@ -25,9 +25,9 @@ import {
   Plus
 } from "lucide-react";
 import { toast } from '@/utils/toast';
-import { cn } from '@/lib/utils';
 import { Transaction } from '@/types';
 import VendorEditor from './VendorEditor';
+import VendorImporter from './VendorImporter';
 
 interface VendorTransactionsProps {
   transactions: Transaction[];
@@ -118,6 +118,8 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
           </div>
         </CardContent>
       </Card>
+      
+      <VendorImporter />
       
       {selectedVendor ? (
         <div className="animate-fade-in">

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';
-import { Download, Check, X, Webhook, Database, Key, User, Activity, BarChart3 } from "lucide-react";
+import { Download, Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { useAuth } from '@/context/AuthContext';
 import { exportToCSV } from '@/utils/csvParser';
+import { useNavigate } from 'react-router-dom';
 
 interface UsageData {
   openai: {
@@ -33,12 +35,20 @@ interface PendingKeywordValidation {
 
 const Admin: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
-  if (!user) {
+  if (!user || user.email !== 'terramultaacc@gmail.com') {
     return (
       <div className="container mx-auto p-8 text-center">
-        <h2 className="text-2xl font-bold mb-4">Admin Access Required</h2>
-        <p>Please log in with admin credentials to access this page.</p>
+        <h2 className="text-2xl font-bold mb-4">Admin Access Restricted</h2>
+        <p>This page is only accessible to authorized administrators.</p>
+        <Button 
+          className="mt-4"
+          onClick={() => navigate('/')}
+        >
+          <Home className="h-4 w-4 mr-2" />
+          Return to Dashboard
+        </Button>
       </div>
     );
   }
@@ -53,19 +63,47 @@ const Admin: React.FC = () => {
 const AdminContent: React.FC = () => {
   const { transactions, vendors, bankConnections } = useBookkeeping();
   const { currency } = useSettings();
+  const navigate = useNavigate();
   
-  // Mock data - in a real app, this would come from the API
-  const [usageData] = useState<UsageData>({
+  // Calculate real stats based on actual data
+  const [usageData, setUsageData] = useState<UsageData>({
     openai: {
-      total: 1243,
-      last30Days: 287,
+      total: 0,
+      last30Days: 0,
     },
     supabase: {
-      storage: 12.5, // MB
-      functions: 432, // calls
-      database: 1.2, // GB
+      storage: 0,
+      functions: 0,
+      database: 0,
     }
   });
+  
+  // Update stats based on real data
+  useEffect(() => {
+    // Calculate OpenAI usage from transactions with AI suggestions
+    const aiSuggestedTransactions = transactions.filter(t => t.aiSuggestion);
+    
+    // Calculate last 30 days transactions
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentAiTransactions = aiSuggestedTransactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return transactionDate >= thirtyDaysAgo;
+    });
+    
+    setUsageData({
+      openai: {
+        total: aiSuggestedTransactions.length,
+        last30Days: recentAiTransactions.length,
+      },
+      supabase: {
+        storage: parseFloat((vendors.length * 0.001).toFixed(2)), // Approximate storage in MB
+        functions: aiSuggestedTransactions.length, // Approximate function calls
+        database: parseFloat((transactions.length * 0.0001).toFixed(2)), // Approximate DB size in GB
+      }
+    });
+  }, [transactions, vendors]);
   
   const [pendingKeywords] = useState<PendingKeywordValidation[]>([
     { id: '1', keyword: 'grocery store', occurrences: 12, suggested_category: 'Groceries' },
@@ -119,7 +157,13 @@ const AdminContent: React.FC = () => {
   
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-primary">Admin Dashboard</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-primary">Admin Dashboard</h1>
+        <Button onClick={() => navigate('/')} className="flex items-center gap-2">
+          <Home className="h-4 w-4" />
+          Return to Dashboard
+        </Button>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>

@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -120,15 +119,27 @@ export type Tables<
     ? (Database["public"]["Tables"] & { row: any })[TableName]["Row"]
     : never
 
-export type VendorCategorizationRow = Tables<'vendor_categorizations'>;
 export interface BankConnectionRow {
   id: string;
-  active: boolean;
-  api_details: Json | null;
   bank_name: string;
   connection_type: string;
   created_at: string;
-  last_sync: string | null;
+  last_sync: string;
   user_id: string;
+  active: boolean;
+  api_details: Json;
   display_name: string | null;
+}
+
+export interface VendorCategorizationRow {
+  id: string;
+  vendor_name: string;
+  category: string;
+  type: string;
+  statement_type: string;
+  occurrences: number;
+  verified: boolean;
+  created_at: string;
+  last_used: string;
+  confidence: number;
 }
