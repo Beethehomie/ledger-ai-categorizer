@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -118,6 +117,10 @@ export type Database = {
     }
   }
 }
+
+// Create type aliases to make it easier to work with these tables
+export type VendorCategorizationRow = Database['public']['Tables']['vendor_categorizations']['Row'];
+export type BankConnectionRow = Database['public']['Tables']['bank_connections']['Row'];
 
 type DefaultSchema = Database[Extract<keyof Database, "public">]
 

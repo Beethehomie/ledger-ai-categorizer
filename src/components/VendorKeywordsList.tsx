@@ -15,6 +15,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
+import { useIsMobile } from '@/hooks/use-mobile';
+
+const ITEMS_PER_PAGE = 20;
 
 const VendorKeywordsList: React.FC = () => {
   const [vendors, setVendors] = useState<VendorCategorizationRow[]>([]);
@@ -22,6 +34,10 @@ const VendorKeywordsList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [filterOption, setFilterOption] = useState<'all' | 'verified' | 'pending'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchVendors();
@@ -46,6 +62,13 @@ const VendorKeywordsList: React.FC = () => {
     }
     
     setFilteredVendors(filtered);
+    setTotalItems(filtered.length);
+    setTotalPages(Math.ceil(filtered.length / ITEMS_PER_PAGE));
+    
+    // Reset to first page when filters change
+    if (currentPage > Math.ceil(filtered.length / ITEMS_PER_PAGE)) {
+      setCurrentPage(1);
+    }
   }, [searchTerm, vendors, filterOption]);
 
   const fetchVendors = async () => {
@@ -74,6 +97,8 @@ const VendorKeywordsList: React.FC = () => {
         
         setVendors(formattedVendors);
         setFilteredVendors(formattedVendors);
+        setTotalItems(formattedVendors.length);
+        setTotalPages(Math.ceil(formattedVendors.length / ITEMS_PER_PAGE));
       }
     } catch (error) {
       console.error('Error fetching vendors:', error);
@@ -141,6 +166,52 @@ const VendorKeywordsList: React.FC = () => {
     }
   };
 
+  // Get current page items
+  const getCurrentPageItems = () => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredVendors.slice(startIndex, endIndex);
+  };
+
+  // Generate page numbers for pagination
+  const generatePaginationItems = () => {
+    let pages = [];
+    const maxPagesToShow = isMobile ? 3 : 5;
+    
+    // Always show first page
+    pages.push(1);
+    
+    if (totalPages <= maxPagesToShow) {
+      // If we have few pages, show all of them
+      for (let i = 2; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show ellipsis and surrounding pages
+      if (currentPage > 3) {
+        pages.push('ellipsis');
+      }
+      
+      // Pages around current
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        if (i !== 1 && i !== totalPages) {
+          pages.push(i);
+        }
+      }
+      
+      if (currentPage < totalPages - 2) {
+        pages.push('ellipsis');
+      }
+      
+      // Always show last page if more than 1 page
+      if (totalPages > 1) {
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -205,7 +276,7 @@ const VendorKeywordsList: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredVendors.slice(0, 100).map((vendor) => (
+                {getCurrentPageItems().map((vendor) => (
                   <TableRow key={vendor.id}>
                     <TableCell className="font-medium">{vendor.vendor_name}</TableCell>
                     <TableCell>{vendor.category}</TableCell>
@@ -249,9 +320,48 @@ const VendorKeywordsList: React.FC = () => {
                 ))}
               </TableBody>
             </Table>
-            {filteredVendors.length > 100 && (
-              <div className="py-2 px-4 text-sm text-muted-foreground text-center">
-                Showing 100 of {filteredVendors.length} results. Please refine your search to see more.
+            
+            {totalItems > ITEMS_PER_PAGE && (
+              <div className="flex justify-between items-center py-4 px-2">
+                <div className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of {totalItems} entries
+                </div>
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        aria-disabled={currentPage === 1}
+                      />
+                    </PaginationItem>
+                    
+                    {generatePaginationItems().map((page, index) => 
+                      page === 'ellipsis' ? (
+                        <PaginationItem key={`ellipsis-${index}`}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      ) : (
+                        <PaginationItem key={page}>
+                          <PaginationLink 
+                            isActive={currentPage === page}
+                            onClick={() => setCurrentPage(page as number)}
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      )
+                    )}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        aria-disabled={currentPage === totalPages}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
             )}
           </div>
