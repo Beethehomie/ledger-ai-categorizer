@@ -3,8 +3,8 @@ import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, CheckCircle, AlertCircle, FileUp, FilePlus } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Upload, CheckCircle, AlertCircle, FileUp, FilePlus, Download, Info } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,6 +65,11 @@ const VendorImporter: React.FC = () => {
       
       // Parse the CSV content
       const rows = text.split('\n');
+      
+      if (rows.length === 0) {
+        throw new Error('CSV file is empty');
+      }
+      
       const headers = rows[0].split(',').map(h => h.trim());
       
       // Check if the CSV has the required columns
@@ -81,7 +86,10 @@ const VendorImporter: React.FC = () => {
         if (!rows[i].trim()) continue; // Skip empty rows
         
         const values = rows[i].split(',').map(v => v.trim());
-        if (values.length !== headers.length) continue; // Skip malformed rows
+        if (values.length !== headers.length) {
+          console.warn(`Skipping row ${i+1}: invalid column count`);
+          continue; // Skip malformed rows
+        }
         
         const vendor: Record<string, string | number | boolean> = {};
         headers.forEach((header, index) => {
@@ -141,6 +149,29 @@ const VendorImporter: React.FC = () => {
     } finally {
       setUploadLoading(false);
     }
+  };
+
+  const downloadSampleCSV = () => {
+    const headers = 'vendor_name,category,type,statement_type,verified,occurrences\n';
+    const sampleRows = [
+      'Amazon,Office Supplies,expense,profit_loss,true,5',
+      'Starbucks,Food & Entertainment,expense,profit_loss,true,3',
+      'Adobe,Software,expense,profit_loss,false,1',
+      'American Airlines,Travel,expense,profit_loss,true,4'
+    ].join('\n');
+    
+    const csvContent = headers + sampleRows;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'vendor_categories_sample.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success('Sample CSV downloaded');
   };
 
   return (
@@ -205,17 +236,35 @@ const VendorImporter: React.FC = () => {
           
           <TabsContent value="csv">
             <div className="flex flex-col gap-4">
-              <div className="text-sm text-muted-foreground">
-                <p className="mb-2">Upload a CSV file with vendor categorizations. The CSV should include these columns:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li><span className="font-medium">vendor_name</span> - The name of the vendor</li>
-                  <li><span className="font-medium">category</span> - The category to assign</li>
-                  <li><span className="font-medium">type</span> - Transaction type (income, expense, asset, liability, equity)</li>
-                  <li><span className="font-medium">statement_type</span> - Statement type (operating, investing, financing)</li>
-                  <li><span className="font-medium">verified</span> - Optional, true/false to mark as verified</li>
-                  <li><span className="font-medium">occurrences</span> - Optional, number of times observed</li>
-                </ul>
-              </div>
+              <Alert className="bg-muted">
+                <Info className="h-4 w-4" />
+                <AlertTitle>CSV Format Requirements</AlertTitle>
+                <AlertDescription>
+                  <p className="mb-2">Your CSV file <strong>must</strong> include these required columns:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><span className="font-medium">vendor_name</span> - The name of the vendor</li>
+                    <li><span className="font-medium">category</span> - The category to assign</li>
+                    <li><span className="font-medium">type</span> - Transaction type (income, expense, asset, liability, equity)</li>
+                    <li><span className="font-medium">statement_type</span> - Statement type (operating, investing, financing, profit_loss, balance_sheet)</li>
+                  </ul>
+                  <p className="mt-2">Optional columns include:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><span className="font-medium">verified</span> - Set to "true" or "false"</li>
+                    <li><span className="font-medium">occurrences</span> - Number of times observed</li>
+                  </ul>
+                  <div className="mt-3">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={downloadSampleCSV}
+                      className="flex items-center gap-2 hover:bg-secondary"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download Sample CSV
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
               
               <div className="grid w-full max-w-sm items-center gap-1.5">
                 <Input
@@ -243,30 +292,36 @@ const VendorImporter: React.FC = () => {
                   <AlertDescription>{result.message}</AlertDescription>
                 </Alert>
               )}
-              
-              <div className="flex justify-end">
-                <Button 
-                  onClick={handleUploadCSV} 
-                  disabled={uploadLoading || !csvFile}
-                  variant="outline"
-                >
-                  {uploadLoading ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 mr-2 border-t-2 border-b-2 border-current rounded-full" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <FileUp className="h-4 w-4 mr-2" />
-                      Upload CSV
-                    </>
-                  )}
-                </Button>
-              </div>
             </div>
           </TabsContent>
         </Tabs>
       </CardContent>
+      <CardFooter className="flex justify-end">
+        {/* Only show Upload button on CSV tab */}
+        <Tabs.Context.Consumer>
+          {(context) => (
+            context?.value === 'csv' && (
+              <Button 
+                onClick={handleUploadCSV} 
+                disabled={uploadLoading || !csvFile}
+                variant="outline"
+              >
+                {uploadLoading ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 mr-2 border-t-2 border-b-2 border-current rounded-full" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <FileUp className="h-4 w-4 mr-2" />
+                    Upload CSV
+                  </>
+                )}
+              </Button>
+            )
+          )}
+        </Tabs.Context.Consumer>
+      </CardFooter>
     </Card>
   );
 };
