@@ -37,7 +37,7 @@ const VendorImporter: React.FC = () => {
       }
     } catch (error) {
       console.error('Error importing vendor categories:', error);
-      const errorMsg = 'Failed to import vendor categories: ' + (error.message || 'Unknown error');
+      const errorMsg = error.message ? `Failed to import vendor categories: ${error.message}` : 'Failed to import vendor categories: Unknown error';
       setResult({ success: false, message: errorMsg });
       toast.error(errorMsg);
     } finally {
@@ -111,6 +111,9 @@ const VendorImporter: React.FC = () => {
         throw new Error('No valid vendor data found in the CSV file');
       }
       
+      // Log for debugging
+      console.log(`Attempting to upload ${vendors.length} vendors`);
+      
       // Insert vendors in batches of 100 to avoid exceeding request size limits
       const batchSize = 100;
       let successCount = 0;
@@ -118,6 +121,8 @@ const VendorImporter: React.FC = () => {
       
       for (let i = 0; i < vendors.length; i += batchSize) {
         const batch = vendors.slice(i, i + batchSize);
+        console.log(`Processing batch ${i/batchSize + 1} with ${batch.length} vendors`);
+        
         const { error, count } = await supabase
           .from('vendor_categorizations')
           .upsert(batch, { 
@@ -129,7 +134,12 @@ const VendorImporter: React.FC = () => {
           console.error('Error inserting batch:', error);
           errorCount += batch.length;
         } else {
-          successCount += count || 0;
+          successCount += count || batch.length; // Fallback to batch length if count is undefined
+        }
+        
+        // Add a small delay between batches to avoid overwhelming the server
+        if (i + batchSize < vendors.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
       
@@ -144,7 +154,7 @@ const VendorImporter: React.FC = () => {
       }
     } catch (error) {
       console.error('Error uploading CSV:', error);
-      const errorMsg = 'Failed to upload CSV: ' + (error.message || 'Unknown error');
+      const errorMsg = error.message ? `Failed to upload CSV: ${error.message}` : 'Failed to upload CSV: Unknown error';
       setResult({ success: false, message: errorMsg });
       toast.error(errorMsg);
     } finally {
@@ -187,7 +197,7 @@ const VendorImporter: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="preset" className="w-full" onValueChange={setCurrentTab}>
+        <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="preset">Import Preset Categories</TabsTrigger>
             <TabsTrigger value="csv">Upload CSV File</TabsTrigger>

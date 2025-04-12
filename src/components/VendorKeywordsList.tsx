@@ -27,6 +27,7 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const ITEMS_PER_PAGE = 20;
+const MAX_VENDORS = 10000; // Increased to 10,000 vendors
 
 const VendorKeywordsList: React.FC = () => {
   const [vendors, setVendors] = useState<VendorCategorizationRow[]>([]);
@@ -74,32 +75,59 @@ const VendorKeywordsList: React.FC = () => {
   const fetchVendors = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('vendor_categorizations')
-        .select('*')
-        .order('vendor_name', { ascending: true });
       
-      if (error) throw error;
+      // Fetch vendors in batches to handle large datasets
+      let allVendors: VendorCategorizationRow[] = [];
+      let lastId: string | null = null;
+      let hasMoreData = true;
       
-      if (data) {
-        const formattedVendors = data.map(vendor => ({
-          id: vendor.id,
-          vendor_name: vendor.vendor_name,
-          category: vendor.category || '',
-          type: vendor.type || '',
-          statement_type: vendor.statement_type || '',
-          occurrences: vendor.occurrences || 0,
-          verified: vendor.verified || false,
-          created_at: vendor.created_at,
-          last_used: vendor.last_used || vendor.created_at,
-          confidence: vendor.confidence || 0.7
-        }));
+      while (hasMoreData && allVendors.length < MAX_VENDORS) {
+        let query = supabase
+          .from('vendor_categorizations')
+          .select('*')
+          .order('vendor_name', { ascending: true })
+          .limit(1000); // Fetch in batches of 1000
         
-        setVendors(formattedVendors);
-        setFilteredVendors(formattedVendors);
-        setTotalItems(formattedVendors.length);
-        setTotalPages(Math.ceil(formattedVendors.length / ITEMS_PER_PAGE));
+        if (lastId) {
+          query = query.gt('id', lastId);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allVendors = [...allVendors, ...data];
+          lastId = data[data.length - 1].id;
+        } else {
+          hasMoreData = false;
+        }
+        
+        // Stop fetching if we've hit the limit
+        if (allVendors.length >= MAX_VENDORS) {
+          hasMoreData = false;
+        }
       }
+      
+      const formattedVendors = allVendors.map(vendor => ({
+        id: vendor.id,
+        vendor_name: vendor.vendor_name,
+        category: vendor.category || '',
+        type: vendor.type || '',
+        statement_type: vendor.statement_type || '',
+        occurrences: vendor.occurrences || 0,
+        verified: vendor.verified || false,
+        created_at: vendor.created_at,
+        last_used: vendor.last_used || vendor.created_at,
+        confidence: vendor.confidence || 0.7
+      }));
+      
+      setVendors(formattedVendors);
+      setFilteredVendors(formattedVendors);
+      setTotalItems(formattedVendors.length);
+      setTotalPages(Math.ceil(formattedVendors.length / ITEMS_PER_PAGE));
+      
+      console.log(`Loaded ${formattedVendors.length} vendor keywords`);
     } catch (error) {
       console.error('Error fetching vendors:', error);
       toast.error('Failed to load vendor keywords');
@@ -130,7 +158,12 @@ const VendorKeywordsList: React.FC = () => {
 
   const exportVendorsToCSV = () => {
     try {
-      const vendorsForExport = vendors.map(v => ({
+      // Determine if we should export all vendors or just the filtered ones
+      const vendorsToExport = searchTerm || filterOption !== 'all' 
+        ? filteredVendors 
+        : vendors;
+      
+      const vendorsForExport = vendorsToExport.map(v => ({
         vendor_name: v.vendor_name,
         category: v.category,
         type: v.type,
@@ -140,7 +173,7 @@ const VendorKeywordsList: React.FC = () => {
         confidence: v.confidence
       }));
       
-      const headers = Object.keys(vendorsForExport[0]).join(',');
+      const headers = Object.keys(vendorsForExport[0] || {}).join(',');
       const rows = vendorsForExport.map(obj => 
         Object.values(obj).map(value => 
           typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value
@@ -159,7 +192,7 @@ const VendorKeywordsList: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       
-      toast.success('Vendor keywords exported to CSV successfully');
+      toast.success(`Exported ${vendorsForExport.length} vendor keywords to CSV successfully`);
     } catch (error) {
       console.error('Error exporting CSV:', error);
       toast.error('Failed to export vendor keywords');
@@ -322,7 +355,7 @@ const VendorKeywordsList: React.FC = () => {
             </Table>
             
             {totalItems > ITEMS_PER_PAGE && (
-              <div className="flex justify-between items-center py-4 px-2">
+              <div className="flex flex-col sm:flex-row justify-between items-center py-4 px-2 gap-4">
                 <div className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of {totalItems} entries
                 </div>
