@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Transaction, Category, FinancialSummary, Vendor, Currency } from '../types';
 import { mockCategories } from '../data/mockData';
@@ -113,7 +112,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         if (data) {
           const transformedData: BankConnectionRow[] = data.map(conn => ({
             ...conn,
-            display_name: conn.display_name || null
+            display_name: conn.display_name || conn.bank_name
           }));
           setBankConnections(transformedData);
         }
