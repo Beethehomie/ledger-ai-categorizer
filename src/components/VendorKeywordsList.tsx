@@ -1,35 +1,52 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, X, Search, BadgeCheck, Database, Download } from "lucide-react";
+import { Check, X, Search, BadgeCheck, Database, Download, Filter } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { VendorCategorizationRow } from '@/types/supabase';
-import { exportToCSV } from '@/utils/csvParser';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const VendorKeywordsList: React.FC = () => {
   const [vendors, setVendors] = useState<VendorCategorizationRow[]>([]);
   const [filteredVendors, setFilteredVendors] = useState<VendorCategorizationRow[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [filterOption, setFilterOption] = useState<'all' | 'verified' | 'pending'>('all');
 
   useEffect(() => {
     fetchVendors();
   }, []);
 
   useEffect(() => {
+    let filtered = vendors;
+    
+    // Apply search filter
     if (searchTerm) {
-      const filtered = vendors.filter(vendor => 
+      filtered = filtered.filter(vendor => 
         vendor.vendor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         vendor.category?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredVendors(filtered);
-    } else {
-      setFilteredVendors(vendors);
     }
-  }, [searchTerm, vendors]);
+    
+    // Apply verification status filter
+    if (filterOption === 'verified') {
+      filtered = filtered.filter(vendor => vendor.verified === true);
+    } else if (filterOption === 'pending') {
+      filtered = filtered.filter(vendor => vendor.verified !== true);
+    }
+    
+    setFilteredVendors(filtered);
+  }, [searchTerm, vendors, filterOption]);
 
   const fetchVendors = async () => {
     try {
@@ -136,17 +153,35 @@ const VendorKeywordsList: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-between items-center mb-4">
-          <div className="relative w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search vendors..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search vendors..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select
+                value={filterOption}
+                onValueChange={(value) => setFilterOption(value as 'all' | 'verified' | 'pending')}
+              >
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Keywords</SelectItem>
+                  <SelectItem value="verified">Verified Only</SelectItem>
+                  <SelectItem value="pending">Pending Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <Button variant="outline" onClick={exportVendorsToCSV}>
+          <Button variant="outline" onClick={exportVendorsToCSV} className="w-full sm:w-auto">
             <Download className="h-4 w-4 mr-2" />
             Export Keywords
           </Button>
@@ -226,6 +261,26 @@ const VendorKeywordsList: React.FC = () => {
             <p>No vendor keywords found matching your search criteria</p>
           </div>
         )}
+
+        <div className="mt-4 pt-4 border-t">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-md font-medium">Verified Vendor Statistics</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-muted rounded-md p-4">
+              <div className="text-sm text-muted-foreground">Total Keywords</div>
+              <div className="text-2xl font-bold">{vendors.length}</div>
+            </div>
+            <div className="bg-muted rounded-md p-4">
+              <div className="text-sm text-muted-foreground">Verified Keywords</div>
+              <div className="text-2xl font-bold">{vendors.filter(v => v.verified).length}</div>
+            </div>
+            <div className="bg-muted rounded-md p-4">
+              <div className="text-sm text-muted-foreground">Pending Keywords</div>
+              <div className="text-2xl font-bold">{vendors.filter(v => !v.verified).length}</div>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
