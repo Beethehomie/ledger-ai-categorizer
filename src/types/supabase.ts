@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -63,6 +64,7 @@ export interface Database {
           type: string | null
           vendor_name: string
           verified: boolean | null
+          confidence: number | null
         }
         Insert: {
           category?: string | null
@@ -74,6 +76,7 @@ export interface Database {
           type?: string | null
           vendor_name: string
           verified?: boolean | null
+          confidence?: number | null
         }
         Update: {
           category?: string | null
@@ -85,6 +88,7 @@ export interface Database {
           type?: string | null
           vendor_name?: string
           verified?: boolean | null
+          confidence?: number | null
         }
         Relationships: []
       }
@@ -116,7 +120,7 @@ export type Tables<
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] & { row: any })[TableName]["Row"]
   : PublicTableNameOrOptions extends keyof (Database["public"]["Tables"] & { row: any })
-    ? (Database["public"]["Tables"] & { row: any })[TableName]["Row"]
+    ? (Database["public"]["Tables"] & { row: any })[PublicTableNameOrOptions]["Row"]
     : never
 
 export interface BankConnectionRow {

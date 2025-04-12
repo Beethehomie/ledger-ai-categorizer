@@ -4,15 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useBookkeeping } from '@/context/BookkeepingContext';
 import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';
-import { Download, Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home } from "lucide-react";
+import { Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home, Upload } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { useAuth } from '@/context/AuthContext';
 import { exportToCSV } from '@/utils/csvParser';
 import { useNavigate } from 'react-router-dom';
+import VendorKeywordsList from '@/components/VendorKeywordsList';
+import VendorImporter from '@/components/VendorImporter';
 
 interface UsageData {
   openai: {
@@ -159,10 +160,16 @@ const AdminContent: React.FC = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-primary">Admin Dashboard</h1>
-        <Button onClick={() => navigate('/')} className="flex items-center gap-2">
-          <Home className="h-4 w-4" />
-          Return to Dashboard
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/')} className="flex items-center gap-2">
+            <Home className="h-4 w-4" />
+            Return to Dashboard
+          </Button>
+          <Button onClick={() => navigate('/upload')} variant="outline" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            Upload CSV
+          </Button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -220,6 +227,10 @@ const AdminContent: React.FC = () => {
           <TabsTrigger value="keywords">
             <Key className="h-4 w-4 mr-2" />
             Pending Keywords
+          </TabsTrigger>
+          <TabsTrigger value="allKeywords">
+            <Database className="h-4 w-4 mr-2" />
+            All Vendor Keywords
           </TabsTrigger>
           <TabsTrigger value="subscribers">
             <User className="h-4 w-4 mr-2" />
@@ -281,6 +292,14 @@ const AdminContent: React.FC = () => {
               No pending keywords to validate
             </div>
           )}
+          
+          <div className="mt-6">
+            <VendorImporter />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="allKeywords" className="border rounded-lg p-4">
+          <VendorKeywordsList />
         </TabsContent>
         
         <TabsContent value="subscribers" className="border rounded-lg p-4">
