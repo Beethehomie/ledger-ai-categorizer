@@ -21,7 +21,7 @@ interface BookkeepingContextType {
   updateTransaction: (updatedTransaction: Transaction) => void;
   verifyTransaction: (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => void;
   verifyVendor: (vendorName: string, approved: boolean) => void;
-  uploadCSV: (csvString: string, bankConnectionId?: string) => void;
+  uploadCSV: (csvString: string, bankConnectionId?: string, initialBalance?: number) => void;
   getFilteredTransactions: (
     statementType?: Transaction['statementType'], 
     verified?: boolean,
@@ -35,6 +35,7 @@ interface BookkeepingContextType {
   calculateFinancialSummary: () => void;
   analyzeTransactionWithAI: (transaction: Transaction) => Promise<any>;
   getBankConnectionById: (id: string) => BankConnectionRow | undefined;
+  removeDuplicateVendors: () => Promise<boolean>;
 }
 
 const initialFinancialSummary: FinancialSummary = {
@@ -365,7 +366,141 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   };
 
-  const uploadCSV = async (csvString: string, bankConnectionId?: string) => {
+  const calculateRunningBalance = (
+    parsedTransactions: Transaction[], 
+    initialBalance: number
+  ): Transaction[] => {
+    const sortedTransactions = [...parsedTransactions].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateA - dateB;
+    });
+    
+    let runningBalance = initialBalance;
+    
+    return sortedTransactions.map(transaction => {
+      if (transaction.type === 'income') {
+        runningBalance += transaction.amount;
+      } else if (transaction.type === 'expense') {
+        runningBalance -= Math.abs(transaction.amount);
+      } else if (transaction.type === 'asset') {
+        runningBalance -= Math.abs(transaction.amount);  // Purchasing an asset reduces cash
+      } else if (transaction.type === 'liability') {
+        runningBalance += Math.abs(transaction.amount);  // Taking on liability increases cash
+      }
+      
+      return {
+        ...transaction,
+        balance: Number(runningBalance.toFixed(2))
+      };
+    });
+  };
+
+  const removeDuplicateVendors = async (): Promise<boolean> => {
+    if (!session) {
+      toast.error('You must be logged in to manage vendors');
+      return false;
+    }
+
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('vendor_categorizations')
+        .select('vendor_name, category');
+        
+      if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        toast.info('No vendors found to check for duplicates');
+        return false;
+      }
+      
+      const vendorMap = new Map<string, string[]>();
+      data.forEach(v => {
+        const name = v.vendor_name.toLowerCase().trim();
+        const category = v.category;
+        
+        if (!vendorMap.has(name)) {
+          vendorMap.set(name, [category]);
+        } else {
+          const categories = vendorMap.get(name) || [];
+          if (!categories.includes(category)) {
+            categories.push(category);
+          }
+          vendorMap.set(name, categories);
+        }
+      });
+      
+      const duplicates = [...vendorMap.entries()]
+        .filter(([_, categories]) => categories.length > 1);
+      
+      if (duplicates.length === 0) {
+        toast.success('No duplicate vendors found');
+        return true;
+      }
+      
+      let removedCount = 0;
+      
+      for (const [name, _] of duplicates) {
+        const { data: vendorRecords } = await supabase
+          .from('vendor_categorizations')
+          .select('*')
+          .ilike('vendor_name', name);
+          
+        if (!vendorRecords || vendorRecords.length <= 1) continue;
+        
+        const sorted = [...vendorRecords].sort((a, b) => {
+          if (a.verified && !b.verified) return -1;
+          if (!a.verified && b.verified) return 1;
+          
+          return (b.occurrences || 0) - (a.occurrences || 0);
+        });
+        
+        const keepId = sorted[0].id;
+        const toDelete = sorted.slice(1).map(v => v.id);
+        
+        if (toDelete.length > 0) {
+          const { error: deleteError } = await supabase
+            .from('vendor_categorizations')
+            .delete()
+            .in('id', toDelete);
+            
+          if (!deleteError) {
+            removedCount += toDelete.length;
+          }
+        }
+      }
+      
+      const { data: updatedVendors } = await supabase
+        .from('vendor_categorizations')
+        .select('*');
+        
+      if (updatedVendors) {
+        const vendorsFromDB: Vendor[] = updatedVendors.map((v) => ({
+          name: v.vendor_name || '',
+          category: v.category || '',
+          type: (v.type as Transaction['type']) || 'expense',
+          statementType: (v.statement_type as Transaction['statementType']) || 'operating',
+          occurrences: v.occurrences || 1,
+          verified: v.verified || false
+        }));
+        
+        setVendors(vendorsFromDB);
+      }
+      
+      toast.success(`Removed ${removedCount} duplicate vendor entries`);
+      return true;
+    } catch (err: any) {
+      console.error('Error removing duplicate vendors:', err);
+      toast.error('Failed to remove duplicate vendors');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const uploadCSV = async (csvString: string, bankConnectionId?: string, initialBalance: number = 0) => {
     setLoading(true);
     try {
       const parsedTransactions = parseCSV(csvString);
@@ -421,8 +556,10 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
           }
         }
         
-        addTransactions(processedTransactions);
-        toast.success(`Successfully processed ${processedTransactions.length} transactions`);
+        const transactionsWithBalance = calculateRunningBalance(processedTransactions, initialBalance);
+        
+        addTransactions(transactionsWithBalance);
+        toast.success(`Successfully processed ${transactionsWithBalance.length} transactions`);
       };
       
       await processTransactions();
@@ -534,6 +671,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     calculateFinancialSummary,
     analyzeTransactionWithAI,
     getBankConnectionById,
+    removeDuplicateVendors,
   };
 
   return (

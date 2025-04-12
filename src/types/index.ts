@@ -1,3 +1,4 @@
+
 export type TransactionType = "income" | "expense" | "asset" | "liability" | "equity";
 export type StatementType = "profit_loss" | "balance_sheet" | "operating";
 export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR";
@@ -17,6 +18,7 @@ export interface Transaction {
   confidenceScore?: number;
   bankAccountId?: string;
   bankAccountName?: string;
+  balance?: number; // Running balance field
 }
 
 export interface Category {
@@ -75,4 +77,11 @@ export interface TableColumn {
   id: string;
   name: string;
   visible: boolean;
+  sortable?: boolean;
+  sortDirection?: 'asc' | 'desc' | null;
+}
+
+export interface InitialBalanceInput {
+  amount: number;
+  date: string;
 }

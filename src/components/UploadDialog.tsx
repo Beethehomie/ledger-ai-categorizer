@@ -3,10 +3,13 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UploadCloud, FileSpreadsheet, AlertCircle, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { UploadCloud, FileSpreadsheet, AlertCircle, ArrowRight, Info } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
 import { BankConnectionRow } from '@/types/supabase';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface UploadDialogProps {
   isOpen: boolean;
@@ -20,6 +23,9 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedBankId, setSelectedBankId] = useState<string>('');
+  const [initialBalance, setInitialBalance] = useState<string>('0');
+  const [duplicateTransactions, setDuplicateTransactions] = useState<string[]>([]);
+  const [hasUploaded, setHasUploaded] = useState(false);
 
   // Get CSV-type bank connections
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
@@ -59,6 +65,49 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     }
     
     setSelectedFile(file);
+    setDuplicateTransactions([]);
+    setHasUploaded(false);
+  };
+
+  const checkForDuplicates = (csvContent: string): { hasDuplicates: boolean; duplicates: string[] } => {
+    const rows = csvContent.split('\n');
+    if (rows.length <= 1) return { hasDuplicates: false, duplicates: [] };
+    
+    const headers = rows[0].split(',');
+    const dateIndex = headers.findIndex(h => h.toLowerCase().includes('date'));
+    const descIndex = headers.findIndex(h => h.toLowerCase().includes('description'));
+    const amountIndex = headers.findIndex(h => h.toLowerCase().includes('amount'));
+    
+    if (dateIndex === -1 || descIndex === -1 || amountIndex === -1) {
+      return { hasDuplicates: false, duplicates: [] };
+    }
+    
+    const seen = new Set<string>();
+    const duplicates: string[] = [];
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
+      
+      const values = rows[i].split(',');
+      if (values.length < Math.max(dateIndex, descIndex, amountIndex) + 1) continue;
+      
+      const date = values[dateIndex].trim();
+      const desc = values[descIndex].trim();
+      const amount = values[amountIndex].trim();
+      
+      const key = `${date}-${desc}-${amount}`;
+      
+      if (seen.has(key)) {
+        duplicates.push(`Row ${i+1}: ${date} | ${desc} | ${amount}`);
+      } else {
+        seen.add(key);
+      }
+    }
+    
+    return { 
+      hasDuplicates: duplicates.length > 0,
+      duplicates
+    };
   };
 
   const processFile = () => {
@@ -75,7 +124,18 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     const reader = new FileReader();
     reader.onload = (event) => {
       if (event.target && typeof event.target.result === 'string') {
-        uploadCSV(event.target.result, selectedBankId);
+        const csvContent = event.target.result;
+        const { hasDuplicates, duplicates } = checkForDuplicates(csvContent);
+        
+        if (hasDuplicates) {
+          setDuplicateTransactions(duplicates);
+          toast.error(`Found ${duplicates.length} duplicate transactions. Please review the list.`);
+          return;
+        }
+        
+        const initialBalanceValue = parseFloat(initialBalance) || 0;
+        uploadCSV(csvContent, selectedBankId, initialBalanceValue);
+        setHasUploaded(true);
         resetDialog();
         onClose();
       }
@@ -92,6 +152,9 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     setSelectedFile(null);
     setSelectedBankId('');
     setDragActive(false);
+    setInitialBalance('0');
+    setDuplicateTransactions([]);
+    setHasUploaded(false);
   };
 
   const handleClose = () => {
@@ -107,7 +170,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
           <DialogDescription>
             {step === 1 
               ? "CSV file must include these columns: Date, Description, Amount" 
-              : "Select the bank account for this statement upload"}
+              : "Configure upload settings for this statement"}
           </DialogDescription>
         </DialogHeader>
 
@@ -164,6 +227,25 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
               </div>
             )}
 
+            {duplicateTransactions.length > 0 && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="font-medium mb-2">Found {duplicateTransactions.length} duplicate transactions:</div>
+                  <div className="max-h-40 overflow-y-auto text-xs space-y-1">
+                    {duplicateTransactions.slice(0, 5).map((dupe, i) => (
+                      <div key={i} className="py-1 border-b border-red-200">{dupe}</div>
+                    ))}
+                    {duplicateTransactions.length > 5 && (
+                      <div className="text-sm font-medium pt-1">
+                        ... and {duplicateTransactions.length - 5} more
+                      </div>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="flex items-center space-x-2 text-sm text-amber-500">
               <AlertCircle className="h-4 w-4" />
               <p>Required columns: Date, Description, Amount</p>
@@ -185,30 +267,50 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
         ) : (
           <>
             <div className="space-y-4 py-2">
-              <p className="text-sm font-medium">Select Bank Account</p>
-              
-              {csvBankConnections.length > 0 ? (
-                <Select
-                  value={selectedBankId}
-                  onValueChange={setSelectedBankId}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a bank account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {csvBankConnections.map((conn) => (
-                      <SelectItem key={conn.id} value={conn.id}>
-                        {conn.display_name || conn.bank_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="text-center p-4 border border-dashed rounded-md">
-                  <p className="text-muted-foreground">No CSV bank accounts available.</p>
-                  <p className="text-sm mt-2">Add a CSV bank connection in the Banking tab first.</p>
+              <div className="space-y-2">
+                <Label htmlFor="initial-balance">Initial Balance</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="initial-balance"
+                    type="number"
+                    step="0.01"
+                    value={initialBalance}
+                    onChange={(e) => setInitialBalance(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full"
+                  />
                 </div>
-              )}
+                <p className="text-xs text-muted-foreground">
+                  <Info className="inline h-3 w-3 mr-1" />
+                  This will be used as the starting balance for calculating running balances
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Select Bank Account</Label>
+                {csvBankConnections.length > 0 ? (
+                  <Select
+                    value={selectedBankId}
+                    onValueChange={setSelectedBankId}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a bank account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {csvBankConnections.map((conn) => (
+                        <SelectItem key={conn.id} value={conn.id}>
+                          {conn.display_name || conn.bank_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="text-center p-4 border border-dashed rounded-md">
+                    <p className="text-muted-foreground">No CSV bank accounts available.</p>
+                    <p className="text-sm mt-2">Add a CSV bank connection in the Banking tab first.</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <DialogFooter>

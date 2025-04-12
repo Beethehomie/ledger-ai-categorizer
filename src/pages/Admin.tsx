@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -5,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { BookkeepingProvider, useBookkeeping } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';
-import { Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home, Upload, Download } from "lucide-react";
+import { Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home, Upload, Download, Trash } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +14,8 @@ import { exportToCSV } from '@/utils/csvParser';
 import { useNavigate } from 'react-router-dom';
 import VendorKeywordsList from '@/components/VendorKeywordsList';
 import VendorImporter from '@/components/VendorImporter';
+import { Pagination } from '@/components/ui/pagination';
+import UploadDialog from '@/components/UploadDialog';
 
 interface UsageData {
   openai: {
@@ -26,6 +29,13 @@ interface UsageData {
   };
 }
 
+interface SystemStats {
+  transactionCount: number;
+  vendorCount: number;
+  bankConnectionCount: number;
+  verifiedCategoriesCount: number;
+}
+
 interface PendingKeywordValidation {
   id: string;
   keyword: string;
@@ -37,7 +47,10 @@ const Admin: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  if (!user || user.email !== 'terramultaacc@gmail.com') {
+  // Simple check for admin access - in a real app, you'd check for admin role
+  const isAdmin = user?.email === 'terramultaacc@gmail.com';
+  
+  if (!user || !isAdmin) {
     return (
       <div className="container mx-auto p-8 text-center">
         <h2 className="text-2xl font-bold mb-4">Admin Access Restricted</h2>
@@ -61,9 +74,16 @@ const Admin: React.FC = () => {
 };
 
 const AdminContent: React.FC = () => {
-  const { transactions, vendors, bankConnections } = useBookkeeping();
+  const { transactions, vendors, bankConnections, removeDuplicateVendors } = useBookkeeping();
   const { currency } = useSettings();
   const navigate = useNavigate();
+  
+  const [systemStats, setSystemStats] = useState<SystemStats>({
+    transactionCount: 0,
+    vendorCount: 0,
+    bankConnectionCount: 0,
+    verifiedCategoriesCount: 0
+  });
   
   const [usageData, setUsageData] = useState<UsageData>({
     openai: {
@@ -77,7 +97,30 @@ const AdminContent: React.FC = () => {
     }
   });
   
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Fetch real system stats from the edge function
+  const fetchSystemStats = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-bank-transactions', {
+        body: { getStats: true }
+      });
+      
+      if (error) throw error;
+      
+      if (data && data.stats) {
+        setSystemStats(data.stats);
+      }
+    } catch (err: any) {
+      console.error('Error fetching system stats:', err);
+    }
+  };
+  
   useEffect(() => {
+    fetchSystemStats();
+    
+    // Update AI usage stats based on transactions
     const aiSuggestedTransactions = transactions.filter(t => t.aiSuggestion);
     
     const thirtyDaysAgo = new Date();
@@ -147,6 +190,16 @@ const AdminContent: React.FC = () => {
       toast.error('Failed to export transactions');
     }
   };
+
+  const handleRemoveDuplicates = async () => {
+    setIsLoading(true);
+    const success = await removeDuplicateVendors();
+    setIsLoading(false);
+    if (success) {
+      // Refresh stats
+      fetchSystemStats();
+    }
+  };
   
   return (
     <div className="container mx-auto px-4 py-8">
@@ -157,7 +210,7 @@ const AdminContent: React.FC = () => {
             <Home className="h-4 w-4" />
             Return to Dashboard
           </Button>
-          <Button onClick={() => navigate('/upload')} variant="outline" className="flex items-center gap-2">
+          <Button onClick={() => setIsUploadDialogOpen(true)} variant="outline" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />
             Upload CSV
           </Button>
@@ -291,6 +344,27 @@ const AdminContent: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="allKeywords" className="border rounded-lg p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Vendor Keywords Management</h2>
+            <Button 
+              variant="outline" 
+              onClick={handleRemoveDuplicates}
+              disabled={isLoading}
+              className="flex items-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <div className="h-4 w-4 border-t-2 border-b-2 border-current rounded-full animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Trash className="h-4 w-4 mr-2" />
+                  Remove Duplicates
+                </>
+              )}
+            </Button>
+          </div>
           <VendorKeywordsList />
         </TabsContent>
         
@@ -337,19 +411,22 @@ const AdminContent: React.FC = () => {
                 <Card>
                   <CardContent className="pt-6">
                     <div className="text-lg font-medium">Total Transactions</div>
-                    <div className="text-3xl font-bold">{transactions.length}</div>
+                    <div className="text-3xl font-bold">{systemStats.transactionCount}</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="pt-6">
                     <div className="text-lg font-medium">Bank Connections</div>
-                    <div className="text-3xl font-bold">{bankConnections.length}</div>
+                    <div className="text-3xl font-bold">{systemStats.bankConnectionCount}</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="pt-6">
                     <div className="text-lg font-medium">Vendors</div>
-                    <div className="text-3xl font-bold">{vendors.length}</div>
+                    <div className="text-3xl font-bold">{systemStats.vendorCount}</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {systemStats.verifiedCategoriesCount} verified
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -375,6 +452,12 @@ const AdminContent: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+      
+      <UploadDialog 
+        isOpen={isUploadDialogOpen} 
+        onClose={() => setIsUploadDialogOpen(false)} 
+        bankConnections={bankConnections}
+      />
     </div>
   );
 };

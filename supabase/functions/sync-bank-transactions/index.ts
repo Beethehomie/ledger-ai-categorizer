@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -6,6 +5,51 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Function to get real stats and data from the database
+const getSystemStats = async (supabase) => {
+  try {
+    // Get transaction count
+    const { count: transactionCount, error: transactionError } = await supabase
+      .from('transactions')
+      .select('*', { count: 'exact', head: true });
+    
+    // Get vendor categorizations count
+    const { count: vendorCount, error: vendorError } = await supabase
+      .from('vendor_categorizations')
+      .select('*', { count: 'exact', head: true });
+    
+    // Get bank connections count
+    const { count: bankConnectionCount, error: bankError } = await supabase
+      .from('bank_connections')
+      .select('*', { count: 'exact', head: true });
+    
+    // Get verified categories count
+    const { count: verifiedCategoriesCount, error: verifiedError } = await supabase
+      .from('vendor_categorizations')
+      .select('*', { count: 'exact', head: true })
+      .eq('verified', true);
+    
+    if (transactionError || vendorError || bankError || verifiedError) {
+      throw new Error('Error getting system stats');
+    }
+    
+    return {
+      transactionCount: transactionCount || 0,
+      vendorCount: vendorCount || 0,
+      bankConnectionCount: bankConnectionCount || 0,
+      verifiedCategoriesCount: verifiedCategoriesCount || 0
+    };
+  } catch (error) {
+    console.error('Error in getSystemStats:', error);
+    return {
+      transactionCount: 0,
+      vendorCount: 0,
+      bankConnectionCount: 0,
+      verifiedCategoriesCount: 0
+    };
+  }
 };
 
 // Mock function to simulate getting transactions from a bank API
@@ -38,8 +82,30 @@ serve(async (req) => {
   }
 
   try {
-    const { connectionId } = await req.json();
+    const { connectionId, getStats } = await req.json();
     
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Supabase credentials are missing");
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // If only requesting stats, return those
+    if (getStats) {
+      const stats = await getSystemStats(supabase);
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          stats
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Otherwise handle transaction syncing
     if (!connectionId) {
       throw new Error("Connection ID is required");
     }
@@ -54,17 +120,10 @@ serve(async (req) => {
     const transactions = await fetchTransactionsFromBank(connectionId);
     
     // Update the last_sync timestamp in the database
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
-    
-    if (supabaseUrl && supabaseKey) {
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      
-      await supabase
-        .from('bank_connections')
-        .update({ last_sync: new Date().toISOString() })
-        .eq('id', connectionId);
-    }
+    await supabase
+      .from('bank_connections')
+      .update({ last_sync: new Date().toISOString() })
+      .eq('id', connectionId);
     
     return new Response(
       JSON.stringify({ 
