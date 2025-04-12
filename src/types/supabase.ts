@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -127,7 +128,7 @@ export interface BankConnectionRow {
   bank_name: string;
   connection_type: string;
   created_at: string;
-  last_sync: string;
+  last_sync: string | null;
   user_id: string;
-  display_name?: string; // Added display_name as optional property
+  display_name: string | null;
 }

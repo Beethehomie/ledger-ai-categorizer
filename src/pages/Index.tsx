@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import Dashboard from '@/components/Dashboard';
-import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert } from 'lucide-react';
+import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import BankConnections from '@/components/BankConnections';
@@ -12,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TransactionTable from '@/components/TransactionTable';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { Link } from 'react-router-dom';
+import { exportToCSV } from '@/utils/csvParser';
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -109,7 +109,6 @@ const AppContent = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Transaction Management</h2>
             <Button variant="outline" size="sm" onClick={() => {
-              // This is where we'd implement the CSV export functionality for transactions
               const csvData = exportToCSV(transactions); 
               const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
               const url = URL.createObjectURL(blob);
@@ -145,8 +144,5 @@ const AppContent = () => {
     </Tabs>
   );
 };
-
-// Import exportToCSV for CSV export functionality
-import { exportToCSV } from '@/utils/csvParser';
 
 export default Index;

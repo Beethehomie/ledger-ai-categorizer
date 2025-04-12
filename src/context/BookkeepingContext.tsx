@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Transaction, Category, FinancialSummary, Vendor, Currency } from '../types';
 import { mockCategories } from '../data/mockData';
@@ -76,10 +77,10 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         
         if (data) {
           const vendorsFromDB: Vendor[] = data.map((v: VendorCategorizationRow) => ({
-            name: v.vendor_name,
-            category: v.category,
-            type: v.type as Transaction['type'],
-            statementType: v.statement_type as Transaction['statementType'],
+            name: v.vendor_name || '',
+            category: v.category || '',
+            type: v.type as Transaction['type'] || 'expense',
+            statementType: v.statement_type as Transaction['statementType'] || 'operating',
             occurrences: v.occurrences || 1,
             verified: v.verified || false
           }));
