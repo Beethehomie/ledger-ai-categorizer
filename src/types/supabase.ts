@@ -124,7 +124,7 @@ export type VendorCategorizationRow = Tables<'vendor_categorizations'>;
 export interface BankConnectionRow {
   id: string;
   active: boolean;
-  api_details: Json;
+  api_details: Json | null;
   bank_name: string;
   connection_type: string;
   created_at: string;
