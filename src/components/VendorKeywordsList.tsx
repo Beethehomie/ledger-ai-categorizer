@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -99,7 +98,14 @@ const VendorKeywordsList: React.FC = () => {
         confidence: v.confidence
       }));
       
-      const csvData = exportToCSV(vendorsForExport);
+      const headers = Object.keys(vendorsForExport[0]).join(',');
+      const rows = vendorsForExport.map(obj => 
+        Object.values(obj).map(value => 
+          typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value
+        ).join(',')
+      );
+      const csvData = [headers, ...rows].join('\n');
+      
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       

@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -128,22 +127,22 @@ export interface BankConnectionRow {
   bank_name: string;
   connection_type: string;
   created_at: string;
-  last_sync: string;
+  last_sync: string | null;
   user_id: string;
   active: boolean;
-  api_details: Json;
+  api_details: Json | null;
   display_name: string | null;
 }
 
 export interface VendorCategorizationRow {
   id: string;
   vendor_name: string;
-  category: string;
-  type: string;
-  statement_type: string;
-  occurrences: number;
-  verified: boolean;
+  category: string | null;
+  type: string | null;
+  statement_type: string | null;
+  occurrences: number | null;
+  verified: boolean | null;
   created_at: string;
-  last_used: string;
-  confidence: number;
+  last_used: string | null;
+  confidence: number | null;
 }

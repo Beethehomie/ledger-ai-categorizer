@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { BookkeepingProvider } from '@/context/BookkeepingContext';
+import { BookkeepingProvider, useBookkeeping } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';
-import { Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home, Upload } from "lucide-react";
+import { Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home, Upload, Download } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { useAuth } from '@/context/AuthContext';
@@ -66,7 +65,6 @@ const AdminContent: React.FC = () => {
   const { currency } = useSettings();
   const navigate = useNavigate();
   
-  // Calculate real stats based on actual data
   const [usageData, setUsageData] = useState<UsageData>({
     openai: {
       total: 0,
@@ -79,12 +77,9 @@ const AdminContent: React.FC = () => {
     }
   });
   
-  // Update stats based on real data
   useEffect(() => {
-    // Calculate OpenAI usage from transactions with AI suggestions
     const aiSuggestedTransactions = transactions.filter(t => t.aiSuggestion);
     
-    // Calculate last 30 days transactions
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
@@ -99,9 +94,9 @@ const AdminContent: React.FC = () => {
         last30Days: recentAiTransactions.length,
       },
       supabase: {
-        storage: parseFloat((vendors.length * 0.001).toFixed(2)), // Approximate storage in MB
-        functions: aiSuggestedTransactions.length, // Approximate function calls
-        database: parseFloat((transactions.length * 0.0001).toFixed(2)), // Approximate DB size in GB
+        storage: parseFloat((vendors.length * 0.001).toFixed(2)),
+        functions: aiSuggestedTransactions.length,
+        database: parseFloat((transactions.length * 0.0001).toFixed(2)),
       }
     });
   }, [transactions, vendors]);
@@ -121,17 +116,14 @@ const AdminContent: React.FC = () => {
   ]);
   
   const handleApproveKeyword = (keywordId: string) => {
-    // In a real app, this would send a request to the API
     toast.success('Keyword approved and added to database');
   };
   
   const handleRejectKeyword = (keywordId: string) => {
-    // In a real app, this would send a request to the API
     toast.success('Keyword rejected');
   };
   
   const downloadUserData = () => {
-    // In a real app, this would generate and download a CSV of all users
     toast.success('User data export started');
   };
   
