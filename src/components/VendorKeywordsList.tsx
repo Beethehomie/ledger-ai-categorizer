@@ -25,9 +25,11 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { useIsMobile } from '@/hooks/use-mobile';
+import ColumnSelector from './ColumnSelector';
+import { TableColumn } from '@/types';
 
-const ITEMS_PER_PAGE = 20;
-const MAX_VENDORS = 10000; // Increased to 10,000 vendors
+const ITEMS_PER_PAGE = 100; // Increased to 100 items per page
+const MAX_VENDORS = 10000;
 
 const VendorKeywordsList: React.FC = () => {
   const [vendors, setVendors] = useState<VendorCategorizationRow[]>([]);
@@ -39,6 +41,16 @@ const VendorKeywordsList: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const isMobile = useIsMobile();
+  
+  // Column visibility state
+  const [columns, setColumns] = useState<TableColumn[]>([
+    { id: 'vendor_name', name: 'Vendor Name', visible: true },
+    { id: 'category', name: 'Category', visible: true },
+    { id: 'type', name: 'Type', visible: true },
+    { id: 'occurrences', name: 'Usage', visible: true },
+    { id: 'status', name: 'Status', visible: true },
+    { id: 'actions', name: 'Actions', visible: true },
+  ]);
 
   useEffect(() => {
     fetchVendors();
@@ -199,6 +211,15 @@ const VendorKeywordsList: React.FC = () => {
     }
   };
 
+  // Handle toggling column visibility
+  const handleToggleColumn = (columnId: string, visible: boolean) => {
+    setColumns(prev => 
+      prev.map(col => 
+        col.id === columnId ? { ...col, visible } : col
+      )
+    );
+  };
+
   // Get current page items
   const getCurrentPageItems = () => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -245,6 +266,11 @@ const VendorKeywordsList: React.FC = () => {
     return pages;
   };
 
+  // Helper to check if a column is visible
+  const isColumnVisible = (columnId: string) => {
+    return columns.find(col => col.id === columnId)?.visible;
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -285,10 +311,13 @@ const VendorKeywordsList: React.FC = () => {
               </Select>
             </div>
           </div>
-          <Button variant="outline" onClick={exportVendorsToCSV} className="w-full sm:w-auto">
-            <Download className="h-4 w-4 mr-2" />
-            Export Keywords
-          </Button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <ColumnSelector columns={columns} onToggleColumn={handleToggleColumn} />
+            <Button variant="outline" onClick={exportVendorsToCSV}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Keywords
+            </Button>
+          </div>
         </div>
         
         {loading ? (
@@ -300,55 +329,59 @@ const VendorKeywordsList: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Vendor Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Usage</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  {isColumnVisible('vendor_name') && <TableHead>Vendor Name</TableHead>}
+                  {isColumnVisible('category') && <TableHead>Category</TableHead>}
+                  {isColumnVisible('type') && <TableHead>Type</TableHead>}
+                  {isColumnVisible('occurrences') && <TableHead>Usage</TableHead>}
+                  {isColumnVisible('status') && <TableHead className="text-center">Status</TableHead>}
+                  {isColumnVisible('actions') && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {getCurrentPageItems().map((vendor) => (
                   <TableRow key={vendor.id}>
-                    <TableCell className="font-medium">{vendor.vendor_name}</TableCell>
-                    <TableCell>{vendor.category}</TableCell>
-                    <TableCell>{vendor.type}</TableCell>
-                    <TableCell>{vendor.occurrences || 0}</TableCell>
-                    <TableCell className="text-center">
-                      {vendor.verified ? (
-                        <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <BadgeCheck className="h-3 w-3 mr-1" />
-                          Verified
+                    {isColumnVisible('vendor_name') && <TableCell className="font-medium">{vendor.vendor_name}</TableCell>}
+                    {isColumnVisible('category') && <TableCell>{vendor.category}</TableCell>}
+                    {isColumnVisible('type') && <TableCell>{vendor.type}</TableCell>}
+                    {isColumnVisible('occurrences') && <TableCell>{vendor.occurrences || 0}</TableCell>}
+                    {isColumnVisible('status') && (
+                      <TableCell className="text-center">
+                        {vendor.verified ? (
+                          <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <BadgeCheck className="h-3 w-3 mr-1" />
+                            Verified
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                            Pending
+                          </div>
+                        )}
+                      </TableCell>
+                    )}
+                    {isColumnVisible('actions') && (
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleVerifyVendor(vendor.id, true)}
+                            className={`h-8 px-2 ${vendor.verified ? 'text-muted-foreground' : 'text-green-600'}`}
+                            disabled={vendor.verified}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleVerifyVendor(vendor.id, false)}
+                            className="h-8 px-2 text-red-600"
+                            disabled={!vendor.verified}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                      ) : (
-                        <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                          Pending
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleVerifyVendor(vendor.id, true)}
-                          className={`h-8 px-2 ${vendor.verified ? 'text-muted-foreground' : 'text-green-600'}`}
-                          disabled={vendor.verified}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleVerifyVendor(vendor.id, false)}
-                          className="h-8 px-2 text-red-600"
-                          disabled={!vendor.verified}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

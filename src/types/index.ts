@@ -1,4 +1,3 @@
-
 export type TransactionType = "income" | "expense" | "asset" | "liability" | "equity";
 export type StatementType = "profit_loss" | "balance_sheet" | "operating";
 export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR";
@@ -71,6 +70,7 @@ export interface CurrencySettings {
   decimalPlaces: number;
 }
 
+// Table column definition for column filtering
 export interface TableColumn {
   id: string;
   name: string;
