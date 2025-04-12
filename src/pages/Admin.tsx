@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useBookkeeping } from '@/context/BookkeepingContext';
+import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';
 import { Download, Check, X, Webhook, Database, Key, User, Activity, BarChart3 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
@@ -33,6 +33,24 @@ interface PendingKeywordValidation {
 
 const Admin: React.FC = () => {
   const { user } = useAuth();
+  
+  if (!user) {
+    return (
+      <div className="container mx-auto p-8 text-center">
+        <h2 className="text-2xl font-bold mb-4">Admin Access Required</h2>
+        <p>Please log in with admin credentials to access this page.</p>
+      </div>
+    );
+  }
+  
+  return (
+    <BookkeepingProvider>
+      <AdminContent />
+    </BookkeepingProvider>
+  );
+};
+
+const AdminContent: React.FC = () => {
   const { transactions, vendors, bankConnections } = useBookkeeping();
   const { currency } = useSettings();
   
@@ -98,15 +116,6 @@ const Admin: React.FC = () => {
       toast.error('Failed to export transactions');
     }
   };
-  
-  if (!user) {
-    return (
-      <div className="container mx-auto p-8 text-center">
-        <h2 className="text-2xl font-bold mb-4">Admin Access Required</h2>
-        <p>Please log in with admin credentials to access this page.</p>
-      </div>
-    );
-  }
   
   return (
     <div className="container mx-auto px-4 py-8">
