@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Transaction, Category, FinancialSummary, Vendor, Currency } from '../types';
 import { mockCategories } from '../data/mockData';
@@ -79,8 +78,8 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
           const vendorsFromDB: Vendor[] = data.map((v: VendorCategorizationRow) => ({
             name: v.vendor_name || '',
             category: v.category || '',
-            type: v.type as Transaction['type'] || 'expense',
-            statementType: v.statement_type as Transaction['statementType'] || 'operating',
+            type: (v.type as Transaction['type']) || 'expense',
+            statementType: (v.statement_type as Transaction['statementType']) || 'operating',
             occurrences: v.occurrences || 1,
             verified: v.verified || false
           }));
@@ -111,7 +110,11 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         }
         
         if (data) {
-          setBankConnections(data);
+          const transformedData: BankConnectionRow[] = data.map(conn => ({
+            ...conn,
+            display_name: conn.display_name || null
+          }));
+          setBankConnections(transformedData);
         }
       } catch (err) {
         console.error('Error in fetchBankConnections:', err);
