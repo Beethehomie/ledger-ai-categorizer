@@ -7,88 +7,99 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       bank_connections: {
         Row: {
-          active: boolean
+          active: boolean | null
           api_details: Json | null
           bank_name: string
           connection_type: string
-          created_at: string
+          created_at: string | null
           id: string
           last_sync: string | null
-          user_id: string
+          user_id: string | null
           display_name: string | null
         }
         Insert: {
-          active?: boolean
+          active?: boolean | null
           api_details?: Json | null
           bank_name: string
           connection_type: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           last_sync?: string | null
-          user_id: string
+          user_id?: string | null
           display_name?: string | null
         }
         Update: {
-          active?: boolean
+          active?: boolean | null
           api_details?: Json | null
           bank_name?: string
           connection_type?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           last_sync?: string | null
-          user_id?: string
+          user_id?: string | null
           display_name?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "bank_connections_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          "Account Category": string | null
+          "Client Type": string | null
+          Vendor: string | null
+        }
+        Insert: {
+          "Account Category"?: string | null
+          "Client Type"?: string | null
+          Vendor?: string | null
+        }
+        Update: {
+          "Account Category"?: string | null
+          "Client Type"?: string | null
+          Vendor?: string | null
+        }
+        Relationships: []
       }
       vendor_categorizations: {
         Row: {
-          category: string | null
-          created_at: string
+          category: string
+          confidence: number | null
+          created_at: string | null
           id: string
           last_used: string | null
           occurrences: number | null
-          statement_type: string | null
-          type: string | null
+          statement_type: string
+          type: string
           vendor_name: string
           verified: boolean | null
-          confidence: number | null
         }
         Insert: {
-          category?: string | null
-          created_at?: string
+          category: string
+          confidence?: number | null
+          created_at?: string | null
           id?: string
           last_used?: string | null
           occurrences?: number | null
-          statement_type?: string | null
-          type?: string | null
+          statement_type: string
+          type: string
           vendor_name: string
           verified?: boolean | null
-          confidence?: number | null
         }
         Update: {
-          category?: string | null
-          created_at?: string
+          category?: string
+          confidence?: number | null
+          created_at?: string | null
           id?: string
           last_used?: string | null
           occurrences?: number | null
-          statement_type?: string | null
-          type?: string | null
+          statement_type?: string
+          type?: string
           vendor_name?: string
           verified?: boolean | null
-          confidence?: number | null
         }
         Relationships: []
       }
@@ -108,42 +119,113 @@ export interface Database {
   }
 }
 
+type DefaultSchema = Database[Extract<keyof Database, "public">]
+
 export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (Database["public"]["Tables"] & { row: any })
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] & { row: any })
-    : PublicTableNameOrOptions extends keyof (Database["public"]["Tables"] & { row: any })
-      ? PublicTableNameOrOptions
-      : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] & { row: any })[TableName]["Row"]
-  : PublicTableNameOrOptions extends keyof (Database["public"]["Tables"] & { row: any })
-    ? (Database["public"]["Tables"] & { row: any })[PublicTableNameOrOptions]["Row"]
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
     : never
 
-export interface BankConnectionRow {
-  id: string;
-  bank_name: string;
-  connection_type: string;
-  created_at: string;
-  last_sync: string | null;
-  user_id: string;
-  active: boolean;
-  api_details: Json | null;
-  display_name: string | null;
-}
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
-export interface VendorCategorizationRow {
-  id: string;
-  vendor_name: string;
-  category: string | null;
-  type: string | null;
-  statement_type: string | null;
-  occurrences: number | null;
-  verified: boolean | null;
-  created_at: string;
-  last_used: string | null;
-  confidence: number | null;
-}
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof Database },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

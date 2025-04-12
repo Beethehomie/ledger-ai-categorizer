@@ -14,6 +14,7 @@ const VendorImporter: React.FC = () => {
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [currentTab, setCurrentTab] = useState("preset");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportVendors = async () => {
@@ -186,7 +187,7 @@ const VendorImporter: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="preset" className="w-full">
+        <Tabs defaultValue="preset" className="w-full" onValueChange={setCurrentTab}>
           <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="preset">Import Preset Categories</TabsTrigger>
             <TabsTrigger value="csv">Upload CSV File</TabsTrigger>
@@ -297,30 +298,25 @@ const VendorImporter: React.FC = () => {
         </Tabs>
       </CardContent>
       <CardFooter className="flex justify-end">
-        {/* Only show Upload button on CSV tab */}
-        <Tabs.Context.Consumer>
-          {(context) => (
-            context?.value === 'csv' && (
-              <Button 
-                onClick={handleUploadCSV} 
-                disabled={uploadLoading || !csvFile}
-                variant="outline"
-              >
-                {uploadLoading ? (
-                  <>
-                    <div className="animate-spin h-4 w-4 mr-2 border-t-2 border-b-2 border-current rounded-full" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <FileUp className="h-4 w-4 mr-2" />
-                    Upload CSV
-                  </>
-                )}
-              </Button>
-            )
-          )}
-        </Tabs.Context.Consumer>
+        {currentTab === 'csv' && (
+          <Button 
+            onClick={handleUploadCSV} 
+            disabled={uploadLoading || !csvFile}
+            variant="outline"
+          >
+            {uploadLoading ? (
+              <>
+                <div className="animate-spin h-4 w-4 mr-2 border-t-2 border-b-2 border-current rounded-full" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <FileUp className="h-4 w-4 mr-2" />
+                Upload CSV
+              </>
+            )}
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
