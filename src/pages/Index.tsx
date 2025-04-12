@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import Dashboard from '@/components/Dashboard';
-import { User, LogOut, Wallet, PieChart, FileText, Settings } from 'lucide-react';
+import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import BankConnections from '@/components/BankConnections';
@@ -11,6 +11,7 @@ import CurrencySelector from '@/components/CurrencySelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TransactionTable from '@/components/TransactionTable';
 import { useBookkeeping } from '@/context/BookkeepingContext';
+import { Link } from 'react-router-dom';
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -29,6 +30,13 @@ const Index = () => {
             </div>
             
             <div className="flex items-center space-x-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <Link to="/admin">
+                <Button variant="secondary" size="sm" className="flex items-center gap-1.5">
+                  <ShieldAlert className="h-4 w-4" />
+                  Admin
+                </Button>
+              </Link>
+              
               <CurrencySelector value={currency} onChange={setCurrency} />
               
               <div className="flex items-center gap-2">
@@ -98,7 +106,26 @@ const AppContent = () => {
       
       <TabsContent value="transactions" className="mt-0">
         <div className="bg-[hsl(var(--card))] rounded-lg shadow-sm border border-[hsl(var(--border))] p-6">
-          <h2 className="text-2xl font-bold mb-6">Transaction Management</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Transaction Management</h2>
+            <Button variant="outline" size="sm" onClick={() => {
+              // This is where we'd implement the CSV export functionality for transactions
+              const csvData = exportToCSV(transactions); 
+              const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              
+              const link = document.createElement('a');
+              const date = new Date().toISOString().split('T')[0];
+              link.setAttribute('href', url);
+              link.setAttribute('download', `transactions_${date}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
           <TransactionTable filter="all" transactions={transactions} />
         </div>
       </TabsContent>
@@ -118,5 +145,8 @@ const AppContent = () => {
     </Tabs>
   );
 };
+
+// Import exportToCSV for CSV export functionality
+import { exportToCSV } from '@/utils/csvParser';
 
 export default Index;
