@@ -16,6 +16,7 @@ export type Database = {
           bank_name: string
           connection_type: string
           created_at: string | null
+          display_name: string | null
           id: string
           last_sync: string | null
           user_id: string | null
@@ -26,6 +27,7 @@ export type Database = {
           bank_name: string
           connection_type: string
           created_at?: string | null
+          display_name?: string | null
           id?: string
           last_sync?: string | null
           user_id?: string | null
@@ -36,6 +38,7 @@ export type Database = {
           bank_name?: string
           connection_type?: string
           created_at?: string | null
+          display_name?: string | null
           id?: string
           last_sync?: string | null
           user_id?: string | null
