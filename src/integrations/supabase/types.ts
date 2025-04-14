@@ -45,6 +45,71 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_transactions: {
+        Row: {
+          amount: number
+          balance: number | null
+          bank_connection_id: string | null
+          category: string | null
+          confidence_score: number | null
+          created_at: string | null
+          date: string
+          description: string
+          id: string
+          is_verified: boolean | null
+          statement_type: string | null
+          type: string | null
+          updated_at: string | null
+          user_id: string | null
+          vendor: string | null
+          vendor_verified: boolean | null
+        }
+        Insert: {
+          amount: number
+          balance?: number | null
+          bank_connection_id?: string | null
+          category?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          date: string
+          description: string
+          id?: string
+          is_verified?: boolean | null
+          statement_type?: string | null
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          vendor?: string | null
+          vendor_verified?: boolean | null
+        }
+        Update: {
+          amount?: number
+          balance?: number | null
+          bank_connection_id?: string | null
+          category?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          date?: string
+          description?: string
+          id?: string
+          is_verified?: boolean | null
+          statement_type?: string | null
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          vendor?: string | null
+          vendor_verified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_bank_connection_id_fkey"
+            columns: ["bank_connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           "Account Category": string | null
@@ -60,6 +125,30 @@ export type Database = {
           "Account Category"?: string | null
           "Client Type"?: string | null
           Vendor?: string | null
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

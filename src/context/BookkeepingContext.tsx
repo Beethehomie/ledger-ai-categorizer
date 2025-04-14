@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Transaction, Category, FinancialSummary, Vendor, Currency } from '../types';
 import { mockCategories } from '../data/mockData';
@@ -6,7 +7,7 @@ import { extractVendorName } from '../utils/vendorExtractor';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { VendorCategorizationRow, BankConnectionRow } from '@/types/supabase';
+import { VendorCategorizationRow, BankConnectionRow, BankTransactionRow } from '@/types/supabase';
 import { useSettings } from './SettingsContext';
 
 interface BookkeepingContextType {
@@ -36,6 +37,7 @@ interface BookkeepingContextType {
   analyzeTransactionWithAI: (transaction: Transaction) => Promise<any>;
   getBankConnectionById: (id: string) => BankConnectionRow | undefined;
   removeDuplicateVendors: () => Promise<boolean>;
+  fetchTransactionsForBankAccount: (bankAccountId: string) => Promise<Transaction[]>;
 }
 
 const initialFinancialSummary: FinancialSummary = {
@@ -60,6 +62,67 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary>(initialFinancialSummary);
   const [loading, setLoading] = useState<boolean>(false);
   const [aiAnalyzeLoading, setAiAnalyzeLoading] = useState<boolean>(false);
+
+  // Fetch all transactions for this user
+  useEffect(() => {
+    if (!session) return;
+
+    const fetchTransactions = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('bank_transactions')
+          .select('*')
+          .order('date', { ascending: false });
+          
+        if (error) {
+          console.error('Error fetching transactions:', error);
+          return;
+        }
+        
+        if (data) {
+          const fetchedTransactions: Transaction[] = data.map((t) => ({
+            id: t.id,
+            date: t.date,
+            description: t.description,
+            amount: Number(t.amount),
+            category: t.category || undefined,
+            type: t.type as Transaction['type'] || undefined,
+            statementType: t.statement_type as Transaction['statementType'] || undefined,
+            isVerified: t.is_verified || false,
+            aiSuggestion: undefined,
+            vendor: t.vendor || undefined,
+            vendorVerified: t.vendor_verified || false,
+            confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
+            bankAccountId: t.bank_connection_id || undefined,
+            bankAccountName: undefined, // Will be populated in a separate step
+            balance: t.balance ? Number(t.balance) : undefined,
+          }));
+          
+          // Get bank connection names
+          if (fetchedTransactions.length > 0) {
+            for (const transaction of fetchedTransactions) {
+              if (transaction.bankAccountId) {
+                const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
+                if (bankConnection) {
+                  transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
+                }
+              }
+            }
+          }
+          
+          setTransactions(fetchedTransactions);
+          calculateFinancialSummary();
+        }
+      } catch (err) {
+        console.error('Error in fetchTransactions:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTransactions();
+  }, [session, bankConnections]);
 
   useEffect(() => {
     if (!session) return;
@@ -170,7 +233,12 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     return summary;
   };
 
-  const addTransactions = (newTransactions: Transaction[]) => {
+  const addTransactions = async (newTransactions: Transaction[]) => {
+    if (!session) {
+      toast.error('You must be logged in to add transactions');
+      return;
+    }
+    
     const processedTransactions = newTransactions.map(transaction => {
       const vendor = extractVendorName(transaction.description);
       return {
@@ -180,6 +248,46 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         confidenceScore: Math.random() * 0.5 + 0.5
       };
     });
+    
+    // Store transactions in Supabase
+    try {
+      const supabaseTransactions = processedTransactions.map(t => ({
+        date: t.date,
+        description: t.description,
+        amount: t.amount,
+        category: t.category || null,
+        type: t.type || null,
+        statement_type: t.statementType || null,
+        is_verified: t.isVerified,
+        vendor: t.vendor || null,
+        vendor_verified: t.vendorVerified || false,
+        confidence_score: t.confidenceScore || null,
+        bank_connection_id: t.bankAccountId || null,
+        balance: t.balance || null,
+        user_id: session.user.id
+      }));
+      
+      const { data, error } = await supabase
+        .from('bank_transactions')
+        .insert(supabaseTransactions)
+        .select();
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Update processed transactions with the IDs from Supabase
+      if (data) {
+        for (let i = 0; i < processedTransactions.length; i++) {
+          if (data[i]) {
+            processedTransactions[i].id = data[i].id;
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Error saving transactions to Supabase:', err);
+      toast.error('Failed to save transactions to database');
+    }
     
     const updatedVendors = [...vendors];
     processedTransactions.forEach(transaction => {
@@ -207,13 +315,42 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     toast.success(`Added ${processedTransactions.length} transactions`);
   };
 
-  const updateTransaction = (updatedTransaction: Transaction) => {
-    setTransactions(prev => 
-      prev.map(transaction => 
-        transaction.id === updatedTransaction.id ? updatedTransaction : transaction
-      )
-    );
-    calculateFinancialSummary();
+  const updateTransaction = async (updatedTransaction: Transaction) => {
+    if (!session) {
+      toast.error('You must be logged in to update transactions');
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('bank_transactions')
+        .update({
+          category: updatedTransaction.category || null,
+          type: updatedTransaction.type || null,
+          statement_type: updatedTransaction.statementType || null,
+          is_verified: updatedTransaction.isVerified,
+          vendor: updatedTransaction.vendor || null,
+          vendor_verified: updatedTransaction.vendorVerified || false,
+          confidence_score: updatedTransaction.confidenceScore || null,
+          balance: updatedTransaction.balance || null
+        })
+        .eq('id', updatedTransaction.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      setTransactions(prev => 
+        prev.map(transaction => 
+          transaction.id === updatedTransaction.id ? updatedTransaction : transaction
+        )
+      );
+      calculateFinancialSummary();
+      
+    } catch (err: any) {
+      console.error('Error updating transaction in Supabase:', err);
+      toast.error('Failed to update transaction in database');
+    }
   };
 
   const analyzeTransactionWithAI = async (transaction: Transaction) => {
@@ -235,7 +372,10 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error in analyze-transaction function:', error);
+        throw error;
+      }
       
       setTransactions(prev => 
         prev.map(t => {
@@ -253,7 +393,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       return data;
     } catch (err: any) {
       console.error('Error analyzing transaction with AI:', err);
-      toast.error('Failed to analyze transaction with AI');
+      toast.error('Failed to analyze transaction with AI. Check if the edge function is properly deployed.');
       return null;
     } finally {
       setAiAnalyzeLoading(false);
@@ -261,83 +401,108 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
   };
 
   const verifyTransaction = async (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => {
-    setTransactions(prev => 
-      prev.map(transaction => {
-        if (transaction.id === id) { 
-          const updatedTransaction = { 
-            ...transaction, 
-            category, 
-            type, 
-            statementType, 
-            isVerified: true 
-          };
-          
-          if (updatedTransaction.vendor && session) {
-            const updateVendorInSupabase = async () => {
-              const existingVendorIndex = vendors.findIndex(v => v.name === updatedTransaction.vendor);
-              
-              if (existingVendorIndex >= 0) {
-                const { error } = await supabase
-                  .from('vendor_categorizations')
-                  .update({
-                    occurrences: vendors[existingVendorIndex].occurrences + 1,
-                    last_used: new Date().toISOString()
-                  })
-                  .eq('vendor_name', updatedTransaction.vendor);
-                  
-                if (error) console.error('Error updating vendor in Supabase:', error);
-                
-                const updatedVendors = [...vendors];
-                updatedVendors[existingVendorIndex].occurrences += 1;
-                
-                if (updatedVendors[existingVendorIndex].occurrences >= 5) {
-                  updatedVendors[existingVendorIndex].verified = true;
-                  
-                  supabase
-                    .from('vendor_categorizations')
-                    .update({ verified: true })
-                    .eq('vendor_name', updatedTransaction.vendor)
-                    .then(({ error }) => {
-                      if (error) console.error('Error updating vendor verified status:', error);
-                    });
-                }
-                
-                setVendors(updatedVendors);
-              } else {
-                const { error } = await supabase
-                  .from('vendor_categorizations')
-                  .insert({
-                    vendor_name: updatedTransaction.vendor,
-                    category,
-                    type,
-                    statement_type: statementType,
-                    occurrences: 1,
-                    verified: false
-                  });
-                  
-                if (error) console.error('Error adding vendor to Supabase:', error);
-                
-                setVendors([...vendors, {
-                  name: updatedTransaction.vendor,
-                  category,
-                  type,
-                  statementType,
-                  occurrences: 1,
-                  verified: false
-                }]);
-              }
+    if (!session) {
+      toast.error('You must be logged in to verify transactions');
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('bank_transactions')
+        .update({
+          category,
+          type,
+          statement_type: statementType,
+          is_verified: true
+        })
+        .eq('id', id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      setTransactions(prev => 
+        prev.map(transaction => {
+          if (transaction.id === id) { 
+            const updatedTransaction = { 
+              ...transaction, 
+              category, 
+              type, 
+              statementType, 
+              isVerified: true 
             };
             
-            updateVendorInSupabase().catch(console.error);
+            if (updatedTransaction.vendor && session) {
+              const updateVendorInSupabase = async () => {
+                const existingVendorIndex = vendors.findIndex(v => v.name === updatedTransaction.vendor);
+                
+                if (existingVendorIndex >= 0) {
+                  const { error } = await supabase
+                    .from('vendor_categorizations')
+                    .update({
+                      occurrences: vendors[existingVendorIndex].occurrences + 1,
+                      last_used: new Date().toISOString()
+                    })
+                    .eq('vendor_name', updatedTransaction.vendor);
+                    
+                  if (error) console.error('Error updating vendor in Supabase:', error);
+                  
+                  const updatedVendors = [...vendors];
+                  updatedVendors[existingVendorIndex].occurrences += 1;
+                  
+                  if (updatedVendors[existingVendorIndex].occurrences >= 5) {
+                    updatedVendors[existingVendorIndex].verified = true;
+                    
+                    supabase
+                      .from('vendor_categorizations')
+                      .update({ verified: true })
+                      .eq('vendor_name', updatedTransaction.vendor)
+                      .then(({ error }) => {
+                        if (error) console.error('Error updating vendor verified status:', error);
+                      });
+                  }
+                  
+                  setVendors(updatedVendors);
+                } else {
+                  const { error } = await supabase
+                    .from('vendor_categorizations')
+                    .insert({
+                      vendor_name: updatedTransaction.vendor,
+                      category,
+                      type,
+                      statement_type: statementType,
+                      occurrences: 1,
+                      verified: false
+                    });
+                    
+                  if (error) console.error('Error adding vendor to Supabase:', error);
+                  
+                  setVendors([...vendors, {
+                    name: updatedTransaction.vendor,
+                    category,
+                    type,
+                    statementType,
+                    occurrences: 1,
+                    verified: false
+                  }]);
+                }
+              };
+              
+              updateVendorInSupabase().catch(console.error);
+            }
+            
+            return updatedTransaction;
           }
-          
-          return updatedTransaction;
-        }
-        return transaction;
-      })
-    );
-    calculateFinancialSummary();
-    toast.success('Transaction verified');
+          return transaction;
+        })
+      );
+      calculateFinancialSummary();
+      toast.success('Transaction verified');
+      
+    } catch (err: any) {
+      console.error('Error verifying transaction in Supabase:', err);
+      toast.error('Failed to verify transaction in database');
+    }
   };
   
   const verifyVendor = async (vendorName: string, approved: boolean) => {
@@ -501,6 +666,11 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
   };
 
   const uploadCSV = async (csvString: string, bankConnectionId?: string, initialBalance: number = 0) => {
+    if (!session) {
+      toast.error('You must be logged in to upload transactions');
+      return;
+    }
+    
     setLoading(true);
     try {
       const parsedTransactions = parseCSV(csvString);
@@ -511,7 +681,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       }
       
       const processTransactions = async () => {
-        const processedTransactions = [];
+        const processedTransactions: Transaction[] = [];
         
         for (const transaction of parsedTransactions) {
           const vendor = extractVendorName(transaction.description);
@@ -537,15 +707,25 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
               isVerified: true,
               confidenceScore: 1.0
             });
-          } else if (!transaction.category && session) {
-            const aiResult = await analyzeTransactionWithAI(transaction);
-            processedTransactions.push({
-              ...transaction,
-              vendor,
-              vendorVerified: false,
-              aiSuggestion: aiResult?.category,
-              confidenceScore
-            });
+          } else if (!transaction.category) {
+            try {
+              const aiResult = await analyzeTransactionWithAI(transaction);
+              processedTransactions.push({
+                ...transaction,
+                vendor,
+                vendorVerified: false,
+                aiSuggestion: aiResult?.category,
+                confidenceScore
+              });
+            } catch (error) {
+              console.error('Error analyzing transaction with AI:', error);
+              processedTransactions.push({
+                ...transaction,
+                vendor,
+                vendorVerified: false,
+                confidenceScore
+              });
+            }
           } else {
             processedTransactions.push({
               ...transaction,
@@ -558,6 +738,46 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         
         const transactionsWithBalance = calculateRunningBalance(processedTransactions, initialBalance);
         
+        // Store in Supabase
+        try {
+          const supabaseTransactions = transactionsWithBalance.map(t => ({
+            date: t.date,
+            description: t.description,
+            amount: t.amount,
+            category: t.category || null,
+            type: t.type || null,
+            statement_type: t.statementType || null,
+            is_verified: t.isVerified,
+            vendor: t.vendor || null,
+            vendor_verified: t.vendorVerified || false,
+            confidence_score: t.confidenceScore || null,
+            bank_connection_id: t.bankAccountId || null,
+            balance: t.balance || null,
+            user_id: session.user.id
+          }));
+          
+          const { data, error } = await supabase
+            .from('bank_transactions')
+            .insert(supabaseTransactions)
+            .select();
+            
+          if (error) {
+            throw error;
+          }
+          
+          // Update processed transactions with the IDs from Supabase
+          if (data) {
+            for (let i = 0; i < transactionsWithBalance.length; i++) {
+              if (data[i]) {
+                transactionsWithBalance[i].id = data[i].id;
+              }
+            }
+          }
+        } catch (err: any) {
+          console.error('Error saving transactions to Supabase:', err);
+          toast.error('Failed to save transactions to database');
+        }
+        
         addTransactions(transactionsWithBalance);
         toast.success(`Successfully processed ${transactionsWithBalance.length} transactions`);
       };
@@ -568,6 +788,61 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       toast.error('Error processing CSV file');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTransactionsForBankAccount = async (bankAccountId: string): Promise<Transaction[]> => {
+    if (!session) {
+      toast.error('You must be logged in to fetch transactions');
+      return [];
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('bank_transactions')
+        .select('*')
+        .eq('bank_connection_id', bankAccountId)
+        .order('date', { ascending: false });
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        const bankTransactions: Transaction[] = data.map((t) => ({
+          id: t.id,
+          date: t.date,
+          description: t.description,
+          amount: Number(t.amount),
+          category: t.category || undefined,
+          type: t.type as Transaction['type'] || undefined,
+          statementType: t.statement_type as Transaction['statementType'] || undefined,
+          isVerified: t.is_verified || false,
+          aiSuggestion: undefined,
+          vendor: t.vendor || undefined,
+          vendorVerified: t.vendor_verified || false,
+          confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
+          bankAccountId: t.bank_connection_id || undefined,
+          bankAccountName: undefined, // Will be populated below
+          balance: t.balance ? Number(t.balance) : undefined,
+        }));
+        
+        // Get bank connection name
+        const bankConnection = bankConnections.find(conn => conn.id === bankAccountId);
+        if (bankConnection) {
+          for (const transaction of bankTransactions) {
+            transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
+          }
+        }
+        
+        return bankTransactions;
+      }
+      
+      return [];
+    } catch (err: any) {
+      console.error('Error fetching transactions for bank account:', err);
+      toast.error('Failed to fetch transactions for this account');
+      return [];
     }
   };
 
@@ -672,6 +947,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     analyzeTransactionWithAI,
     getBankConnectionById,
     removeDuplicateVendors,
+    fetchTransactionsForBankAccount,
   };
 
   return (

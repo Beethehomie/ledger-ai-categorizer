@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -8,7 +7,204 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+// Function to check for existing vendor categorizations
+const findVendorCategorization = async (supabase, description) => {
+  // Extract potential vendor name from the description
+  // This is a simple extraction, in a real app you'd have more sophisticated logic
+  const vendorName = description.split(' - ')[0]?.trim() || description.split(' ')[0]?.trim();
+  
+  if (!vendorName) return null;
+  
+  // Look for existing categorizations of this vendor
+  const { data, error } = await supabase
+    .from('vendor_categorizations')
+    .select('*')
+    .ilike('vendor_name', `%${vendorName}%`)
+    .order('occurrences', { ascending: false })
+    .limit(1);
+    
+  if (error || !data || data.length === 0) {
+    return null;
+  }
+  
+  return {
+    category: data[0].category,
+    type: data[0].type,
+    statementType: data[0].statement_type,
+    confidence: 0.85,
+    vendorName: data[0].vendor_name,
+    source: 'database'
+  };
+};
+
+// Function to analyze transaction with a rule-based approach
+// In a production application, this would be a real AI model like OpenAI
+const analyzeTransactionWithRules = (description, amount, existingCategories) => {
+  // Convert description to lowercase for easier matching
+  const lcDescription = description.toLowerCase();
+  
+  // Default values
+  let category = 'Uncategorized';
+  let type = 'expense';
+  let statementType = 'operating';
+  let confidence = 0.5;
+  
+  // Simple rule-based categorization
+  // Income indicators
+  if (
+    lcDescription.includes('salary') || 
+    lcDescription.includes('income') || 
+    lcDescription.includes('revenue') || 
+    lcDescription.includes('payment received') ||
+    lcDescription.includes('client payment') ||
+    amount > 0
+  ) {
+    type = 'income';
+    statementType = 'profit_loss';
+    confidence = 0.8;
+    
+    if (lcDescription.includes('salary')) {
+      category = 'Salary';
+      confidence = 0.9;
+    } else if (lcDescription.includes('client') || lcDescription.includes('customer')) {
+      category = 'Client Revenue';
+      confidence = 0.85;
+    } else {
+      category = 'Other Income';
+    }
+  }
+  // Expense indicators
+  else if (amount < 0 || true) { // Fallback to expense if not identified as income
+    type = 'expense';
+    statementType = 'profit_loss';
+    
+    // Office expenses
+    if (
+      lcDescription.includes('office') || 
+      lcDescription.includes('supplies') || 
+      lcDescription.includes('stationery')
+    ) {
+      category = 'Office Supplies';
+      confidence = 0.85;
+    }
+    // Utilities
+    else if (
+      lcDescription.includes('utility') || 
+      lcDescription.includes('electricity') || 
+      lcDescription.includes('water') ||
+      lcDescription.includes('gas') ||
+      lcDescription.includes('internet') ||
+      lcDescription.includes('phone')
+    ) {
+      category = 'Utilities';
+      confidence = 0.9;
+    }
+    // Rent
+    else if (
+      lcDescription.includes('rent') || 
+      lcDescription.includes('lease')
+    ) {
+      category = 'Rent';
+      confidence = 0.95;
+    }
+    // Travel
+    else if (
+      lcDescription.includes('travel') || 
+      lcDescription.includes('hotel') ||
+      lcDescription.includes('flight') ||
+      lcDescription.includes('uber') ||
+      lcDescription.includes('taxi')
+    ) {
+      category = 'Travel';
+      confidence = 0.85;
+    }
+    // Meals
+    else if (
+      lcDescription.includes('restaurant') || 
+      lcDescription.includes('dining') ||
+      lcDescription.includes('lunch') ||
+      lcDescription.includes('dinner') ||
+      lcDescription.includes('food')
+    ) {
+      category = 'Meals & Entertainment';
+      confidence = 0.8;
+    }
+    // Software
+    else if (
+      lcDescription.includes('software') || 
+      lcDescription.includes('subscription') ||
+      lcDescription.includes('saas') ||
+      lcDescription.includes('license')
+    ) {
+      category = 'Software Subscriptions';
+      confidence = 0.9;
+    }
+    // Marketing
+    else if (
+      lcDescription.includes('marketing') || 
+      lcDescription.includes('advertising') ||
+      lcDescription.includes('promotion') ||
+      lcDescription.includes('facebook') ||
+      lcDescription.includes('google ads')
+    ) {
+      category = 'Marketing & Advertising';
+      confidence = 0.85;
+    }
+    // Insurance
+    else if (
+      lcDescription.includes('insurance') || 
+      lcDescription.includes('policy')
+    ) {
+      category = 'Insurance';
+      confidence = 0.9;
+    }
+    // If we couldn't categorize
+    else {
+      category = 'Miscellaneous Expense';
+      confidence = 0.3;
+    }
+  }
+  
+  // Check if the determined category is in the list of existing categories
+  if (existingCategories && existingCategories.length > 0) {
+    // If we have a direct match, great!
+    if (!existingCategories.includes(category)) {
+      // Try to find the closest match
+      let bestMatch = null;
+      let bestMatchScore = 0;
+      
+      existingCategories.forEach(existingCat => {
+        // Simple string similarity check
+        const lcExistingCat = existingCat.toLowerCase();
+        const lcCategory = category.toLowerCase();
+        
+        let score = 0;
+        if (lcExistingCat.includes(lcCategory) || lcCategory.includes(lcExistingCat)) {
+          score = 0.5;
+        }
+        
+        if (score > bestMatchScore) {
+          bestMatchScore = score;
+          bestMatch = existingCat;
+        }
+      });
+      
+      if (bestMatch && bestMatchScore > 0.3) {
+        category = bestMatch;
+        confidence = Math.min(confidence, 0.7); // Reduce confidence for inexact matches
+      }
+    }
+  }
+  
+  return {
+    category,
+    type,
+    statementType,
+    confidence,
+    vendorName: description.split(' - ')[0]?.trim() || description.split(' ')[0]?.trim(),
+    source: 'ai'
+  };
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -19,134 +215,39 @@ serve(async (req) => {
   try {
     const { description, amount, existingCategories } = await req.json();
     
+    console.log(`Analyzing transaction: "${description}" with amount ${amount}`);
+    
     if (!description) {
       throw new Error("Transaction description is required");
     }
-
-    console.log(`Analyzing transaction: "${description}" with amount ${amount}`);
     
-    // First, check if we have a previous categorization for this vendor in our database
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
     
-    if (supabaseUrl && supabaseKey) {
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      
-      // Extract potential vendor name from description
-      const vendorName = extractVendorName(description);
-      
-      if (vendorName) {
-        console.log(`Potential vendor name: ${vendorName}`);
-        
-        // Check if vendor exists in the database
-        const { data: vendorData, error: vendorError } = await supabase
-          .from('vendor_categorizations')
-          .select('*')
-          .eq('vendor_name', vendorName)
-          .eq('verified', true)
-          .single();
-          
-        if (!vendorError && vendorData) {
-          console.log(`Found verified vendor in database: ${vendorData.vendor_name}`);
-          // Return category from database with high confidence
-          return new Response(
-            JSON.stringify({
-              category: vendorData.category,
-              type: vendorData.type,
-              statementType: vendorData.statement_type,
-              confidence: 0.95,
-              vendorName: vendorData.vendor_name,
-              source: 'database'
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Supabase credentials are missing");
     }
     
-    // If we get here, no vendor match was found in the database
-    // Use OpenAI to categorize the transaction
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key is required but not set');
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // First check if we have an existing vendor categorization
+    const existingVendor = await findVendorCategorization(supabase, description);
+    
+    if (existingVendor) {
+      console.log(`Found existing vendor categorization: ${JSON.stringify(existingVendor)}`);
+      return new Response(
+        JSON.stringify(existingVendor),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    const prompt = createAnalysisPrompt(description, amount, existingCategories);
+    // If no existing vendor categorization, use rule-based analysis
+    const analysis = analyzeTransactionWithRules(description, amount, existingCategories);
     
-    console.log('Calling OpenAI API...');
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are an AI assistant specialized in financial categorization.' 
-          },
-          { 
-            role: 'user', 
-            content: prompt 
-          }
-        ],
-        temperature: 0.3,
-      }),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
-    }
-    
-    const data = await response.json();
-    console.log('OpenAI API response:', data);
-    
-    // Parse the response to extract category and confidence
-    const content = data.choices[0].message.content;
-    const result = parseOpenAIResponse(content);
-    
-    // Store the result in the database for future use
-    if (supabaseUrl && supabaseKey && result.category && vendorName) {
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      
-      // Check if this vendor already exists
-      const { data: existingVendor } = await supabase
-        .from('vendor_categorizations')
-        .select('id')
-        .eq('vendor_name', vendorName)
-        .single();
-        
-      if (!existingVendor) {
-        // Insert new vendor categorization
-        await supabase
-          .from('vendor_categorizations')
-          .insert({
-            vendor_name: vendorName,
-            category: result.category,
-            type: result.type,
-            statement_type: result.statementType,
-            confidence: result.confidence,
-            verified: false,
-            occurrences: 1,
-            last_used: new Date().toISOString()
-          });
-          
-        console.log(`Inserted new vendor categorization for ${vendorName}`);
-      }
-    }
-    
-    console.log('Analysis result:', result);
+    console.log(`Analysis result: ${JSON.stringify(analysis)}`);
     
     return new Response(
-      JSON.stringify({
-        ...result,
-        vendorName,
-        source: 'ai'
-      }),
+      JSON.stringify(analysis),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
@@ -160,84 +261,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Function to extract potential vendor name from description
-function extractVendorName(description: string): string | null {
-  // Remove special characters and extra spaces
-  const cleanedDesc = description.replace(/[^\w\s]/gi, ' ').replace(/\s+/g, ' ').trim();
-  
-  // Split into words
-  const words = cleanedDesc.split(' ');
-  
-  // If there are multiple words, take the first 2-3 words as the potential vendor name
-  if (words.length >= 3) {
-    return words.slice(0, 2).join(' ').toUpperCase();
-  } else if (words.length >= 1) {
-    return words[0].toUpperCase();
-  }
-  
-  return null;
-}
-
-// Function to create a prompt for OpenAI
-function createAnalysisPrompt(description: string, amount: number, existingCategories: string[]): string {
-  return `
-Please analyze this financial transaction and categorize it:
-
-Transaction Description: "${description}"
-Amount: ${amount}
-
-Available Categories:
-${existingCategories.join(', ')}
-
-Please determine:
-1. The most appropriate category from the list above
-2. The transaction type (income, expense, asset, liability, or equity)
-3. The statement type (profit_loss or balance_sheet)
-4. Your confidence level in this categorization (0.0 to 1.0)
-
-Return your analysis in the following JSON format ONLY (no additional text):
-{
-  "category": "selected category",
-  "type": "transaction type",
-  "statementType": "statement type",
-  "confidence": confidence level
-}
-`;
-}
-
-// Function to parse OpenAI response
-function parseOpenAIResponse(content: string) {
-  try {
-    // Try to extract any JSON objects from the response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[0];
-      const result = JSON.parse(jsonStr);
-      
-      return {
-        category: result.category,
-        type: result.type,
-        statementType: result.statementType,
-        confidence: result.confidence
-      };
-    }
-    
-    // If no JSON found, try to extract information from text
-    return {
-      category: 'Uncategorized',
-      type: 'expense',
-      statementType: 'profit_loss',
-      confidence: 0.5
-    };
-  } catch (error) {
-    console.error('Error parsing OpenAI response:', error);
-    return {
-      category: 'Uncategorized',
-      type: 'expense',
-      statementType: 'profit_loss',
-      confidence: 0.5
-    };
-  }
-}
