@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, ArrowLeft } from 'lucide-react';
 import { SUBSCRIPTION_PLANS, SubscriptionPlan, SubscriptionTier } from '@/types/subscription';
 import { toast } from '@/utils/toast';
 import { useNavigate } from 'react-router-dom';
 import PaymentProcessor from '@/components/PaymentProcessor';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 
 const Subscription = () => {
   const { user } = useAuth();
@@ -48,6 +49,10 @@ const Subscription = () => {
     }, 1500);
   };
 
+  const goBackToDashboard = () => {
+    navigate('/');
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-[50vh]">
@@ -58,7 +63,17 @@ const Subscription = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-10">Choose Your Plan</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Choose Your Plan</h1>
+        <Button 
+          variant="outline" 
+          onClick={goBackToDashboard}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" /> 
+          Back to Dashboard
+        </Button>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
         {SUBSCRIPTION_PLANS.map((plan) => {

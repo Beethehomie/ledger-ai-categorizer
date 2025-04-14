@@ -92,13 +92,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAdmin(adminStatus);
       
       // Set default subscription tier if not set
-      const profile = {
-        ...data,
-        subscription_tier: data.subscription_tier || 'free',
+      const profile: UserProfile = {
+        id: data.id,
+        email: data.email || user?.email || '',
+        subscription_tier: (data.subscription_tier as SubscriptionTier) || 'free',
         is_admin: adminStatus
       };
       
-      setUserProfile(profile as UserProfile);
+      setUserProfile(profile);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
     }
@@ -107,13 +108,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Add a function to create a user profile if it doesn't exist
   const createUserProfile = async (userId: string) => {
     try {
+      // Only set admin to true for specific email
+      const isUserAdmin = user?.email === 'terramultaacc@gmail.com';
+      
       const { error } = await supabase
         .from('user_profiles')
         .insert({
           id: userId,
           email: user?.email,
           subscription_tier: 'free',
-          is_admin: user?.email === 'terramultaacc@gmail.com'
+          is_admin: isUserAdmin
         });
 
       if (error) {
