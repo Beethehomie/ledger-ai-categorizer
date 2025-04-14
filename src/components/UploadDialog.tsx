@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { UploadCloud, FileSpreadsheet, AlertCircle, ArrowRight, Info } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
-import { BankConnectionRow, Transaction } from '@/types/supabase';
+import { BankConnectionRow } from '@/types/supabase';
+import { Transaction } from '@/types'; // Changed from @/types/supabase to @/types
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { parseCSV } from '@/utils/csvParser';
 import TransactionReviewDialog from './TransactionReviewDialog';
