@@ -95,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profile: UserProfile = {
         id: data.id,
         email: data.email || user?.email || '',
-        subscription_tier: (data.subscription_tier as SubscriptionTier) || 'free',
+        subscription_tier: data.subscription_tier as SubscriptionTier || 'free',
         is_admin: adminStatus
       };
       
