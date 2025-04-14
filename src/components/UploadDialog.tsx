@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { UploadCloud, FileSpreadsheet, AlertCircle, ArrowRight, Info } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
-import { BankConnectionRow } from '@/types/supabase';
+import { BankConnectionRow, Transaction } from '@/types/supabase';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { parseCSV } from '@/utils/csvParser';
+import TransactionReviewDialog from './TransactionReviewDialog';
 
 interface UploadDialogProps {
   isOpen: boolean;
@@ -26,6 +28,8 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   const [initialBalance, setInitialBalance] = useState<string>('0');
   const [duplicateTransactions, setDuplicateTransactions] = useState<string[]>([]);
   const [hasUploaded, setHasUploaded] = useState(false);
+  const [parsedTransactions, setParsedTransactions] = useState<Transaction[]>([]);
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
 
   // Get CSV-type bank connections
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
@@ -133,14 +137,34 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
           return;
         }
         
-        const initialBalanceValue = parseFloat(initialBalance) || 0;
-        uploadCSV(csvContent, selectedBankId, initialBalanceValue);
-        setHasUploaded(true);
-        resetDialog();
-        onClose();
+        // Parse CSV content into transactions
+        const transactions = parseCSV(csvContent);
+        setParsedTransactions(transactions);
+        
+        // Show review dialog instead of directly uploading
+        setIsReviewDialogOpen(true);
       }
     };
     reader.readAsText(selectedFile);
+  };
+
+  const handleConfirmUpload = (editedTransactions: Transaction[]) => {
+    if (editedTransactions.length === 0) {
+      toast.error('No transactions selected for upload');
+      return;
+    }
+
+    // Convert transactions back to CSV format for the upload
+    const headers = "Date,Description,Amount\n";
+    const rows = editedTransactions.map(t => `${t.date},"${t.description}",${t.amount}`).join('\n');
+    const csvContent = headers + rows;
+    
+    const initialBalanceValue = parseFloat(initialBalance) || 0;
+    uploadCSV(csvContent, selectedBankId, initialBalanceValue);
+    setHasUploaded(true);
+    setIsReviewDialogOpen(false);
+    resetDialog();
+    onClose();
   };
 
   const nextStep = () => {
@@ -155,6 +179,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     setInitialBalance('0');
     setDuplicateTransactions([]);
     setHasUploaded(false);
+    setParsedTransactions([]);
   };
 
   const handleClose = () => {
@@ -163,172 +188,181 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-primary">Upload Bank Statement</DialogTitle>
-          <DialogDescription>
-            {step === 1 
-              ? "CSV file must include these columns: Date, Description, Amount" 
-              : "Configure upload settings for this statement"}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Upload Bank Statement</DialogTitle>
+            <DialogDescription>
+              {step === 1 
+                ? "CSV file must include these columns: Date, Description, Amount" 
+                : "Configure upload settings for this statement"}
+            </DialogDescription>
+          </DialogHeader>
 
-        {step === 1 ? (
-          <>
-            <div
-              className={`border-2 border-dashed rounded-lg p-6 text-center ${
-                dragActive ? 'border-primary bg-secondary/50' : 'border-muted'
-              } transition-colors duration-200 ease-in-out`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              <div className="flex flex-col items-center justify-center space-y-4">
-                <div className="p-3 rounded-full bg-primary/10">
-                  <UploadCloud className={`h-10 w-10 text-primary ${dragActive ? 'animate-bounce-subtle' : ''}`} />
-                </div>
-                <div>
-                  <p className="text-lg font-medium">Drag and drop your CSV file here</p>
-                  <p className="text-sm text-muted-foreground mt-1">or click to browse files</p>
-                </div>
-                <input
-                  id="file-upload-dialog"
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => document.getElementById('file-upload-dialog')?.click()}
-                  className="hover-scale"
-                >
-                  Browse Files
-                </Button>
-              </div>
-            </div>
-
-            {selectedFile && (
-              <div className="mt-2 p-3 border rounded-md bg-background">
-                <div className="flex items-center space-x-2">
-                  <FileSpreadsheet className="h-5 w-5 text-finance-green" />
-                  <div className="flex-1 truncate">
-                    <p className="font-medium">{selectedFile.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {(selectedFile.size / 1024).toFixed(1)} KB
-                    </p>
+          {step === 1 ? (
+            <>
+              <div
+                className={`border-2 border-dashed rounded-lg p-6 text-center ${
+                  dragActive ? 'border-primary bg-secondary/50' : 'border-muted'
+                } transition-colors duration-200 ease-in-out`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <div className="flex flex-col items-center justify-center space-y-4">
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <UploadCloud className={`h-10 w-10 text-primary ${dragActive ? 'animate-bounce-subtle' : ''}`} />
                   </div>
-                  <Button variant="secondary" size="sm" onClick={() => setSelectedFile(null)}>
-                    Remove
+                  <div>
+                    <p className="text-lg font-medium">Drag and drop your CSV file here</p>
+                    <p className="text-sm text-muted-foreground mt-1">or click to browse files</p>
+                  </div>
+                  <input
+                    id="file-upload-dialog"
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => document.getElementById('file-upload-dialog')?.click()}
+                    className="hover-scale"
+                  >
+                    Browse Files
                   </Button>
                 </div>
               </div>
-            )}
 
-            {duplicateTransactions.length > 0 && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <div className="font-medium mb-2">Found {duplicateTransactions.length} duplicate transactions:</div>
-                  <div className="max-h-40 overflow-y-auto text-xs space-y-1">
-                    {duplicateTransactions.slice(0, 5).map((dupe, i) => (
-                      <div key={i} className="py-1 border-b border-red-200">{dupe}</div>
-                    ))}
-                    {duplicateTransactions.length > 5 && (
-                      <div className="text-sm font-medium pt-1">
-                        ... and {duplicateTransactions.length - 5} more
-                      </div>
-                    )}
+              {selectedFile && (
+                <div className="mt-2 p-3 border rounded-md bg-background">
+                  <div className="flex items-center space-x-2">
+                    <FileSpreadsheet className="h-5 w-5 text-finance-green" />
+                    <div className="flex-1 truncate">
+                      <p className="font-medium">{selectedFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {(selectedFile.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={() => setSelectedFile(null)}>
+                      Remove
+                    </Button>
                   </div>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex items-center space-x-2 text-sm text-amber-500">
-              <AlertCircle className="h-4 w-4" />
-              <p>Required columns: Date, Description, Amount</p>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={nextStep} 
-                disabled={!selectedFile}
-                className="bg-finance-green hover:bg-finance-green-light"
-              >
-                Next <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </DialogFooter>
-          </>
-        ) : (
-          <>
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="initial-balance">Initial Balance</Label>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    id="initial-balance"
-                    type="number"
-                    step="0.01"
-                    value={initialBalance}
-                    onChange={(e) => setInitialBalance(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full"
-                  />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  <Info className="inline h-3 w-3 mr-1" />
-                  This will be used as the starting balance for calculating running balances
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Select Bank Account</Label>
-                {csvBankConnections.length > 0 ? (
-                  <Select
-                    value={selectedBankId}
-                    onValueChange={setSelectedBankId}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a bank account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {csvBankConnections.map((conn) => (
-                        <SelectItem key={conn.id} value={conn.id}>
-                          {conn.display_name || conn.bank_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="text-center p-4 border border-dashed rounded-md">
-                    <p className="text-muted-foreground">No CSV bank accounts available.</p>
-                    <p className="text-sm mt-2">Add a CSV bank connection in the Banking tab first.</p>
-                  </div>
-                )}
-              </div>
-            </div>
+              )}
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setStep(1)}>
-                Back
-              </Button>
-              <Button
-                onClick={processFile}
-                disabled={!selectedBankId || loading}
-                className="bg-finance-green hover:bg-finance-green-light"
-              >
-                {loading ? 'Processing...' : 'Upload & Process'}
-              </Button>
-            </DialogFooter>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+              {duplicateTransactions.length > 0 && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="font-medium mb-2">Found {duplicateTransactions.length} duplicate transactions:</div>
+                    <div className="max-h-40 overflow-y-auto text-xs space-y-1">
+                      {duplicateTransactions.slice(0, 5).map((dupe, i) => (
+                        <div key={i} className="py-1 border-b border-red-200">{dupe}</div>
+                      ))}
+                      {duplicateTransactions.length > 5 && (
+                        <div className="text-sm font-medium pt-1">
+                          ... and {duplicateTransactions.length - 5} more
+                        </div>
+                      )}
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex items-center space-x-2 text-sm text-amber-500">
+                <AlertCircle className="h-4 w-4" />
+                <p>Required columns: Date, Description, Amount</p>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={nextStep} 
+                  disabled={!selectedFile}
+                  className="bg-finance-green hover:bg-finance-green-light"
+                >
+                  Next <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label htmlFor="initial-balance">Initial Balance</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="initial-balance"
+                      type="number"
+                      step="0.01"
+                      value={initialBalance}
+                      onChange={(e) => setInitialBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    <Info className="inline h-3 w-3 mr-1" />
+                    This will be used as the starting balance for calculating running balances
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Select Bank Account</Label>
+                  {csvBankConnections.length > 0 ? (
+                    <Select
+                      value={selectedBankId}
+                      onValueChange={setSelectedBankId}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a bank account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {csvBankConnections.map((conn) => (
+                          <SelectItem key={conn.id} value={conn.id}>
+                            {conn.display_name || conn.bank_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="text-center p-4 border border-dashed rounded-md">
+                      <p className="text-muted-foreground">No CSV bank accounts available.</p>
+                      <p className="text-sm mt-2">Add a CSV bank connection in the Banking tab first.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setStep(1)}>
+                  Back
+                </Button>
+                <Button
+                  onClick={processFile}
+                  disabled={!selectedBankId || loading}
+                  className="bg-finance-green hover:bg-finance-green-light"
+                >
+                  {loading ? 'Processing...' : 'Review Transactions'}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <TransactionReviewDialog 
+        isOpen={isReviewDialogOpen}
+        onClose={() => setIsReviewDialogOpen(false)}
+        transactions={parsedTransactions}
+        onConfirm={handleConfirmUpload}
+      />
+    </>
   );
 };
 

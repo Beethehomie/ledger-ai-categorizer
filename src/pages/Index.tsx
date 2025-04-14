@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import Dashboard from '@/components/Dashboard';
-import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload } from 'lucide-react';
+import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import BankConnections from '@/components/BankConnections';
@@ -19,6 +19,9 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const { currency, setCurrency } = useSettings();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  
+  // Check if user is admin (in a real app, this would be fetched from the database)
+  const isAdmin = user?.email === 'terramultaacc@gmail.com';
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -67,7 +70,11 @@ const Index = () => {
 
       <main className="container mx-auto px-4 py-8 flex-grow">
         <BookkeepingProvider>
-          <AppContent isUploadDialogOpen={isUploadDialogOpen} setIsUploadDialogOpen={setIsUploadDialogOpen} />
+          <AppContent 
+            isUploadDialogOpen={isUploadDialogOpen} 
+            setIsUploadDialogOpen={setIsUploadDialogOpen}
+            isAdmin={isAdmin}
+          />
         </BookkeepingProvider>
       </main>
 
@@ -83,9 +90,10 @@ const Index = () => {
 interface AppContentProps {
   isUploadDialogOpen: boolean;
   setIsUploadDialogOpen: (open: boolean) => void;
+  isAdmin: boolean;
 }
 
-const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen }: AppContentProps) => {
+const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppContentProps) => {
   const { transactions, bankConnections } = useBookkeeping();
   
   return (
@@ -158,14 +166,32 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen }: AppContentPro
               </div>
               
               <div>
-                <h3 className="text-lg font-medium mb-3">Admin Functions</h3>
-                <div className="flex flex-wrap gap-3">
-                  <Link to="/admin">
-                    <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-                      <ShieldAlert className="h-4 w-4" />
-                      Admin Dashboard
+                <h3 className="text-lg font-medium mb-3">Subscription</h3>
+                <div className="flex flex-col gap-4">
+                  <p className="text-muted-foreground">Manage your subscription plan and payment information</p>
+                  <Link to="/subscription">
+                    <Button 
+                      variant="outline" 
+                      className="flex items-center gap-1.5"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Manage Subscription
                     </Button>
                   </Link>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-3">Admin Functions</h3>
+                <div className="flex flex-wrap gap-3">
+                  {isAdmin && (
+                    <Link to="/admin">
+                      <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+                        <ShieldAlert className="h-4 w-4" />
+                        Admin Dashboard
+                      </Button>
+                    </Link>
+                  )}
                   <Button 
                     variant="outline" 
                     size="sm" 
