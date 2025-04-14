@@ -4,6 +4,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { SubscriptionTier } from '@/types/subscription';
+import { UserProfileRow } from '@/types/supabase';
 
 interface UserProfile {
   id: string;
@@ -76,6 +77,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching user profile:', error);
+        
+        // If the user profile doesn't exist, create it
+        if (error.code === 'PGRST116') {
+          await createUserProfile(userId);
+          return;
+        }
         return;
       }
 
@@ -91,9 +98,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         is_admin: adminStatus
       };
       
-      setUserProfile(profile);
+      setUserProfile(profile as UserProfile);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
+    }
+  };
+
+  // Add a function to create a user profile if it doesn't exist
+  const createUserProfile = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          email: user?.email,
+          subscription_tier: 'free',
+          is_admin: user?.email === 'terramultaacc@gmail.com'
+        });
+
+      if (error) {
+        console.error('Error creating user profile:', error);
+        return;
+      }
+
+      // After creating the profile, fetch it
+      fetchUserProfile(userId);
+    } catch (error) {
+      console.error('Error in createUserProfile:', error);
     }
   };
 
