@@ -6,7 +6,7 @@ import { initialFinancialSummary } from './types';
 export const useFinancialSummary = (transactions: Transaction[]) => {
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary>(initialFinancialSummary);
 
-  const calculateFinancialSummary = useCallback(() => {
+  const calculateFinancialSummary = useCallback((): FinancialSummary => {
     const summary: FinancialSummary = { ...initialFinancialSummary };
 
     transactions.forEach(transaction => {

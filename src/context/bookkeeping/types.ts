@@ -12,10 +12,17 @@ export const initialFinancialSummary: FinancialSummary = {
   totalEquity: 0
 };
 
+// Vendor object returned from getVendorsList
+export interface VendorItem {
+  name: string;
+  count: number;
+  verified: boolean;
+}
+
 export interface BookkeepingContextType {
   transactions: Transaction[];
   categories: Category[];
-  vendors: string[];
+  vendors: Vendor[];
   financialSummary: FinancialSummary;
   loading: boolean;
   aiAnalyzeLoading: boolean;
@@ -23,17 +30,17 @@ export interface BookkeepingContextType {
   
   addTransactions: (transactions: Transaction[]) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
-  verifyTransaction: (transactionId: string, verified: boolean) => Promise<void>;
+  verifyTransaction: (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => Promise<void>;
   verifyVendor: (vendorName: string, verified: boolean) => Promise<void>;
   uploadCSV: (csvString: string, bankAccountId?: string, initialBalance?: number, balanceDate?: Date, endBalance?: number) => Promise<void>;
   getFilteredTransactions: (statementType?: Transaction['statementType'], verified?: boolean, vendor?: string) => Transaction[];
   filterTransactionsByDate: (startDate?: Date, endDate?: Date) => Transaction[];
-  getVendorsList: () => string[];
-  calculateFinancialSummary: () => any;
+  getVendorsList: () => VendorItem[];
+  calculateFinancialSummary: () => FinancialSummary;
   analyzeTransactionWithAI: (transaction: Transaction) => Promise<any>;
   getBankConnectionById: (id: string) => BankConnectionRow | undefined;
   removeDuplicateVendors: () => Promise<void>;
   fetchTransactionsForBankAccount: (bankAccountId: string) => Promise<Transaction[]>;
-  batchVerifyVendorTransactions: (vendorName: string, verified: boolean) => Promise<void>;
+  batchVerifyVendorTransactions: (vendorName: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => Promise<void>;
   fetchTransactions: () => Promise<void>;
 }

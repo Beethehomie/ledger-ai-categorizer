@@ -4,11 +4,11 @@ import { mockCategories } from '@/data/mockData';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
 import { useFinancialSummary } from './bookkeeping/useFinancialSummary';
-import { BookkeepingContextType } from './bookkeeping/types';
+import { BookkeepingContextType, VendorItem } from './bookkeeping/types';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { BankConnectionRow } from '@/types/supabase';
-import { Category, Transaction } from '@/types';
+import { Category, Transaction, Vendor } from '@/types';
 import { toast } from '@/utils/toast';
 
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
@@ -81,7 +81,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   
   const loading = transactionsLoading || vendorsLoading;
   
-  // Make sure fetchTransactions is correctly defined
+  // Implement fetchTransactions to match the type definition
   const fetchTransactions = async (): Promise<void> => {
     if (!session) {
       toast.error('You must be logged in to fetch transactions');

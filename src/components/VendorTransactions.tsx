@@ -25,7 +25,7 @@ import {
   Plus
 } from "lucide-react";
 import { toast } from '@/utils/toast';
-import { Transaction } from '@/types';
+import { Transaction, VendorItem } from '@/types';
 import VendorEditor from './VendorEditor';
 import VendorImporter from './VendorImporter';
 

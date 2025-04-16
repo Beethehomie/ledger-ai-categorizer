@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
-import { Vendor, Transaction, StatementType } from '@/types';
+import { Vendor, Transaction, StatementType, VendorItem } from '@/types';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { updateVendorInSupabase, removeDuplicateVendorsFromSupabase } from './vendorUtils';
+import { VendorItem as VendorListItem } from './types';
 
 export const useVendors = (
   transactions: Transaction[],
@@ -212,10 +214,10 @@ export const useVendors = (
     }
   };
 
-  const removeDuplicateVendors = async (): Promise<boolean> => {
+  const removeDuplicateVendors = async (): Promise<void> => {
     if (!session) {
       toast.error('You must be logged in to manage vendors');
-      return false;
+      return;
     }
 
     try {
@@ -225,17 +227,14 @@ export const useVendors = (
       if (success && updatedVendors) {
         setVendors(updatedVendors);
       }
-      
-      return success;
     } catch (err) {
       console.error('Error in removeDuplicateVendors:', err);
-      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const getVendorsList = () => {
+  const getVendorsList = (): VendorListItem[] => {
     const vendorCounts: Record<string, { count: number; verified: boolean }> = {};
     
     transactions.forEach(transaction => {

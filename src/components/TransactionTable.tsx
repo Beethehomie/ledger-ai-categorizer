@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -28,7 +27,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
-import { Transaction, Category } from "@/types";
+import { Transaction, Category, Vendor, VendorItem } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
 import { useSettings } from "@/context/SettingsContext";
 import { cn } from '@/lib/utils';
@@ -170,10 +169,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     const updatedTransaction = { ...transaction, vendor: vendorName };
     updateTransaction(updatedTransaction);
     
-    // Check if this vendor has a category in the vendor database
     const vendorInfo = vendors.find(v => v.name === vendorName);
     if (vendorInfo && vendorInfo.category && !transaction.isVerified) {
-      // Auto-categorize based on vendor
       verifyTransaction(
         transaction.id,
         vendorInfo.category,
@@ -242,7 +239,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     );
   };
 
-  // Get unique vendors from transactions
   const uniqueVendors = Array.from(new Set(transactions.map(t => t.vendor).filter(Boolean) as string[])).sort();
 
   return (
