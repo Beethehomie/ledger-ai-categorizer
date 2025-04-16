@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import TransactionTable from './TransactionTable';
@@ -65,8 +66,8 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
     setProcessingAction(true);
     
     try {
-      // Add the vendor directly to Supabase instead of calling a non-existent API
-      const { data, error } = await supabase
+      // Add the vendor directly to Supabase
+      const result = await supabase
         .from('vendor_categorizations')
         .insert({
           vendor_name: newVendor.name,
@@ -77,8 +78,9 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
           verified: false
         });
       
-      if (error) {
-        throw error;
+      if (result.error) {
+        console.error('Supabase error:', result.error);
+        throw result.error;
       }
       
       toast.success(`Added new vendor: ${newVendor.name}`);
