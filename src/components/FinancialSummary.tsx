@@ -1,12 +1,12 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, DollarSign, PiggyBank, LineChart, Coins } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';
 import { formatCurrency } from '@/utils/currencyUtils';
+import { FinancialSummaryProps } from '@/types';
 
-const FinancialSummary: React.FC = () => {
+const FinancialSummary: React.FC<FinancialSummaryProps> = ({ refreshing }) => {
   const { financialSummary } = useBookkeeping();
   const { currency } = useSettings();
   
