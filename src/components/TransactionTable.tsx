@@ -255,7 +255,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   };
 
   const handleToggleColumn = (columnId: string) => {
-    toggleColumn(columnId);
+    const column = tableColumns.find(col => col.id === columnId);
+    if (column) {
+      toggleColumn(columnId, !column.visible);
+    }
   };
 
   return (

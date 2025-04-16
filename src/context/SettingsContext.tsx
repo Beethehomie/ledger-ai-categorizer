@@ -26,15 +26,15 @@ const defaultGoal: FinancialGoal = {
 };
 
 const defaultColumns: TableColumn[] = [
-  { id: 'date', name: 'Date', visible: true },
-  { id: 'description', name: 'Description', visible: true },
-  { id: 'vendor', name: 'Vendor', visible: true },
-  { id: 'amount', name: 'Amount', visible: true },
-  { id: 'category', name: 'Category', visible: true },
-  { id: 'statementType', name: 'Statement Type', visible: true },
-  { id: 'bankAccount', name: 'Bank Account', visible: true },
-  { id: 'status', name: 'Status', visible: true },
-  { id: 'actions', name: 'Actions', visible: true },
+  { id: 'date', name: 'Date', label: 'Date', visible: true },
+  { id: 'description', name: 'Description', label: 'Description', visible: true },
+  { id: 'vendor', name: 'Vendor', label: 'Vendor', visible: true },
+  { id: 'amount', name: 'Amount', label: 'Amount', visible: true },
+  { id: 'category', name: 'Category', label: 'Category', visible: true },
+  { id: 'statementType', name: 'Statement Type', label: 'Statement Type', visible: true },
+  { id: 'bankAccount', name: 'Bank Account', label: 'Bank Account', visible: true },
+  { id: 'status', name: 'Status', label: 'Status', visible: true },
+  { id: 'actions', name: 'Actions', label: 'Actions', visible: true },
 ];
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);

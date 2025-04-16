@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   DropdownMenu,
@@ -22,6 +21,14 @@ interface ColumnSelectorProps {
   columns: Column[];
   onToggleColumn: (columnId: string) => void;
 }
+
+const mapTableColumnsToColumnSelector = (columns: TableColumn[]): Column[] => {
+  return columns.map(col => ({
+    id: col.id,
+    label: col.label || col.name,
+    visible: col.visible
+  }));
+};
 
 const ColumnSelector: React.FC<ColumnSelectorProps> = ({ columns, onToggleColumn }) => {
   return (

@@ -84,7 +84,7 @@ export interface CurrencySettings {
 export interface TableColumn {
   id: string;
   name: string;
-  label: string; // Added label property to match Column interface
+  label: string; // This field is required by the Column interface
   visible: boolean;
   sortable?: boolean;
   sortDirection?: 'asc' | 'desc' | null;
