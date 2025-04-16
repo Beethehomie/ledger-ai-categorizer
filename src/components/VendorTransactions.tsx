@@ -27,7 +27,7 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
     getVendorsList, 
     verifyVendor, 
     vendors, 
-    findSimilarTransactions
+    findSimilarTransactions 
   } = useBookkeeping();
   const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
   const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
@@ -41,7 +41,6 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
   };
   
   const handleAddVendor = async (newVendor: Vendor) => {
-    // Check if vendor already exists
     if (vendors.some(v => v.name === newVendor.name)) {
       toast.error(`Vendor "${newVendor.name}" already exists`);
       return;
@@ -58,7 +57,6 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
         throw new Error(result.error || 'Failed to add vendor');
       }
       
-      // Reload vendors list (will be triggered by context)
       toast.success(`Added new vendor: ${newVendor.name}`);
       setIsVendorEditorOpen(false);
       setSelectedVendor(newVendor.name);
@@ -126,6 +124,7 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
         onSave={handleAddVendor}
         isOpen={isVendorEditorOpen}
         onClose={() => setIsVendorEditorOpen(false)}
+        isProcessing={processingAction}
       />
     </div>
   );

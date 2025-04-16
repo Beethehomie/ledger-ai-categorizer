@@ -13,25 +13,31 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Vendor } from '@/types';
 import { toast } from '@/utils/toast';
+import { Loader2 } from 'lucide-react';
 
 interface VendorEditorProps {
   onSave: (vendor: Vendor) => void;
   isOpen: boolean;
   onClose: () => void;
+  isProcessing?: boolean;
 }
 
 const VendorEditor: React.FC<VendorEditorProps> = ({
   onSave,
   isOpen,
   onClose,
+  isProcessing = false,
 }) => {
   const [newVendor, setNewVendor] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSave = () => {
     if (!newVendor.trim()) {
       toast.error('Please enter a valid vendor name');
       return;
     }
+
+    setIsSubmitting(true);
 
     // Create a default vendor with just the name
     const vendor: Vendor = {
@@ -43,17 +49,23 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
       verified: false
     };
 
-    onSave(vendor);
-
-    // Reset form
-    setNewVendor('');
+    try {
+      onSave(vendor);
+    } catch (error) {
+      console.error('Error saving vendor:', error);
+      toast.error('Failed to save vendor');
+      setIsSubmitting(false);
+    }
   };
   
   // Reset form when dialog closes
   const handleDialogClose = () => {
     setNewVendor('');
+    setIsSubmitting(false);
     onClose();
   };
+
+  const isLoading = isSubmitting || isProcessing;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
@@ -76,14 +88,24 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
               className="col-span-3"
               placeholder="Enter vendor name"
               autoFocus
+              disabled={isLoading}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={handleDialogClose}>
+          <Button variant="outline" onClick={handleDialogClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>Add Vendor</Button>
+          <Button onClick={handleSave} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Add Vendor'
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
