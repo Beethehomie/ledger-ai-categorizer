@@ -16,6 +16,7 @@ import ReportExporter from './ReportExporter';
 import { toast } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from '@/integrations/supabase/client';
+import Select from 'react-select';
 
 interface RefreshableComponentProps {
   refreshing?: boolean;
@@ -36,7 +37,8 @@ const Dashboard: React.FC = () => {
     bankConnections,
     loading: dataLoading,
     calculateFinancialSummary,
-    fetchTransactions
+    fetchTransactions,
+    financialSummary
   } = useBookkeeping();
   
   const { 
@@ -52,6 +54,7 @@ const Dashboard: React.FC = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [filteredTransactions, setFilteredTransactions] = useState(transactions);
   const [refreshing, setRefreshing] = useState(false);
+  const [goalProgressSource, setGoalProgressSource] = useState<'income' | 'balance'>('balance');
   
   useEffect(() => {
     setFilteredTransactions(
@@ -79,6 +82,25 @@ const Dashboard: React.FC = () => {
       setRefreshing(false);
     }
   };
+  
+  const calculateGoalProgressAmount = () => {
+    if (goalProgressSource === 'income') {
+      return financialSummary?.income || 0;
+    } else {
+      return financialSummary?.cashBalance || 0;
+    }
+  };
+  
+  const currentAmount = calculateGoalProgressAmount();
+  
+  useEffect(() => {
+    if (currentAmount !== financialGoal.currentAmount) {
+      updateFinancialGoal({
+        ...financialGoal,
+        currentAmount
+      });
+    }
+  }, [currentAmount, goalProgressSource]);
   
   return (
     <TooltipProvider>
@@ -144,29 +166,44 @@ const Dashboard: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => setIsGoalEditorOpen(true)}
-                      className="h-8 w-8"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Edit financial goal</p>
-                  </TooltipContent>
-                </Tooltip>
+                <div className="flex gap-2">
+                  <Select
+                    value={goalProgressSource}
+                    onValueChange={(val: 'income' | 'balance') => setGoalProgressSource(val)}
+                  >
+                    <SelectTrigger className="w-[120px] h-8">
+                      <SelectValue placeholder="Source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="income">Income</SelectItem>
+                      <SelectItem value="balance">Cash Balance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setIsGoalEditorOpen(true)}
+                        className="h-8 w-8"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Edit financial goal</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
               
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-[hsl(var(--muted-foreground))]">
-                  Current: {new Intl.NumberFormat('en-US', {
+                  {goalProgressSource === 'income' ? 'Income' : 'Cash Balance'}: {new Intl.NumberFormat('en-US', {
                     style: 'currency',
                     currency: currency
-                  }).format(financialGoal.currentAmount)}
+                  }).format(currentAmount)}
                 </span>
                 <span className="text-sm text-[hsl(var(--muted-foreground))]">
                   Goal: {new Intl.NumberFormat('en-US', {
@@ -187,21 +224,21 @@ const Dashboard: React.FC = () => {
                 <div 
                   className="progress-fill animate-fill-up" 
                   style={{ 
-                    '--fill-height': `${Math.min(financialGoal.currentAmount / financialGoal.targetAmount * 100, 100)}%`,
+                    '--fill-height': `${Math.min(currentAmount / financialGoal.targetAmount * 100, 100)}%`,
                     background: 'linear-gradient(180deg, hsl(var(--finance-beige)) 0%, hsl(var(--primary)) 100%)'
                   } as React.CSSProperties}
                 ></div>
                 
                 <div 
                   className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 animate-bounce-subtle"
-                  style={{ bottom: `${Math.min(financialGoal.currentAmount / financialGoal.targetAmount * 100, 100)}%` }}
+                  style={{ bottom: `${Math.min(currentAmount / financialGoal.targetAmount * 100, 100)}%` }}
                 >
                   <div className="relative">
                     <div className="h-12 w-12 rounded-full bg-[hsl(var(--primary))] flex items-center justify-center">
                       <DollarSign className="h-6 w-6 text-white" />
                     </div>
                     <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap bg-[hsl(var(--finance-nude-dark))] text-white text-xs px-2 py-1 rounded">
-                      {(financialGoal.currentAmount / financialGoal.targetAmount * 100).toFixed(0)}% Complete
+                      {(currentAmount / financialGoal.targetAmount * 100).toFixed(0)}% Complete
                     </div>
                   </div>
                 </div>

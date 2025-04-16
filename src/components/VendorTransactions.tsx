@@ -22,21 +22,32 @@ import {
   CheckCircle, 
   AlertTriangle,
   BadgeCheck,
-  Plus
+  Plus,
+  RefreshCw,
+  Search
 } from "lucide-react";
 import { toast } from '@/utils/toast';
 import { Transaction, VendorItem, Vendor } from '@/types';
 import VendorEditor from './VendorEditor';
 import VendorImporter from './VendorImporter';
+import UnknownVendorsReview from './UnknownVendorsReview';
 
 interface VendorTransactionsProps {
   transactions: Transaction[];
 }
 
 const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions }) => {
-  const { getVendorsList, verifyVendor, categories, vendors } = useBookkeeping();
+  const { 
+    getVendorsList, 
+    verifyVendor, 
+    categories, 
+    vendors, 
+    analyzeTransactionWithAI,
+    findSimilarTransactions
+  } = useBookkeeping();
   const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
   const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
+  const [processingAction, setProcessingAction] = useState(false);
   
   const vendorsList = getVendorsList();
   
@@ -50,6 +61,8 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
       toast.error(`Vendor "${newVendor.name}" already exists`);
       return;
     }
+    
+    setProcessingAction(true);
     
     // Add the vendor to the database
     try {
@@ -72,9 +85,18 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
       setIsVendorEditorOpen(false);
       setSelectedVendor(newVendor.name);
       
+      // Find similar transactions and assign vendor
+      const similarTransactions = await findSimilarTransactions(newVendor.name, transactions);
+      
+      if (similarTransactions && similarTransactions.length > 0) {
+        toast.success(`Found ${similarTransactions.length} similar transactions for vendor: ${newVendor.name}`);
+      }
+      
     } catch (err) {
       console.error('Error adding vendor:', err);
       toast.error('Failed to add vendor. Please try again.');
+    } finally {
+      setProcessingAction(false);
     }
   };
   
@@ -124,6 +146,17 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Vendor
               </Button>
+              
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={processingAction}
+                className="hover-scale"
+              >
+                <Search className="h-4 w-4 mr-2" />
+                Find Similar Transactions
+                {processingAction && <RefreshCw className="ml-2 h-3 w-3 animate-spin" />}
+              </Button>
             </div>
             
             {selectedVendor && (
@@ -153,6 +186,8 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
       </Card>
       
       <VendorImporter />
+      
+      <UnknownVendorsReview transactions={transactions.filter(t => !t.vendor || t.vendor === 'Unknown')} />
       
       {selectedVendor ? (
         <div className="animate-fade-in">

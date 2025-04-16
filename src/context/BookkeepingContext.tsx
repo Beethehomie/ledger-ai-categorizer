@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { mockCategories } from '@/data/mockData';
 import { useTransactions } from './bookkeeping/useTransactions';
@@ -71,7 +70,8 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     verifyTransaction,
     batchVerifyVendorTransactions,
     removeDuplicateVendors,
-    getVendorsList
+    getVendorsList,
+    findSimilarTransactions
   } = useVendors(transactions, updateTransaction);
   
   const {
@@ -81,7 +81,6 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   
   const loading = transactionsLoading || vendorsLoading;
   
-  // Implement fetchTransactions to match the type definition
   const fetchTransactions = async (): Promise<void> => {
     if (!session) {
       toast.error('You must be logged in to fetch transactions');
@@ -132,7 +131,6 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         
         setTransactions(fetchedTransactions);
         
-        // Explicitly calculate financial summary after setting transactions
         setTimeout(() => calculateFinancialSummary(), 100);
         
         toast.success('Transactions refreshed successfully');
@@ -166,6 +164,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     fetchTransactionsForBankAccount,
     batchVerifyVendorTransactions,
     fetchTransactions,
+    findSimilarTransactions,
   };
 
   return (

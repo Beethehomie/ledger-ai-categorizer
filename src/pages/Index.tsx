@@ -129,7 +129,7 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
     <>
       <Tabs defaultValue="reports" className="w-full">
         <div className="mb-6">
-          <TabsList className="w-full grid grid-cols-5">
+          <TabsList className="w-full grid grid-cols-6">
             <TabsTrigger value="reports">
               <PieChart className="h-4 w-4 mr-2" />
               Reports
@@ -137,6 +137,10 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
             <TabsTrigger value="transactions">
               <FileText className="h-4 w-4 mr-2" />
               Transactions
+            </TabsTrigger>
+            <TabsTrigger value="vendors">
+              <Store className="h-4 w-4 mr-2" />
+              Vendors
             </TabsTrigger>
             <TabsTrigger value="review">
               <AlertTriangle className="h-4 w-4 mr-2" />
@@ -181,6 +185,29 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
               filter="all" 
               transactions={transactions} 
               onRefresh={handleRefresh}
+            />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="vendors" className="mt-0">
+          <div className="bg-[hsl(var(--card))] rounded-lg shadow-sm border border-[hsl(var(--border))] p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Vendor Management</h2>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  title="Refresh vendors"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+            <VendorTransactions 
+              transactions={transactions} 
             />
           </div>
         </TabsContent>

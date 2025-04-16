@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import { Vendor, Transaction, StatementType, VendorItem } from '@/types';
@@ -256,6 +255,92 @@ export const useVendors = (
       .sort((a, b) => b.count - a.count);
   };
 
+  const findSimilarTransactions = async (
+    vendorName: string,
+    allTransactions: Transaction[]
+  ): Promise<Transaction[]> => {
+    if (!session) {
+      toast.error('You must be logged in to find similar transactions');
+      return [];
+    }
+    
+    try {
+      const unverifiedTransactions = allTransactions.filter(t => 
+        (!t.vendor || t.vendor === 'Unknown') && !t.isVerified
+      );
+      
+      if (unverifiedTransactions.length === 0) {
+        return [];
+      }
+      
+      const vendorInfo = vendors.find(v => v.name === vendorName);
+      if (!vendorInfo) {
+        throw new Error(`Vendor ${vendorName} not found`);
+      }
+      
+      const similarity = (a: string, b: string): number => {
+        const aLower = a.toLowerCase();
+        const bLower = b.toLowerCase();
+        
+        if (aLower.includes(bLower) || bLower.includes(aLower)) {
+          return 0.9;
+        }
+        
+        const distanceMatrix: number[][] = Array(aLower.length + 1).fill(null).map(() => 
+          Array(bLower.length + 1).fill(null)
+        );
+        
+        for (let i = 0; i <= aLower.length; i++) {
+          distanceMatrix[i][0] = i;
+        }
+        
+        for (let j = 0; j <= bLower.length; j++) {
+          distanceMatrix[0][j] = j;
+        }
+        
+        for (let i = 1; i <= aLower.length; i++) {
+          for (let j = 1; j <= bLower.length; j++) {
+            const cost = aLower[i - 1] === bLower[j - 1] ? 0 : 1;
+            distanceMatrix[i][j] = Math.min(
+              distanceMatrix[i - 1][j] + 1,
+              distanceMatrix[i][j - 1] + 1,
+              distanceMatrix[i - 1][j - 1] + cost
+            );
+          }
+        }
+        
+        const maxLength = Math.max(aLower.length, bLower.length);
+        return maxLength === 0 ? 1 : 1 - distanceMatrix[aLower.length][bLower.length] / maxLength;
+      };
+      
+      const similarTransactions: Transaction[] = [];
+      
+      for (const transaction of unverifiedTransactions) {
+        const similarityScore = similarity(transaction.description, vendorName);
+        
+        if (similarityScore > 0.5) {
+          const updatedTransaction = {
+            ...transaction,
+            vendor: vendorName,
+            category: vendorInfo.category,
+            type: vendorInfo.type,
+            statementType: vendorInfo.statementType,
+            confidenceScore: similarityScore
+          };
+          
+          await updateTransaction(updatedTransaction);
+          similarTransactions.push(updatedTransaction);
+        }
+      }
+      
+      return similarTransactions;
+    } catch (err: any) {
+      console.error('Error finding similar transactions:', err);
+      toast.error('Failed to find similar transactions');
+      return [];
+    }
+  };
+
   return {
     vendors,
     loading: loading,
@@ -263,6 +348,7 @@ export const useVendors = (
     verifyTransaction,
     batchVerifyVendorTransactions,
     removeDuplicateVendors,
-    getVendorsList
+    getVendorsList,
+    findSimilarTransactions
   };
 };

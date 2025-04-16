@@ -375,16 +375,20 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                       {isAccountReconciled && (
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                       )}
-                      Balance
+                      Running Balance
                     </div>
                   </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'confidence')?.visible !== false && (
+                  <TableHead>Confidence</TableHead>
                 )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={tableColumns.filter(col => col.visible).length} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={tableColumns.filter(col => col.visible).length + 1} className="text-center py-6 text-muted-foreground">
                     No transactions to display
                   </TableCell>
                 </TableRow>
@@ -511,7 +515,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                                     {category.name}
                                   </SelectItem>
                                 ))}
-
+                                
                                 <SelectItem value="add-new">
                                   <div className="flex items-center">
                                     <Edit className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
@@ -556,6 +560,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                         {transaction.balance !== undefined ? 
                           formatCurrency(transaction.balance, currency) : 
                           '-'}
+                      </TableCell>
+                    )}
+                    
+                    {tableColumns.find(col => col.id === 'confidence')?.visible !== false && (
+                      <TableCell>
+                        {renderConfidenceScore(transaction.confidenceScore)}
                       </TableCell>
                     )}
                   </TableRow>
