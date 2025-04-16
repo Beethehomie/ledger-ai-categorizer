@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import TransactionTable from './TransactionTable';
-import { AlertTriangle, ShieldCheck, AlertCircle } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import UnknownVendorsReview from './UnknownVendorsReview';
+import { toast } from '@/utils/toast';
 
 const TransactionReviewPage = () => {
   const { transactions, analyzeTransactionWithAI } = useBookkeeping();
@@ -26,7 +28,7 @@ const TransactionReviewPage = () => {
   const handleRefresh = async () => {
     setIsLoading(true);
     try {
-      await analyzeTransactionWithAI();
+      await analyzeTransactionWithAI(transactions[0]); // Pass a transaction object, not empty
       toast.success('Refreshed transactions for review');
     } catch (error) {
       console.error('Error refreshing transactions:', error);

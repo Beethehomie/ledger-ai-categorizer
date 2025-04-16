@@ -27,13 +27,13 @@ import {
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
-import { Transaction, Category, Vendor, VendorItem } from "@/types";
+import { Transaction, Category, Vendor, VendorItem, TableColumn } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
 import { useSettings } from "@/context/SettingsContext";
 import { cn } from '@/lib/utils';
 import { toast } from '@/utils/toast';
 import { formatCurrency, formatDate } from '@/utils/currencyUtils';
-import ColumnSelector from './ColumnSelector';
+import ColumnSelector, { Column } from './ColumnSelector';
 import ReconcileDialog from './ReconcileDialog';
 import { exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -246,6 +246,18 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
 
   const uniqueVendors = Array.from(new Set(transactions.map(t => t.vendor).filter(Boolean) as string[])).sort();
 
+  const mapTableColumnsToColumnSelector = (): Column[] => {
+    return tableColumns.map(col => ({
+      id: col.id,
+      label: col.name || col.id,
+      visible: col.visible
+    }));
+  };
+
+  const handleToggleColumn = (columnId: string) => {
+    toggleColumn(columnId);
+  };
+
   return (
     <TooltipProvider>
       <div className="space-y-4 animate-fade-in">
@@ -323,8 +335,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
             </Tooltip>
             
             <ColumnSelector
-              columns={tableColumns}
-              onToggleColumn={toggleColumn}
+              columns={mapTableColumnsToColumnSelector()}
+              onToggleColumn={handleToggleColumn}
             />
           </div>
         </div>

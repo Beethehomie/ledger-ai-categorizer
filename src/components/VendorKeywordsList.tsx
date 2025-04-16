@@ -25,7 +25,7 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { useIsMobile } from '@/hooks/use-mobile';
-import ColumnSelector from './ColumnSelector';
+import ColumnSelector, { Column } from './ColumnSelector';
 import { TableColumn } from '@/types';
 
 const ITEMS_PER_PAGE = 100; // Increased to 100 items per page
@@ -43,13 +43,13 @@ const VendorKeywordsList: React.FC = () => {
   const isMobile = useIsMobile();
   
   // Column visibility state
-  const [columns, setColumns] = useState<TableColumn[]>([
-    { id: 'vendor_name', name: 'Vendor Name', visible: true },
-    { id: 'category', name: 'Category', visible: true },
-    { id: 'type', name: 'Type', visible: true },
-    { id: 'occurrences', name: 'Usage', visible: true },
-    { id: 'status', name: 'Status', visible: true },
-    { id: 'actions', name: 'Actions', visible: true },
+  const [columns, setColumns] = useState<Column[]>([
+    { id: 'vendor_name', label: 'Vendor Name', visible: true },
+    { id: 'category', label: 'Category', visible: true },
+    { id: 'type', label: 'Type', visible: true },
+    { id: 'occurrences', label: 'Usage', visible: true },
+    { id: 'status', label: 'Status', visible: true },
+    { id: 'actions', label: 'Actions', visible: true },
   ]);
 
   useEffect(() => {
@@ -212,10 +212,10 @@ const VendorKeywordsList: React.FC = () => {
   };
 
   // Handle toggling column visibility
-  const handleToggleColumn = (columnId: string, visible: boolean) => {
+  const handleToggleColumn = (columnId: string) => {
     setColumns(prev => 
       prev.map(col => 
-        col.id === columnId ? { ...col, visible } : col
+        col.id === columnId ? { ...col, visible: !col.visible } : col
       )
     );
   };

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { CheckSquare, Square, SlidersHorizontal } from "lucide-react";
+import { TableColumn } from '@/types';
 
 export interface Column {
   id: string;
