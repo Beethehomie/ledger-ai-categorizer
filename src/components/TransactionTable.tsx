@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -17,41 +18,49 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle,
-  AlertTriangle,
-  Check,
-  Clock,
-  X,
-  Store,
   Sparkles,
-  Plus,
-  Building
+  Store,
+  Building,
+  Download,
+  RefreshCw,
+  Scale,
+  Edit,
+  CheckCircle2
 } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
 import { useSettings } from "@/context/SettingsContext";
 import { cn } from '@/lib/utils';
 import { toast } from '@/utils/toast';
-import VendorEditor from './VendorEditor';
-import ColumnSelector from './ColumnSelector';
 import { formatCurrency, formatDate } from '@/utils/currencyUtils';
+import ColumnSelector from './ColumnSelector';
+import ReconcileDialog from './ReconcileDialog';
+import { exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TransactionTableProps {
-  filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor';
+  filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor' | 'review';
   vendorName?: string;
   transactions: Transaction[];
+  onRefresh?: () => void;
+  expectedEndBalance?: number;
 }
 
 const TransactionTable: React.FC<TransactionTableProps> = ({ 
   filter = 'all', 
   vendorName,
-  transactions
+  transactions,
+  onRefresh,
+  expectedEndBalance
 }) => {
   const { 
     categories, 
     verifyTransaction, 
     analyzeTransactionWithAI,
     aiAnalyzeLoading,
-    getBankConnectionById
+    getBankConnectionById,
+    updateTransaction,
+    vendors
   } = useBookkeeping();
   
   const {
@@ -63,7 +72,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const [sortField, setSortField] = useState<string>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
+  const [isReconcileDialogOpen, setIsReconcileDialogOpen] = useState(false);
+  const [reconciliationBalance, setReconciliationBalance] = useState<number | undefined>(expectedEndBalance);
 
   const filteredTransactions = transactions.filter(transaction => {
     if (filter === 'unverified') {
@@ -74,6 +84,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
       return transaction.statementType === 'balance_sheet';
     } else if (filter === 'by_vendor' && vendorName) {
       return transaction.vendor === vendorName;
+    } else if (filter === 'review') {
+      return transaction.confidenceScore !== undefined && transaction.confidenceScore < 0.5 && !transaction.isVerified;
     }
     return true;
   });
@@ -153,6 +165,53 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     return connection?.display_name || connection?.bank_name || "Unknown";
   };
 
+  const handleVendorChange = (transaction: Transaction, vendorName: string) => {
+    const updatedTransaction = { ...transaction, vendor: vendorName };
+    updateTransaction(updatedTransaction);
+    
+    // Check if this vendor has a category in the vendor database
+    const vendorInfo = vendors.find(v => v.name === vendorName);
+    if (vendorInfo && vendorInfo.category && !transaction.isVerified) {
+      // Auto-categorize based on vendor
+      verifyTransaction(
+        transaction.id,
+        vendorInfo.category,
+        vendorInfo.type,
+        vendorInfo.statementType
+      );
+    }
+  };
+
+  const handleReconcile = (endBalance: number) => {
+    setReconciliationBalance(endBalance);
+    toast.success('Account reconciliation status updated');
+  };
+
+  const handleExportCSV = () => {
+    const csvData = exportToCSV(transactions); 
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${date}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleRefresh = () => {
+    if (onRefresh) {
+      onRefresh();
+      toast.success('Refreshing transactions and reports');
+    }
+  };
+
+  const isAccountReconciled = reconciliationBalance !== undefined && 
+                              transactions.length > 0 && 
+                              isBalanceReconciled(transactions, reconciliationBalance);
+
   const renderConfidenceScore = (score?: number) => {
     if (score === undefined) return null;
     
@@ -182,282 +241,318 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     );
   };
 
+  // Get unique vendors from transactions
+  const uniqueVendors = Array.from(new Set(transactions.map(t => t.vendor).filter(Boolean) as string[])).sort();
+
   return (
-    <div className="space-y-4 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-        <h2 className="text-lg font-semibold">
-          {filter === 'unverified' 
-            ? 'Transactions For Review' 
-            : filter === 'profit_loss' 
-              ? 'Profit & Loss Transactions' 
-              : filter === 'balance_sheet' 
-                ? 'Balance Sheet Transactions'
-                : filter === 'by_vendor' && vendorName
-                  ? `Transactions for ${vendorName}`
-                  : 'All Transactions'}
-        </h2>
-        
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsVendorEditorOpen(true)}
-            className="hover-scale"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Vendor
-          </Button>
+    <TooltipProvider>
+      <div className="space-y-4 animate-fade-in">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+          <h2 className="text-lg font-semibold">
+            {filter === 'unverified' 
+              ? 'Transactions For Review' 
+              : filter === 'profit_loss' 
+                ? 'Profit & Loss Transactions' 
+                : filter === 'balance_sheet' 
+                  ? 'Balance Sheet Transactions'
+                  : filter === 'by_vendor' && vendorName
+                    ? `Transactions for ${vendorName}`
+                    : filter === 'review'
+                      ? 'Transactions Requiring Review'
+                      : 'All Transactions'}
+            {isAccountReconciled && (
+              <span className="ml-2 inline-flex items-center text-sm text-green-600">
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Reconciled
+              </span>
+            )}
+          </h2>
           
-          <ColumnSelector
-            columns={tableColumns}
-            onToggleColumn={toggleColumn}
-          />
+          <div className="flex gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  className="hover-scale"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Refresh
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Refresh transactions and reports</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportCSV}
+                  className="hover-scale"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Export
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Export transactions to CSV</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsReconcileDialogOpen(true)}
+                  className="hover-scale"
+                >
+                  <Scale className="h-4 w-4 mr-1" />
+                  Reconcile
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Reconcile your account balance</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <ColumnSelector
+              columns={tableColumns}
+              onToggleColumn={toggleColumn}
+            />
+          </div>
         </div>
-      </div>
-      
-      <div className="w-full overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {tableColumns.find(col => col.id === 'date')?.visible && (
-                <TableHead className="w-[100px] cursor-pointer" onClick={() => handleSort('date')}>
-                  Date {sortField === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </TableHead>
-              )}
-              
-              {tableColumns.find(col => col.id === 'description')?.visible && (
-                <TableHead className="cursor-pointer" onClick={() => handleSort('description')}>
-                  Description {sortField === 'description' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </TableHead>
-              )}
-              
-              {tableColumns.find(col => col.id === 'vendor')?.visible && (
-                <TableHead className="cursor-pointer" onClick={() => handleSort('vendor')}>
-                  Vendor {sortField === 'vendor' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </TableHead>
-              )}
-              
-              {tableColumns.find(col => col.id === 'amount')?.visible && (
-                <TableHead className="cursor-pointer text-right" onClick={() => handleSort('amount')}>
-                  Amount {sortField === 'amount' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </TableHead>
-              )}
-              
-              {tableColumns.find(col => col.id === 'category')?.visible && (
-                <TableHead>Category</TableHead>
-              )}
-              
-              {tableColumns.find(col => col.id === 'statementType')?.visible && (
-                <TableHead>Statement Type</TableHead>
-              )}
-              
-              {tableColumns.find(col => col.id === 'bankAccount')?.visible && (
-                <TableHead>Bank Account</TableHead>
-              )}
-              
-              {tableColumns.find(col => col.id === 'status')?.visible && (
-                <TableHead className="text-center">Status</TableHead>
-              )}
-              
-              {tableColumns.find(col => col.id === 'actions')?.visible && (
-                <TableHead className="text-center">Actions</TableHead>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedTransactions.length === 0 ? (
+        
+        <div className="w-full overflow-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={tableColumns.filter(col => col.visible).length} className="text-center py-6 text-muted-foreground">
-                  No transactions to display
-                </TableCell>
+                {tableColumns.find(col => col.id === 'date')?.visible && (
+                  <TableHead className="w-[100px] cursor-pointer" onClick={() => handleSort('date')}>
+                    Date {sortField === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'description')?.visible && (
+                  <TableHead className="cursor-pointer" onClick={() => handleSort('description')}>
+                    Description {sortField === 'description' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'vendor')?.visible && (
+                  <TableHead className="cursor-pointer" onClick={() => handleSort('vendor')}>
+                    Vendor {sortField === 'vendor' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'amount')?.visible && (
+                  <TableHead className="cursor-pointer text-right" onClick={() => handleSort('amount')}>
+                    Amount {sortField === 'amount' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'category')?.visible && (
+                  <TableHead>Category</TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'statementType')?.visible && (
+                  <TableHead>Statement Type</TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'bankAccount')?.visible && (
+                  <TableHead>Bank Account</TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'balance')?.visible && (
+                  <TableHead className="text-right">Balance</TableHead>
+                )}
               </TableRow>
-            ) : (
-              sortedTransactions.map((transaction) => (
-                <TableRow key={transaction.id} className={cn(
-                  transaction.isVerified ? "" : "bg-muted/30",
-                  transaction.type === 'income' || transaction.amount > 0 ? "border-l-2 border-l-finance-green" : "",
-                  transaction.type === 'expense' && transaction.amount < 0 ? "border-l-2 border-l-finance-red" : "",
-                  "transition-all hover:bg-muted/30"
-                )}>
-                  {tableColumns.find(col => col.id === 'date')?.visible && (
-                    <TableCell>{formatDate(transaction.date, currency)}</TableCell>
-                  )}
-                  
-                  {tableColumns.find(col => col.id === 'description')?.visible && (
-                    <TableCell>{transaction.description}</TableCell>
-                  )}
-                  
-                  {tableColumns.find(col => col.id === 'vendor')?.visible && (
-                    <TableCell className="flex items-center gap-1">
-                      <Store className="h-4 w-4 text-finance-gray" />
-                      {transaction.vendor || "Unknown"}
-                    </TableCell>
-                  )}
-                  
-                  {tableColumns.find(col => col.id === 'amount')?.visible && (
-                    <TableCell 
-                      className={cn(
-                        "text-right font-medium",
-                        transaction.amount > 0 ? "text-finance-green" : "text-finance-red"
-                      )}
-                    >
-                      {formatCurrency(transaction.amount, currency)}
-                    </TableCell>
-                  )}
-                  
-                  {tableColumns.find(col => col.id === 'category')?.visible && (
-                    <TableCell>
-                      {transaction.isVerified ? (
-                        transaction.category
-                      ) : (
-                        <div className="flex flex-col gap-1">
-                          <Select 
-                            defaultValue={transaction.aiSuggestion} 
-                            onValueChange={(val) => handleVerify(transaction, val)}
+            </TableHeader>
+            <TableBody>
+              {sortedTransactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={tableColumns.filter(col => col.visible).length} className="text-center py-6 text-muted-foreground">
+                    No transactions to display
+                  </TableCell>
+                </TableRow>
+              ) : (
+                sortedTransactions.map((transaction) => (
+                  <TableRow key={transaction.id} className={cn(
+                    transaction.isVerified ? "" : "bg-muted/30",
+                    transaction.type === 'income' || transaction.amount > 0 ? "border-l-2 border-l-finance-green" : "",
+                    transaction.type === 'expense' && transaction.amount < 0 ? "border-l-2 border-l-finance-red" : "",
+                    transaction.confidenceScore !== undefined && transaction.confidenceScore < 0.5 ? "border-l-2 border-l-amber-500" : "",
+                    "transition-all hover:bg-muted/30"
+                  )}>
+                    {tableColumns.find(col => col.id === 'date')?.visible && (
+                      <TableCell>{formatDate(transaction.date, currency)}</TableCell>
+                    )}
+                    
+                    {tableColumns.find(col => col.id === 'description')?.visible && (
+                      <TableCell>{transaction.description}</TableCell>
+                    )}
+                    
+                    {tableColumns.find(col => col.id === 'vendor')?.visible && (
+                      <TableCell className="max-w-[200px]">
+                        <div className="flex items-center gap-2">
+                          <Store className="h-4 w-4 text-finance-gray shrink-0" />
+                          <Select
+                            defaultValue={transaction.vendor || ""}
+                            onValueChange={(value) => handleVendorChange(transaction, value)}
                           >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue placeholder="Select category" />
+                            <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 focus:ring-0">
+                              <SelectValue placeholder="Select vendor" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="select-placeholder" disabled>Select a category</SelectItem>
-                              
-                              <SelectItem value="header-income" disabled className="font-bold text-finance-blue">Income</SelectItem>
-                              {categoriesByType.income.map(category => (
-                                <SelectItem key={category.id} value={category.name}>
-                                  {category.name}
+                              {transaction.vendor && !uniqueVendors.includes(transaction.vendor) && (
+                                <SelectItem value={transaction.vendor}>
+                                  {transaction.vendor}
+                                </SelectItem>
+                              )}
+                              {uniqueVendors.map(vendor => (
+                                <SelectItem key={vendor} value={vendor}>
+                                  {vendor}
                                 </SelectItem>
                               ))}
-                              
-                              <SelectItem value="header-expense" disabled className="font-bold text-finance-blue mt-2">Expenses</SelectItem>
-                              {categoriesByType.expense.map(category => (
-                                <SelectItem key={category.id} value={category.name}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                              
-                              <SelectItem value="header-asset" disabled className="font-bold text-finance-blue mt-2">Assets</SelectItem>
-                              {categoriesByType.asset.map(category => (
-                                <SelectItem key={category.id} value={category.name}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                              
-                              <SelectItem value="header-liability" disabled className="font-bold text-finance-blue mt-2">Liabilities</SelectItem>
-                              {categoriesByType.liability.map(category => (
-                                <SelectItem key={category.id} value={category.name}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                              
-                              <SelectItem value="header-equity" disabled className="font-bold text-finance-blue mt-2">Equity</SelectItem>
-                              {categoriesByType.equity.map(category => (
-                                <SelectItem key={category.id} value={category.name}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
+                              <SelectItem value="add-new">
+                                <div className="flex items-center">
+                                  <Edit className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                                  <span>Add new vendor...</span>
+                                </div>
+                              </SelectItem>
                             </SelectContent>
                           </Select>
-                          {transaction.confidenceScore !== undefined && renderConfidenceScore(transaction.confidenceScore)}
                         </div>
-                      )}
-                    </TableCell>
-                  )}
-                  
-                  {tableColumns.find(col => col.id === 'statementType')?.visible && (
-                    <TableCell>
-                      {transaction.statementType ? (
-                        transaction.statementType === 'profit_loss' ? 'P&L' : 'Balance Sheet'
-                      ) : (
-                        <span className="text-muted-foreground">Uncategorized</span>
-                      )}
-                    </TableCell>
-                  )}
-                  
-                  {tableColumns.find(col => col.id === 'bankAccount')?.visible && (
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Building className="h-4 w-4 text-finance-gray" />
-                        <span>{getBankName(transaction)}</span>
-                      </div>
-                    </TableCell>
-                  )}
-                  
-                  {tableColumns.find(col => col.id === 'status')?.visible && (
-                    <TableCell className="text-center">
-                      {transaction.isVerified ? (
-                        <div className="flex items-center justify-center">
-                          <CheckCircle className="h-5 w-5 text-finance-green animate-pulse" />
-                        </div>
-                      ) : transaction.aiSuggestion ? (
-                        <div className="flex items-center justify-center text-finance-yellow">
-                          <AlertTriangle className="h-5 w-5 mr-1" />
-                          <span className="text-xs">AI Suggested</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center text-muted-foreground">
-                          <Clock className="h-5 w-5" />
-                        </div>
-                      )}
-                    </TableCell>
-                  )}
-                  
-                  {tableColumns.find(col => col.id === 'actions')?.visible && (
-                    <TableCell className="text-center">
-                      {!transaction.isVerified && (
-                        <div className="flex space-x-1 justify-center">
-                          {!transaction.aiSuggestion && !aiAnalyzeLoading && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-finance-blue hover-scale"
-                              onClick={() => handleAIAnalyze(transaction)}
-                              disabled={processingId === transaction.id}
+                      </TableCell>
+                    )}
+                    
+                    {tableColumns.find(col => col.id === 'amount')?.visible && (
+                      <TableCell 
+                        className={cn(
+                          "text-right font-medium",
+                          transaction.amount > 0 ? "text-finance-green" : "text-finance-red"
+                        )}
+                      >
+                        {formatCurrency(transaction.amount, currency)}
+                      </TableCell>
+                    )}
+                    
+                    {tableColumns.find(col => col.id === 'category')?.visible && (
+                      <TableCell>
+                        {transaction.isVerified ? (
+                          transaction.category
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <Select 
+                              defaultValue={transaction.aiSuggestion || transaction.category} 
+                              onValueChange={(val) => handleVerify(transaction, val)}
                             >
-                              {processingId === transaction.id ? (
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                              ) : (
-                                <Sparkles className="h-4 w-4" />
-                              )}
-                            </Button>
-                          )}
-                          {transaction.aiSuggestion && (
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              className="h-8 w-8 text-finance-green hover-scale"
-                              onClick={() => handleVerify(transaction, transaction.aiSuggestion!)}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            className="h-8 w-8 text-finance-red hover-scale"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="select-placeholder" disabled>Select a category</SelectItem>
+                                
+                                <SelectItem value="header-income" disabled className="font-bold text-finance-blue">Income</SelectItem>
+                                {categoriesByType.income.map(category => (
+                                  <SelectItem key={category.id} value={category.name}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                                
+                                <SelectItem value="header-expense" disabled className="font-bold text-finance-blue mt-2">Expenses</SelectItem>
+                                {categoriesByType.expense.map(category => (
+                                  <SelectItem key={category.id} value={category.name}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                                
+                                <SelectItem value="header-asset" disabled className="font-bold text-finance-blue mt-2">Assets</SelectItem>
+                                {categoriesByType.asset.map(category => (
+                                  <SelectItem key={category.id} value={category.name}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                                
+                                <SelectItem value="header-liability" disabled className="font-bold text-finance-blue mt-2">Liabilities</SelectItem>
+                                {categoriesByType.liability.map(category => (
+                                  <SelectItem key={category.id} value={category.name}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                                
+                                <SelectItem value="header-equity" disabled className="font-bold text-finance-blue mt-2">Equity</SelectItem>
+                                {categoriesByType.equity.map(category => (
+                                  <SelectItem key={category.id} value={category.name}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+
+                                <SelectItem value="add-new">
+                                  <div className="flex items-center">
+                                    <Edit className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                                    <span>Add new category...</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {transaction.confidenceScore !== undefined && renderConfidenceScore(transaction.confidenceScore)}
+                            {!transaction.confidenceScore && transaction.aiSuggestion && (
+                              <div className="flex items-center">
+                                <Sparkles className="h-3 w-3 mr-1 text-amber-500" />
+                                <span className="text-xs">AI suggested</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                    )}
+                    
+                    {tableColumns.find(col => col.id === 'statementType')?.visible && (
+                      <TableCell>
+                        {transaction.statementType ? (
+                          transaction.statementType === 'profit_loss' ? 'P&L' : 'Balance Sheet'
+                        ) : (
+                          <span className="text-muted-foreground">Uncategorized</span>
+                        )}
+                      </TableCell>
+                    )}
+                    
+                    {tableColumns.find(col => col.id === 'bankAccount')?.visible && (
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Building className="h-4 w-4 text-finance-gray" />
+                          <span>{getBankName(transaction)}</span>
                         </div>
-                      )}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                      </TableCell>
+                    )}
+                    
+                    {tableColumns.find(col => col.id === 'balance')?.visible && (
+                      <TableCell className="text-right font-medium">
+                        {transaction.balance !== undefined ? 
+                          formatCurrency(transaction.balance, currency) : 
+                          '-'}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        
+        <ReconcileDialog
+          isOpen={isReconcileDialogOpen}
+          onClose={() => setIsReconcileDialogOpen(false)}
+          transactions={transactions}
+          onReconcile={handleReconcile}
+        />
       </div>
-      
-      <VendorEditor
-        categories={categories}
-        onSave={(vendor) => {
-          toast.success(`Added new vendor: ${vendor.name}`);
-          setIsVendorEditorOpen(false);
-        }}
-        isOpen={isVendorEditorOpen}
-        onClose={() => setIsVendorEditorOpen(false)}
-      />
-    </div>
+    </TooltipProvider>
   );
 };
 

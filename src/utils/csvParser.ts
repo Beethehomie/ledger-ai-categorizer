@@ -1,6 +1,7 @@
 
 import { Transaction, Category } from "../types";
 import { mockCategories } from "../data/mockData";
+import { extractVendorName } from "./vendorExtractor";
 
 export interface CSVParseResult {
   transactions: Transaction[];
@@ -137,6 +138,7 @@ export const parseCSV = (csvString: string): CSVParseResult => {
     const date = cleanValues[headerIndexes.date] || '';
     const description = cleanValues[headerIndexes.description] || '';
     let amount = 0;
+    let balance = undefined;
     
     // Parse amount, handling various formats
     try {
@@ -160,19 +162,7 @@ export const parseCSV = (csvString: string): CSVParseResult => {
       amount = 0;
     }
     
-    // Generate a unique ID
-    const id = `temp-${Date.now()}-${index}`;
-    
-    // Create transaction object
-    const transaction: Transaction = {
-      id,
-      date,
-      description,
-      amount,
-      isVerified: false,
-    };
-    
-    // Add balance if available
+    // Parse balance if available
     if ('balance' in headerIndexes) {
       try {
         const balanceStr = cleanValues[headerIndexes.balance] || '';
@@ -182,13 +172,34 @@ export const parseCSV = (csvString: string): CSVParseResult => {
           .replace(/\(([^)]+)\)/, '-$1')
           .trim();
         
-        const balance = parseFloat(cleanBalance);
-        if (!isNaN(balance)) {
-          transaction.balance = balance;
+        balance = parseFloat(cleanBalance);
+        if (isNaN(balance)) {
+          balance = undefined;
         }
       } catch (e) {
         // Ignore balance parsing errors
       }
+    }
+    
+    // Generate a unique ID
+    const id = `temp-${Date.now()}-${index}`;
+    
+    // Extract vendor name from description
+    const vendorName = extractVendorName(description);
+    
+    // Create transaction object
+    const transaction: Transaction = {
+      id,
+      date,
+      description,
+      amount,
+      isVerified: false,
+      vendor: vendorName
+    };
+    
+    // Add balance if available
+    if (balance !== undefined) {
+      transaction.balance = balance;
     }
     
     // Try auto-categorization
@@ -214,11 +225,12 @@ export const categorizeByCriteria = (transaction: Transaction): {
   statementType: Transaction['statementType'];
 } | null => {
   const description = transaction.description.toLowerCase();
+  const vendor = transaction.vendor?.toLowerCase() || '';
   
   // Check each category for matching keywords
   for (const category of mockCategories) {
     for (const keyword of category.keywords) {
-      if (description.includes(keyword.toLowerCase())) {
+      if (description.includes(keyword.toLowerCase()) || vendor.includes(keyword.toLowerCase())) {
         return {
           categoryName: category.name,
           type: category.type,
@@ -241,6 +253,7 @@ export const analyzeTransactionWithAI = (transaction: Transaction): {
   // For now, we're implementing a basic "smart" logic for demonstration
   
   const description = transaction.description.toLowerCase();
+  const vendor = transaction.vendor?.toLowerCase() || '';
   let bestMatch = { categoryName: "", matchScore: 0 };
   
   // Check for partial keyword matches
@@ -251,7 +264,7 @@ export const analyzeTransactionWithAI = (transaction: Transaction): {
       let matchScore = 0;
       
       for (const part of keywordParts) {
-        if (description.includes(part)) {
+        if (description.includes(part) || vendor.includes(part)) {
           matchScore += 1;
         }
       }
@@ -281,11 +294,53 @@ export const analyzeTransactionWithAI = (transaction: Transaction): {
 };
 
 export const exportToCSV = (transactions: Transaction[]): string => {
-  const headers = "Date,Description,Amount,Category,Type,Statement Type,Verified\n";
+  const headers = "Date,Description,Amount,Category,Type,Statement Type,Vendor,Balance,Verified\n";
   
   const rows = transactions.map(t => {
-    return `${t.date},"${t.description}",${t.amount},${t.category || ''},${t.type || ''},${t.statementType || ''},${t.isVerified}`;
+    return `${t.date},"${t.description}",${t.amount},${t.category || ''},${t.type || ''},${t.statementType || ''},${t.vendor || ''},${t.balance || ''},${t.isVerified}`;
   }).join('\n');
   
   return headers + rows;
+};
+
+export const calculateRunningBalance = (
+  transactions: Transaction[],
+  initialBalance: number,
+  balanceDate?: Date
+): Transaction[] => {
+  // Clone the transactions to avoid mutating the original array
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateA - dateB; // Sort by date ascending
+  });
+
+  let runningBalance = initialBalance;
+  
+  return sortedTransactions.map(transaction => {
+    // Update the running balance with this transaction
+    runningBalance += transaction.amount;
+    
+    // Create a new transaction object with the balance
+    return {
+      ...transaction,
+      balance: Number(runningBalance.toFixed(2)) // Round to 2 decimal places and convert back to number
+    };
+  });
+};
+
+export const isBalanceReconciled = (
+  transactions: Transaction[],
+  expectedEndBalance?: number
+): boolean => {
+  if (!expectedEndBalance || transactions.length === 0) return false;
+  
+  // Get the last transaction's balance
+  const lastTransaction = transactions[transactions.length - 1];
+  const lastBalance = lastTransaction.balance;
+  
+  if (lastBalance === undefined) return false;
+  
+  // Compare with expected balance (allow small rounding differences)
+  return Math.abs(lastBalance - expectedEndBalance) < 0.02;
 };

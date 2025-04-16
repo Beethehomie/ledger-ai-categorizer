@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import Dashboard from '@/components/Dashboard';
-import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard } from 'lucide-react';
+import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import BankConnections from '@/components/BankConnections';
@@ -14,11 +14,15 @@ import { useBookkeeping } from '@/context/BookkeepingContext';
 import { Link } from 'react-router-dom';
 import { exportToCSV } from '@/utils/csvParser';
 import UploadDialog from '@/components/UploadDialog';
+import TransactionReviewPage from '@/components/TransactionReviewPage';
+import { toast } from '@/utils/toast';
+import { Badge } from '@/components/ui/badge';
 
 const Index = () => {
   const { user, signOut } = useAuth();
   const { currency, setCurrency } = useSettings();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Check if user is admin (in a real app, this would be fetched from the database)
   const isAdmin = user?.email === 'terramultaacc@gmail.com';
@@ -41,6 +45,7 @@ const Index = () => {
                 size="sm" 
                 className="flex items-center gap-1.5"
                 onClick={() => setIsUploadDialogOpen(true)}
+                title="Upload transactions from CSV file"
               >
                 <Upload className="h-4 w-4" />
                 Upload CSV
@@ -58,6 +63,7 @@ const Index = () => {
                     variant="link" 
                     className="text-xs text-primary-foreground/70 p-0 h-auto hover:text-white"
                     onClick={signOut}
+                    title="Sign out of your account"
                   >
                     <LogOut className="h-3 w-3 mr-1" /> Sign out
                   </Button>
@@ -96,11 +102,34 @@ interface AppContentProps {
 const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppContentProps) => {
   const { transactions, bankConnections } = useBookkeeping();
   
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // This would be a real data refresh in a production app
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast.success('All data refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error('Failed to refresh data');
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+  
+  // Count transactions needing review
+  const transactionsNeedingReview = transactions.filter(t => 
+    t.confidenceScore !== undefined && 
+    t.confidenceScore < 0.5 && 
+    !t.isVerified
+  ).length;
+  
   return (
     <>
       <Tabs defaultValue="reports" className="w-full">
         <div className="mb-6">
-          <TabsList className="w-full grid grid-cols-4">
+          <TabsList className="w-full grid grid-cols-5">
             <TabsTrigger value="reports">
               <PieChart className="h-4 w-4 mr-2" />
               Reports
@@ -108,6 +137,13 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
             <TabsTrigger value="transactions">
               <FileText className="h-4 w-4 mr-2" />
               Transactions
+            </TabsTrigger>
+            <TabsTrigger value="review">
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Review
+              {transactionsNeedingReview > 0 && (
+                <Badge variant="destructive" className="ml-2">{transactionsNeedingReview}</Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="banking">
               <Wallet className="h-4 w-4 mr-2" />
@@ -128,25 +164,29 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
           <div className="bg-[hsl(var(--card))] rounded-lg shadow-sm border border-[hsl(var(--border))] p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Transaction Management</h2>
-              <Button variant="outline" size="sm" onClick={() => {
-                const csvData = exportToCSV(transactions); 
-                const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                
-                const link = document.createElement('a');
-                const date = new Date().toISOString().split('T')[0];
-                link.setAttribute('href', url);
-                link.setAttribute('download', `transactions_${date}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}>
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  title="Refresh all transactions"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
             </div>
-            <TransactionTable filter="all" transactions={transactions} />
+            <TransactionTable 
+              filter="all" 
+              transactions={transactions} 
+              onRefresh={handleRefresh}
+            />
           </div>
+        </TabsContent>
+        
+        <TabsContent value="review" className="mt-0">
+          <TransactionReviewPage />
         </TabsContent>
         
         <TabsContent value="banking" className="mt-0">
@@ -173,6 +213,7 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
                     <Button 
                       variant="outline" 
                       className="flex items-center gap-1.5"
+                      title="View and manage your subscription"
                     >
                       <CreditCard className="h-4 w-4" />
                       Manage Subscription
@@ -186,7 +227,12 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
                 <div className="flex flex-wrap gap-3">
                   {isAdmin && (
                     <Link to="/admin">
-                      <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex items-center gap-1.5"
+                        title="Access admin dashboard"
+                      >
                         <ShieldAlert className="h-4 w-4" />
                         Admin Dashboard
                       </Button>
@@ -197,6 +243,7 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
                     size="sm" 
                     onClick={() => setIsUploadDialogOpen(true)}
                     className="flex items-center gap-1.5"
+                    title="Upload transaction data from CSV file"
                   >
                     <Upload className="h-4 w-4" />
                     Upload CSV
