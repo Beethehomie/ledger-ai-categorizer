@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, FileText, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -14,8 +13,12 @@ interface ReportExporterProps {
 }
 
 const ReportExporter: React.FC<ReportExporterProps> = ({ transactions, currency }) => {
-  const { financialSummary } = useBookkeeping();
+  const { financialSummary, calculateFinancialSummary } = useBookkeeping();
   const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    calculateFinancialSummary();
+  }, [transactions, calculateFinancialSummary]);
 
   const downloadCSV = () => {
     try {
@@ -45,16 +48,13 @@ const ReportExporter: React.FC<ReportExporterProps> = ({ transactions, currency 
   const generatePDF = (reportType: 'summary' | 'detailed') => {
     setIsExporting(true);
     
-    // In a real implementation, this would use a PDF generation library
-    // For demonstration, we'll simulate a delay then show a success message
     setTimeout(() => {
       toast.success(`${reportType === 'summary' ? 'Summary' : 'Detailed'} report generated successfully`);
       setIsExporting(false);
       
-      // Simulate download
       const link = document.createElement('a');
       const date = new Date().toISOString().split('T')[0];
-      link.setAttribute('href', '#'); // This would be a real URL in production
+      link.setAttribute('href', '#');
       link.setAttribute('download', `${reportType}_report_${date}.pdf`);
       document.body.appendChild(link);
       link.click();

@@ -60,7 +60,8 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     filterTransactionsByDate,
     fetchTransactionsForBankAccount,
     getBankConnectionById,
-    setTransactions
+    setTransactions,
+    fetchTransactions: fetchTransactionsFromHook
   } = useTransactions(bankConnections);
   
   const {
@@ -80,7 +81,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   
   const loading = transactionsLoading || vendorsLoading;
   
-  // Add fetchTransactions function
+  // Make sure fetchTransactions is correctly defined
   const fetchTransactions = async (): Promise<void> => {
     if (!session) {
       toast.error('You must be logged in to fetch transactions');
@@ -130,6 +131,10 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
         
         setTransactions(fetchedTransactions);
+        
+        // Explicitly calculate financial summary after setting transactions
+        setTimeout(() => calculateFinancialSummary(), 100);
+        
         toast.success('Transactions refreshed successfully');
       }
     } catch (err) {

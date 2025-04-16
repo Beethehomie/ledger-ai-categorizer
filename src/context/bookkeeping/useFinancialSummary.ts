@@ -1,12 +1,12 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FinancialSummary, Transaction } from '@/types';
 import { initialFinancialSummary } from './types';
 
 export const useFinancialSummary = (transactions: Transaction[]) => {
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary>(initialFinancialSummary);
 
-  const calculateFinancialSummary = () => {
+  const calculateFinancialSummary = useCallback(() => {
     const summary: FinancialSummary = { ...initialFinancialSummary };
 
     transactions.forEach(transaction => {
@@ -60,11 +60,12 @@ export const useFinancialSummary = (transactions: Transaction[]) => {
     
     setFinancialSummary(summary);
     return summary;
-  };
+  }, [transactions]);
 
+  // Make sure to recalculate whenever transactions change
   useEffect(() => {
     calculateFinancialSummary();
-  }, [transactions]);
+  }, [transactions, calculateFinancialSummary]);
 
   return {
     financialSummary,

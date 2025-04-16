@@ -34,7 +34,9 @@ const Dashboard: React.FC = () => {
     transactions, 
     filterTransactionsByDate, 
     bankConnections,
-    loading: dataLoading 
+    loading: dataLoading,
+    calculateFinancialSummary,
+    fetchTransactions
   } = useBookkeeping();
   
   const { 
@@ -57,12 +59,17 @@ const Dashboard: React.FC = () => {
     );
   }, [dateRange, transactions, filterTransactionsByDate]);
   
+  useEffect(() => {
+    calculateFinancialSummary();
+  }, [transactions, calculateFinancialSummary]);
+  
   const handleRefresh = async () => {
     setRefreshing(true);
     toast.success('Refreshing data...');
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await fetchTransactions();
+      calculateFinancialSummary();
       
       toast.success('Data successfully refreshed');
     } catch (error) {

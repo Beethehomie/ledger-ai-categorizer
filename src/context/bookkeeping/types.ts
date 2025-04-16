@@ -1,45 +1,39 @@
 
-import { Transaction as BaseTransaction, Category, FinancialSummary, Vendor, TransactionType, StatementType } from '@/types';
-import { BankConnectionRow, BankTransactionRow, VendorCategorizationRow } from '@/types/supabase';
-
-export interface BookkeepingContextType {
-  transactions: BaseTransaction[];
-  categories: Category[];
-  vendors: Vendor[];
-  financialSummary: FinancialSummary;
-  loading: boolean;
-  aiAnalyzeLoading: boolean;
-  bankConnections: BankConnectionRow[];
-  addTransactions: (newTransactions: BaseTransaction[]) => void;
-  updateTransaction: (updatedTransaction: BaseTransaction) => void;
-  verifyTransaction: (id: string, category: string, type: BaseTransaction['type'], statementType: BaseTransaction['statementType']) => void;
-  verifyVendor: (vendorName: string, approved: boolean) => void;
-  uploadCSV: (csvString: string, bankConnectionId?: string, initialBalance?: number, balanceDate?: Date, endBalance?: number) => void;
-  getFilteredTransactions: (
-    statementType?: BaseTransaction['statementType'], 
-    verified?: boolean,
-    vendor?: string
-  ) => BaseTransaction[];
-  filterTransactionsByDate: (
-    startDate?: Date,
-    endDate?: Date
-  ) => BaseTransaction[];
-  getVendorsList: () => { name: string; count: number; verified: boolean; }[];
-  calculateFinancialSummary: () => void;
-  analyzeTransactionWithAI: (transaction: BaseTransaction) => Promise<any>;
-  getBankConnectionById: (id: string) => BankConnectionRow | undefined;
-  removeDuplicateVendors: () => Promise<boolean>;
-  fetchTransactionsForBankAccount: (bankAccountId: string) => Promise<BaseTransaction[]>;
-  batchVerifyVendorTransactions: (vendorName: string, category: string, type: BaseTransaction['type'], statementType: BaseTransaction['statementType']) => void;
-  fetchTransactions: () => Promise<void>;
-}
+import { Transaction, Category, FinancialSummary } from '@/types';
+import { BankConnectionRow } from '@/types/supabase';
 
 export const initialFinancialSummary: FinancialSummary = {
   totalIncome: 0,
   totalExpenses: 0,
-  totalAssets: 0,
-  totalLiabilities: 0,
-  totalEquity: 0,
   netProfit: 0,
   cashBalance: 0,
+  totalAssets: 0,
+  totalLiabilities: 0,
+  totalEquity: 0
 };
+
+export interface BookkeepingContextType {
+  transactions: Transaction[];
+  categories: Category[];
+  vendors: string[];
+  financialSummary: FinancialSummary;
+  loading: boolean;
+  aiAnalyzeLoading: boolean;
+  bankConnections: BankConnectionRow[];
+  
+  addTransactions: (transactions: Transaction[]) => Promise<void>;
+  updateTransaction: (transaction: Transaction) => Promise<void>;
+  verifyTransaction: (transactionId: string, verified: boolean) => Promise<void>;
+  verifyVendor: (vendorName: string, verified: boolean) => Promise<void>;
+  uploadCSV: (csvString: string, bankAccountId?: string, initialBalance?: number, balanceDate?: Date, endBalance?: number) => Promise<void>;
+  getFilteredTransactions: (statementType?: Transaction['statementType'], verified?: boolean, vendor?: string) => Transaction[];
+  filterTransactionsByDate: (startDate?: Date, endDate?: Date) => Transaction[];
+  getVendorsList: () => string[];
+  calculateFinancialSummary: () => any;
+  analyzeTransactionWithAI: (transaction: Transaction) => Promise<any>;
+  getBankConnectionById: (id: string) => BankConnectionRow | undefined;
+  removeDuplicateVendors: () => Promise<void>;
+  fetchTransactionsForBankAccount: (bankAccountId: string) => Promise<Transaction[]>;
+  batchVerifyVendorTransactions: (vendorName: string, verified: boolean) => Promise<void>;
+  fetchTransactions: () => Promise<void>;
+}
