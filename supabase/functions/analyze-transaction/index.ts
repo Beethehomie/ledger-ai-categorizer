@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.3.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,35 +11,89 @@ const corsHeaders = {
 // Function to check for existing vendor categorizations
 const findVendorCategorization = async (supabase, description) => {
   // Extract potential vendor name from the description
-  // This is a simple extraction, in a real app you'd have more sophisticated logic
   const vendorName = description.split(' - ')[0]?.trim() || description.split(' ')[0]?.trim();
   
   if (!vendorName) return null;
   
-  // Look for existing categorizations of this vendor
-  const { data, error } = await supabase
+  // Look for exact match first
+  let { data, error } = await supabase
+    .from('vendor_categorizations')
+    .select('*')
+    .eq('vendor_name', vendorName)
+    .order('occurrences', { ascending: false })
+    .limit(1);
+    
+  if (data && data.length > 0) {
+    console.log(`Found exact vendor match: ${vendorName}`);
+    return {
+      category: data[0].category,
+      type: data[0].type,
+      statementType: data[0].statement_type,
+      confidence: 0.95,
+      vendorName: data[0].vendor_name,
+      source: 'database_exact'
+    };
+  }
+  
+  // Look for partial match if exact match not found
+  // Using ilike with wildcards for better matching
+  ({ data, error } = await supabase
     .from('vendor_categorizations')
     .select('*')
     .ilike('vendor_name', `%${vendorName}%`)
     .order('occurrences', { ascending: false })
-    .limit(1);
+    .limit(5));
     
   if (error || !data || data.length === 0) {
+    console.log(`No vendor matches found for: ${vendorName}`);
     return null;
   }
   
-  return {
-    category: data[0].category,
-    type: data[0].type,
-    statementType: data[0].statement_type,
-    confidence: 0.85,
-    vendorName: data[0].vendor_name,
-    source: 'database'
-  };
+  // If we have multiple partial matches, find the best one based on similarity score
+  let bestMatch = null;
+  let highestSimilarity = 0;
+  
+  for (const vendor of data) {
+    // Calculate a simple similarity score between vendorName and vendor.vendor_name
+    const similarity = calculateSimilarity(vendorName.toLowerCase(), vendor.vendor_name.toLowerCase());
+    if (similarity > highestSimilarity) {
+      highestSimilarity = similarity;
+      bestMatch = vendor;
+    }
+  }
+  
+  if (bestMatch && highestSimilarity > 0.5) {
+    console.log(`Found partial vendor match: ${bestMatch.vendor_name} (similarity: ${highestSimilarity.toFixed(2)})`);
+    return {
+      category: bestMatch.category,
+      type: bestMatch.type,
+      statementType: bestMatch.statement_type,
+      confidence: 0.7 + (highestSimilarity * 0.2), // Confidence based on similarity
+      vendorName: bestMatch.vendor_name,
+      source: 'database_partial'
+    };
+  }
+  
+  console.log(`No good vendor matches found for: ${vendorName}`);
+  return null;
+};
+
+// Simple string similarity function (Jaccard similarity)
+const calculateSimilarity = (str1, str2) => {
+  // Convert strings to sets of words
+  const words1 = new Set(str1.split(/\s+/));
+  const words2 = new Set(str2.split(/\s+/));
+  
+  // Calculate intersection and union sizes
+  const intersection = new Set([...words1].filter(word => words2.has(word)));
+  const union = new Set([...words1, ...words2]);
+  
+  // Return Jaccard similarity
+  return intersection.size / union.size;
 };
 
 // Function to analyze transaction with a rule-based approach
-// In a production application, this would be a real AI model like OpenAI
+// Used as a fallback when vendor matching and AI analysis fail
 const analyzeTransactionWithRules = (description, amount, existingCategories) => {
   // Convert description to lowercase for easier matching
   const lcDescription = description.toLowerCase();
@@ -202,8 +257,115 @@ const analyzeTransactionWithRules = (description, amount, existingCategories) =>
     statementType,
     confidence,
     vendorName: description.split(' - ')[0]?.trim() || description.split(' ')[0]?.trim(),
-    source: 'ai'
+    source: 'rules'
   };
+};
+
+// Function to analyze transaction with OpenAI
+const analyzeTransactionWithAI = async (description, amount, existingCategories) => {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openaiApiKey) {
+    console.error("OpenAI API key not found in environment variables");
+    return null;
+  }
+  
+  const configuration = new Configuration({ apiKey: openaiApiKey });
+  const openai = new OpenAIApi(configuration);
+  
+  try {
+    // Prepare system message with existing categories to guide the AI
+    let systemMessage = "You are a financial transaction categorizer. Categorize the transaction into the most appropriate category based on its description and amount.";
+    
+    if (existingCategories && existingCategories.length > 0) {
+      systemMessage += ` Use one of these existing categories if possible: ${existingCategories.join(', ')}. If none match well, suggest the best category.`;
+    }
+    
+    // Convert the amount to a more interpretable format for the AI
+    const amountDescription = amount > 0 ? `+${amount} (income)` : `${amount} (expense)`;
+    
+    const response = await openai.createChatCompletion({
+      model: "gpt-4o-mini", // Using a smaller, more cost-effective model
+      messages: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: `Transaction description: "${description}". Amount: ${amountDescription}. Categorize this transaction as specifically as possible.` }
+      ],
+      temperature: 0.3, // Lower temperature for more deterministic results
+      max_tokens: 150, // Limiting token usage
+    });
+    
+    const aiResponse = response.data.choices[0]?.message?.content;
+    
+    if (!aiResponse) {
+      console.error("No response from OpenAI");
+      return null;
+    }
+    
+    console.log(`AI response: ${aiResponse}`);
+    
+    // Parse the AI response to extract structured data
+    const categoryMatch = aiResponse.match(/category:\s*(.*?)(?:\.|$)/i);
+    const typeMatch = aiResponse.match(/type:\s*(income|expense|asset|liability|equity)(?:\.|$)/i);
+    const statementMatch = aiResponse.match(/statement type:\s*(operating|investing|financing|profit_loss|balance_sheet)(?:\.|$)/i);
+    
+    const category = categoryMatch ? categoryMatch[1].trim() : 'Miscellaneous';
+    const type = typeMatch ? typeMatch[1].toLowerCase() : (amount > 0 ? 'income' : 'expense');
+    const statementType = statementMatch ? statementMatch[1].toLowerCase() : 'operating';
+    
+    // Estimate confidence based on how specific the AI's response is
+    let confidence = 0.7; // Base confidence
+    if (categoryMatch && typeMatch && statementMatch) {
+      confidence = 0.85; // High confidence if all fields were extracted
+    } else if (!categoryMatch || category === 'Miscellaneous') {
+      confidence = 0.5; // Lower confidence if category is generic
+    }
+    
+    return {
+      category,
+      type,
+      statementType,
+      confidence,
+      vendorName: description.split(' - ')[0]?.trim() || description.split(' ')[0]?.trim(),
+      source: 'ai'
+    };
+  } catch (error) {
+    console.error("Error calling OpenAI:", error);
+    return null;
+  }
+};
+
+// Function to ensure a transaction has category information
+// Uses a cascading approach: vendor match -> AI -> rules
+const ensureTransactionCategorization = async (supabase, description, amount, existingCategories) => {
+  console.log(`Processing transaction: "${description}" with amount ${amount}`);
+  
+  // Step 1: Try to find the vendor in our database
+  const vendorMatch = await findVendorCategorization(supabase, description);
+  if (vendorMatch) {
+    console.log(`Categorized using vendor match: ${JSON.stringify(vendorMatch)}`);
+    return vendorMatch;
+  }
+  
+  // Step 2: If no vendor match, try AI analysis if OpenAI key is available
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  if (openaiApiKey) {
+    try {
+      const aiResult = await analyzeTransactionWithAI(description, amount, existingCategories);
+      if (aiResult) {
+        console.log(`Categorized using AI: ${JSON.stringify(aiResult)}`);
+        return aiResult;
+      }
+    } catch (error) {
+      console.error("Error during AI analysis:", error);
+      // Fallthrough to rules-based approach
+    }
+  } else {
+    console.log("OpenAI API key not configured, skipping AI analysis");
+  }
+  
+  // Step 3: Fallback to rule-based approach
+  const rulesResult = analyzeTransactionWithRules(description, amount, existingCategories);
+  console.log(`Categorized using rules: ${JSON.stringify(rulesResult)}`);
+  return rulesResult;
 };
 
 serve(async (req) => {
@@ -230,24 +392,18 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // First check if we have an existing vendor categorization
-    const existingVendor = await findVendorCategorization(supabase, description);
+    // Use the enhanced categorization function
+    const result = await ensureTransactionCategorization(
+      supabase, 
+      description, 
+      amount, 
+      existingCategories
+    );
     
-    if (existingVendor) {
-      console.log(`Found existing vendor categorization: ${JSON.stringify(existingVendor)}`);
-      return new Response(
-        JSON.stringify(existingVendor),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // If no existing vendor categorization, use rule-based analysis
-    const analysis = analyzeTransactionWithRules(description, amount, existingCategories);
-    
-    console.log(`Analysis result: ${JSON.stringify(analysis)}`);
+    console.log(`Final categorization result: ${JSON.stringify(result)}`);
     
     return new Response(
-      JSON.stringify(analysis),
+      JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

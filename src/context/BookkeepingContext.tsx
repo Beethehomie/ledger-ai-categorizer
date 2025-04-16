@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Transaction, Category, FinancialSummary, Vendor, Currency } from '../types';
 import { mockCategories } from '../data/mockData';
@@ -38,6 +37,7 @@ interface BookkeepingContextType {
   getBankConnectionById: (id: string) => BankConnectionRow | undefined;
   removeDuplicateVendors: () => Promise<boolean>;
   fetchTransactionsForBankAccount: (bankAccountId: string) => Promise<Transaction[]>;
+  batchVerifyVendorTransactions: (vendorName: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => void;
 }
 
 const initialFinancialSummary: FinancialSummary = {
@@ -63,7 +63,6 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [loading, setLoading] = useState<boolean>(false);
   const [aiAnalyzeLoading, setAiAnalyzeLoading] = useState<boolean>(false);
 
-  // Fetch all transactions for this user
   useEffect(() => {
     if (!session) return;
 
@@ -95,11 +94,9 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
             vendorVerified: t.vendor_verified || false,
             confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
             bankAccountId: t.bank_connection_id || undefined,
-            bankAccountName: undefined, // Will be populated in a separate step
-            balance: t.balance ? Number(t.balance) : undefined,
+            bankAccountName: undefined,
           }));
           
-          // Get bank connection names
           if (fetchedTransactions.length > 0) {
             for (const transaction of fetchedTransactions) {
               if (transaction.bankAccountId) {
@@ -215,11 +212,11 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
           break;
         case 'asset':
           summary.totalAssets += amount;
-          summary.cashBalance -= amount; // Assuming purchasing an asset reduces cash
+          summary.cashBalance -= amount;
           break;
         case 'liability':
           summary.totalLiabilities += amount;
-          summary.cashBalance += amount; // Assuming taking on liability increases cash
+          summary.cashBalance += amount;
           break;
         case 'equity':
           summary.totalEquity += amount;
@@ -249,7 +246,6 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       };
     });
     
-    // Store transactions in Supabase
     try {
       const supabaseTransactions = processedTransactions.map(t => ({
         date: t.date,
@@ -276,7 +272,6 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         throw error;
       }
       
-      // Update processed transactions with the IDs from Supabase
       if (data) {
         for (let i = 0; i < processedTransactions.length; i++) {
           if (data[i]) {
@@ -364,6 +359,12 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     try {
       const categoryNames = categories.map(c => c.name);
       
+      console.log('Analyzing transaction:', {
+        description: transaction.description,
+        amount: transaction.amount,
+        existingCategories: categoryNames
+      });
+      
       const { data, error } = await supabase.functions.invoke('analyze-transaction', {
         body: { 
           description: transaction.description,
@@ -377,18 +378,41 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         throw error;
       }
       
-      setTransactions(prev => 
-        prev.map(t => {
-          if (t.id === transaction.id && data) {
-            return {
-              ...t,
-              aiSuggestion: data.category,
-              confidenceScore: data.confidence
-            };
+      console.log('AI analysis result:', data);
+      
+      if (data) {
+        setTransactions(prev => 
+          prev.map(t => {
+            if (t.id === transaction.id) {
+              return {
+                ...t,
+                aiSuggestion: data.category,
+                confidenceScore: data.confidence,
+                type: data.confidence > 0.85 ? data.type : t.type,
+                statementType: data.confidence > 0.85 ? data.statementType : t.statementType
+              };
+            }
+            return t;
+          })
+        );
+        
+        if (data.source === 'database_exact' && data.vendorName && data.confidence > 0.9) {
+          const vendorName = data.vendorName;
+          const matchingTransactions = transactions.filter(t => 
+            t.vendor === vendorName && !t.isVerified && t.id !== transaction.id
+          );
+          
+          if (matchingTransactions.length > 0) {
+            toast.info(`Found ${matchingTransactions.length} more transactions from ${vendorName}. Would you like to categorize them the same way?`, {
+              action: {
+                label: 'Yes, categorize all',
+                onClick: () => batchVerifyVendorTransactions(vendorName, data.category, data.type, data.statementType)
+              },
+              duration: 8000,
+            });
           }
-          return t;
-        })
-      );
+        }
+      }
       
       return data;
     } catch (err: any) {
@@ -549,9 +573,9 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
       } else if (transaction.type === 'expense') {
         runningBalance -= Math.abs(transaction.amount);
       } else if (transaction.type === 'asset') {
-        runningBalance -= Math.abs(transaction.amount);  // Purchasing an asset reduces cash
+        runningBalance -= Math.abs(transaction.amount);
       } else if (transaction.type === 'liability') {
-        runningBalance += Math.abs(transaction.amount);  // Taking on liability increases cash
+        runningBalance += Math.abs(transaction.amount);
       }
       
       return {
@@ -738,7 +762,6 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
         
         const transactionsWithBalance = calculateRunningBalance(processedTransactions, initialBalance);
         
-        // Store in Supabase
         try {
           const supabaseTransactions = transactionsWithBalance.map(t => ({
             date: t.date,
@@ -765,7 +788,6 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
             throw error;
           }
           
-          // Update processed transactions with the IDs from Supabase
           if (data) {
             for (let i = 0; i < transactionsWithBalance.length; i++) {
               if (data[i]) {
@@ -823,11 +845,9 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
           vendorVerified: t.vendor_verified || false,
           confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
           bankAccountId: t.bank_connection_id || undefined,
-          bankAccountName: undefined, // Will be populated below
-          balance: t.balance ? Number(t.balance) : undefined,
+          bankAccountName: undefined,
         }));
         
-        // Get bank connection name
         const bankConnection = bankConnections.find(conn => conn.id === bankAccountId);
         if (bankConnection) {
           for (const transaction of bankTransactions) {
@@ -923,6 +943,88 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     return bankConnections.find(conn => conn.id === id);
   };
 
+  const batchVerifyVendorTransactions = async (
+    vendorName: string, 
+    category: string, 
+    type: Transaction['type'], 
+    statementType: Transaction['statementType']
+  ) => {
+    if (!session) return;
+    
+    try {
+      const matchingTransactions = transactions.filter(t => 
+        t.vendor === vendorName && !t.isVerified
+      );
+      
+      if (matchingTransactions.length === 0) return;
+      
+      setLoading(true);
+      
+      const transactionIds = matchingTransactions.map(t => t.id);
+      
+      const { error } = await supabase
+        .from('bank_transactions')
+        .update({
+          category,
+          type,
+          statement_type: statementType,
+          is_verified: true
+        })
+        .in('id', transactionIds);
+        
+      if (error) throw error;
+      
+      setTransactions(prev => 
+        prev.map(transaction => {
+          if (transaction.vendor === vendorName && !transaction.isVerified) { 
+            return { 
+              ...transaction, 
+              category, 
+              type, 
+              statementType, 
+              isVerified: true 
+            };
+          }
+          return transaction;
+        })
+      );
+      
+      const existingVendorIndex = vendors.findIndex(v => v.name === vendorName);
+      
+      if (existingVendorIndex >= 0) {
+        const newOccurrences = vendors[existingVendorIndex].occurrences + matchingTransactions.length;
+        
+        const { error: vendorError } = await supabase
+          .from('vendor_categorizations')
+          .update({
+            occurrences: newOccurrences,
+            last_used: new Date().toISOString(),
+            verified: newOccurrences >= 5
+          })
+          .eq('vendor_name', vendorName);
+          
+        if (!vendorError) {
+          const updatedVendors = [...vendors];
+          updatedVendors[existingVendorIndex] = {
+            ...vendors[existingVendorIndex],
+            occurrences: newOccurrences,
+            verified: newOccurrences >= 5
+          };
+          setVendors(updatedVendors);
+        }
+      }
+      
+      toast.success(`Verified ${matchingTransactions.length} transactions from ${vendorName}`);
+      calculateFinancialSummary();
+      
+    } catch (err: any) {
+      console.error('Error batch verifying transactions:', err);
+      toast.error('Failed to verify transactions in batch');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     calculateFinancialSummary();
   }, [transactions]);
@@ -948,6 +1050,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     getBankConnectionById,
     removeDuplicateVendors,
     fetchTransactionsForBankAccount,
+    batchVerifyVendorTransactions,
   };
 
   return (
