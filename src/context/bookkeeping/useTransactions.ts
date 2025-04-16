@@ -4,7 +4,7 @@ import { useAuth } from '../AuthContext';
 import { Transaction } from '@/types';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
-import { parseCSV } from '@/utils/csvParser';
+import { parseCSV, CSVParseResult } from '@/utils/csvParser';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
   saveTransactionsToSupabase, 
@@ -200,7 +200,8 @@ export const useTransactions = (
   const uploadCSV = async (
     csvString: string, 
     bankConnectionId?: string, 
-    initialBalance: number = 0,
+    initialBalance: number =
+    0,
     balanceDate: Date = new Date(),
     endBalance?: number
   ) => {
@@ -211,7 +212,7 @@ export const useTransactions = (
     
     setLoading(true);
     try {
-      const parsedTransactions = parseCSV(csvString);
+      const parseResult = parseCSV(csvString);
       
       let bankConnection: BankConnectionRow | undefined;
       if (bankConnectionId) {
@@ -221,7 +222,7 @@ export const useTransactions = (
       const processCSVTransactions = async () => {
         const processedTransactions: Transaction[] = [];
         
-        for (const transaction of parsedTransactions) {
+        for (const transaction of parseResult.transactions) {
           if (bankConnectionId && bankConnection) {
             transaction.bankAccountId = bankConnectionId;
             transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;

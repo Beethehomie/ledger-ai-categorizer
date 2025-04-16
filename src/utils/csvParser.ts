@@ -2,7 +2,7 @@
 import { Transaction, Category } from "../types";
 import { mockCategories } from "../data/mockData";
 
-interface CSVParseResult {
+export interface CSVParseResult {
   transactions: Transaction[];
   warnings: string[];
   headers: string[];

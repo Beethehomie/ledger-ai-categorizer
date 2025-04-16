@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,12 +27,10 @@ const FileUpload: React.FC = () => {
   const [selectedBankId, setSelectedBankId] = useState<string>('');
   const [warningMessages, setWarningMessages] = useState<string[]>([]);
 
-  // Get CSV-type bank connections
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
 
   useEffect(() => {
     if (csvContent) {
-      // Validate CSV structure
       const validation = validateCSVStructure(csvContent);
       setCsvValidation(validation);
     }
@@ -76,7 +73,6 @@ const FileUpload: React.FC = () => {
     setSelectedFile(file);
     setWarningMessages([]);
     
-    // Read file content
     const reader = new FileReader();
     reader.onload = (event) => {
       if (event.target && typeof event.target.result === 'string') {
@@ -102,7 +98,6 @@ const FileUpload: React.FC = () => {
       return;
     }
 
-    // Parse CSV content into transactions
     const parseResult = parseCSV(csvContent);
     
     if (parseResult.warnings.length > 0) {
@@ -238,7 +233,7 @@ const FileUpload: React.FC = () => {
             </div>
             
             {warningMessages.length > 0 && (
-              <Alert variant="warning" className="mt-4">
+              <Alert variant="destructive" className="mt-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   <div className="font-medium mb-1">Import warnings:</div>

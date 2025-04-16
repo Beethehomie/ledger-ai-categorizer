@@ -96,7 +96,7 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
         </DialogHeader>
 
         {warnings.length > 0 && (
-          <Alert variant="warning" className="mb-4">
+          <Alert variant="destructive" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               <div className="font-medium mb-1">Warnings during import:</div>

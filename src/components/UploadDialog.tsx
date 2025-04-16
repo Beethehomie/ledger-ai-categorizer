@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -338,7 +339,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
               )}
 
               {duplicateTransactions.length > 0 && (
-                <Alert variant="warning" className="mt-4">
+                <Alert variant="destructive" className="mt-4">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     <div className="font-medium mb-2">Found {duplicateTransactions.length} possible duplicate transactions:</div>
