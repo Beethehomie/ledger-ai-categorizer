@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, CheckCircle, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-const TransactionReviewPage = () => {
+const TransactionReviewPage: React.FC = () => {
   const { transactions, loading } = useBookkeeping();
   const [lowConfidenceCount, setLowConfidenceCount] = useState(0);
   
@@ -70,7 +70,7 @@ const TransactionReviewPage = () => {
                     <Alert className="mb-4">
                       <Info className="h-4 w-4" />
                       <AlertDescription>
-                        These transactions have been categorized by AI with low confidence (<50%) and need your review.
+                        These transactions have been categorized by AI with low confidence (&lt;50%) and need your review.
                         Selecting a category will verify the transaction and help train the system for future categorizations.
                       </AlertDescription>
                     </Alert>
