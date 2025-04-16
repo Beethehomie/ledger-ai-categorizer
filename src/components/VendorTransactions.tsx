@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import TransactionTable from './TransactionTable';
@@ -30,6 +31,7 @@ import { Transaction, VendorItem, Vendor } from '@/types';
 import VendorEditor from './VendorEditor';
 import VendorImporter from './VendorImporter';
 import UnknownVendorsReview from './UnknownVendorsReview';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VendorTransactionsProps {
   transactions: Transaction[];
@@ -63,22 +65,23 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
     
     setProcessingAction(true);
     
-    // Add the vendor to the database
     try {
-      const response = await fetch('/api/vendors', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newVendor),
-      });
+      // Add the vendor directly to Supabase instead of calling a non-existent API
+      const { data, error } = await supabase
+        .from('vendor_categorizations')
+        .insert({
+          vendor_name: newVendor.name,
+          category: newVendor.category || '',
+          type: newVendor.type || 'expense',
+          statement_type: newVendor.statementType || 'profit_loss',
+          occurrences: 1,
+          verified: false
+        })
+        .select();
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add vendor');
+      if (error) {
+        throw error;
       }
-      
-      const data = await response.json();
       
       toast.success(`Added new vendor: ${newVendor.name}`);
       setIsVendorEditorOpen(false);
