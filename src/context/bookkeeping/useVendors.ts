@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
-import { Vendor, Transaction } from '@/types';
+import { Vendor, Transaction, StatementType } from '@/types';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { updateVendorInSupabase, removeDuplicateVendorsFromSupabase } from './vendorUtils';
@@ -29,14 +28,21 @@ export const useVendors = (
         }
         
         if (data) {
-          const vendorsFromDB: Vendor[] = data.map((v) => ({
-            name: v.vendor_name || '',
-            category: v.category || '',
-            type: (v.type as Transaction['type']) || 'expense',
-            statementType: (v.statement_type as Transaction['statementType']) || 'operating',
-            occurrences: v.occurrences || 1,
-            verified: v.verified || false
-          }));
+          const vendorsFromDB: Vendor[] = data.map((v) => {
+            let statementType: StatementType = 'profit_loss';
+            if (v.statement_type === 'balance_sheet') {
+              statementType = 'balance_sheet';
+            }
+            
+            return {
+              name: v.vendor_name || '',
+              category: v.category || '',
+              type: (v.type as Transaction['type']) || 'expense',
+              statementType: statementType,
+              occurrences: v.occurrences || 1,
+              verified: v.verified || false
+            };
+          });
           
           setVendors(vendorsFromDB);
         }
@@ -95,7 +101,6 @@ export const useVendors = (
         throw error;
       }
       
-      // Find the transaction in the current state
       const transaction = transactions.find(t => t.id === id);
       
       if (transaction && transaction.vendor) {
@@ -112,7 +117,6 @@ export const useVendors = (
         }
       }
       
-      // Update the transaction in the parent state
       const updatedTransaction = transactions.find(t => t.id === id);
       if (updatedTransaction) {
         updateTransaction({
@@ -163,7 +167,6 @@ export const useVendors = (
         
       if (error) throw error;
       
-      // Update transactions in the parent component
       for (const transaction of matchingTransactions) {
         updateTransaction({
           ...transaction,

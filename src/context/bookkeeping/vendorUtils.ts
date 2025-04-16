@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
-import { Vendor } from '@/types';
+import { Vendor, StatementType } from '@/types';
 import { Transaction } from '@/types';
 
 export const updateVendorInSupabase = async (
@@ -61,7 +61,7 @@ export const updateVendorInSupabase = async (
       name: vendor,
       category,
       type,
-      statementType,
+      statementType: statementType as StatementType,
       occurrences: 1,
       verified: false
     }];
@@ -144,14 +144,22 @@ export const removeDuplicateVendorsFromSupabase = async (): Promise<{ success: b
       .select('*');
       
     if (updatedVendors) {
-      const vendorsFromDB: Vendor[] = updatedVendors.map((v) => ({
-        name: v.vendor_name || '',
-        category: v.category || '',
-        type: (v.type as Transaction['type']) || 'expense',
-        statementType: (v.statement_type as Transaction['statementType']) || 'operating',
-        occurrences: v.occurrences || 1,
-        verified: v.verified || false
-      }));
+      const vendorsFromDB: Vendor[] = updatedVendors.map((v) => {
+        // Convert any 'operating' statementType to 'profit_loss' for backward compatibility
+        let statementType: StatementType = 'profit_loss';
+        if (v.statement_type === 'balance_sheet') {
+          statementType = 'balance_sheet';
+        }
+        
+        return {
+          name: v.vendor_name || '',
+          category: v.category || '',
+          type: (v.type as Transaction['type']) || 'expense',
+          statementType: statementType,
+          occurrences: v.occurrences || 1,
+          verified: v.verified || false
+        };
+      });
       
       toast.success(`Removed ${removedCount} duplicate vendor entries`);
       return { success: true, updatedVendors: vendorsFromDB };

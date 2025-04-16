@@ -91,3 +91,7 @@ export interface InitialBalanceInput {
 export interface RefreshableComponentProps {
   refreshing?: boolean;
 }
+
+// Add explicit interfaces for our components that use the RefreshableComponentProps
+export interface FinancialSummaryProps extends RefreshableComponentProps {}
+export interface ChartSectionProps extends RefreshableComponentProps {}
