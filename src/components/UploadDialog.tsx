@@ -1,17 +1,16 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UploadCloud, FileSpreadsheet, AlertCircle, ArrowRight, Info, Calendar } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, AlertCircle, ArrowRight, Info, Calendar, CheckCircle, X } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BankConnectionRow } from '@/types/supabase';
 import { Transaction } from '@/types';
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { parseCSV } from '@/utils/csvParser';
+import { parseCSV, validateCSVStructure } from '@/utils/csvParser';
 import TransactionReviewDialog from './TransactionReviewDialog';
 import { format } from 'date-fns';
 
@@ -26,17 +25,43 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   const [step, setStep] = useState(1);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [csvContent, setCsvContent] = useState<string>("");
+  const [csvValidation, setCsvValidation] = useState<{
+    isValid: boolean;
+    headers: string[];
+    errorMessage?: string;
+  }>({ isValid: false, headers: [] });
   const [selectedBankId, setSelectedBankId] = useState<string>('');
   const [initialBalance, setInitialBalance] = useState<string>('0');
   const [endBalance, setEndBalance] = useState<string>('');
   const [balanceDate, setBalanceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [duplicateTransactions, setDuplicateTransactions] = useState<string[]>([]);
+  const [warningMessages, setWarningMessages] = useState<string[]>([]);
   const [hasUploaded, setHasUploaded] = useState(false);
   const [parsedTransactions, setParsedTransactions] = useState<Transaction[]>([]);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
 
   // Get CSV-type bank connections
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
+
+  useEffect(() => {
+    if (csvContent) {
+      // Validate CSV structure
+      const validation = validateCSVStructure(csvContent);
+      setCsvValidation(validation);
+      
+      if (validation.isValid) {
+        // Check for duplicates
+        const { hasDuplicates, duplicates } = checkForDuplicates(csvContent);
+        if (hasDuplicates) {
+          setDuplicateTransactions(duplicates);
+          toast.warning(`Found ${duplicates.length} possible duplicate transactions. Please review carefully.`);
+        } else {
+          setDuplicateTransactions([]);
+        }
+      }
+    }
+  }, [csvContent]);
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -67,6 +92,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   };
 
   const handleFile = (file: File) => {
+    // Validate file type
     if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
       toast.error('Please upload a CSV file');
       return;
@@ -74,7 +100,17 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     
     setSelectedFile(file);
     setDuplicateTransactions([]);
+    setWarningMessages([]);
     setHasUploaded(false);
+    
+    // Read file content
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target && typeof event.target.result === 'string') {
+        setCsvContent(event.target.result);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const checkForDuplicates = (csvContent: string): { hasDuplicates: boolean; duplicates: string[] } => {
@@ -83,7 +119,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     
     const headers = rows[0].split(',');
     const dateIndex = headers.findIndex(h => h.toLowerCase().includes('date'));
-    const descIndex = headers.findIndex(h => h.toLowerCase().includes('description'));
+    const descIndex = headers.findIndex(h => h.toLowerCase().includes('desc'));
     const amountIndex = headers.findIndex(h => h.toLowerCase().includes('amount'));
     
     if (dateIndex === -1 || descIndex === -1 || amountIndex === -1) {
@@ -128,35 +164,34 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       toast.error('Please select a bank account for this upload');
       return;
     }
+    
+    if (!csvValidation.isValid) {
+      toast.error(csvValidation.errorMessage || 'Invalid CSV format');
+      return;
+    }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target && typeof event.target.result === 'string') {
-        const csvContent = event.target.result;
-        const { hasDuplicates, duplicates } = checkForDuplicates(csvContent);
-        
-        if (hasDuplicates) {
-          setDuplicateTransactions(duplicates);
-          toast.error(`Found ${duplicates.length} duplicate transactions. Please review the list.`);
-          return;
-        }
-        
-        // Parse CSV content into transactions
-        const transactions = parseCSV(csvContent);
-        
-        // Add bankAccountId to transactions
-        const transactionsWithBankId = transactions.map(t => ({
-          ...t,
-          bankAccountId: selectedBankId
-        }));
-        
-        setParsedTransactions(transactionsWithBankId);
-        
-        // Show review dialog with parsed transactions
-        setIsReviewDialogOpen(true);
-      }
-    };
-    reader.readAsText(selectedFile);
+    // Parse CSV content into transactions
+    const parseResult = parseCSV(csvContent);
+    
+    if (parseResult.warnings.length > 0) {
+      setWarningMessages(parseResult.warnings);
+    }
+    
+    if (parseResult.transactions.length === 0) {
+      toast.error('No valid transactions found in the CSV file');
+      return;
+    }
+    
+    // Add bankAccountId to transactions
+    const transactionsWithBankId = parseResult.transactions.map(t => ({
+      ...t,
+      bankAccountId: selectedBankId
+    }));
+    
+    setParsedTransactions(transactionsWithBankId);
+    
+    // Show review dialog with parsed transactions
+    setIsReviewDialogOpen(true);
   };
 
   const handleConfirmUpload = (editedTransactions: Transaction[]) => {
@@ -181,18 +216,25 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   };
 
   const nextStep = () => {
+    if (selectedFile && !csvValidation.isValid) {
+      toast.error(csvValidation.errorMessage || 'Invalid CSV format');
+      return;
+    }
     setStep(2);
   };
 
   const resetDialog = () => {
     setStep(1);
     setSelectedFile(null);
+    setCsvContent("");
+    setCsvValidation({ isValid: false, headers: [] });
     setSelectedBankId('');
     setDragActive(false);
     setInitialBalance('0');
     setEndBalance('');
     setBalanceDate(format(new Date(), 'yyyy-MM-dd'));
     setDuplicateTransactions([]);
+    setWarningMessages([]);
     setHasUploaded(false);
     setParsedTransactions([]);
   };
@@ -261,21 +303,48 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
                         {(selectedFile.size / 1024).toFixed(1)} KB
                       </p>
                     </div>
-                    <Button variant="secondary" size="sm" onClick={() => setSelectedFile(null)}>
+                    <Button variant="secondary" size="sm" onClick={() => {
+                      setSelectedFile(null);
+                      setCsvContent("");
+                      setCsvValidation({ isValid: false, headers: [] });
+                    }}>
                       Remove
                     </Button>
                   </div>
+                  
+                  {csvValidation.isValid ? (
+                    <div className="mt-2 flex items-center text-sm text-green-600">
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      <span>CSV validation successful</span>
+                    </div>
+                  ) : csvContent ? (
+                    <div className="mt-2 flex items-center text-sm text-red-600">
+                      <X className="h-4 w-4 mr-1" />
+                      <span>{csvValidation.errorMessage || 'Invalid CSV format'}</span>
+                    </div>
+                  ) : null}
+                  
+                  {csvValidation.isValid && csvValidation.headers.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs text-muted-foreground mb-1">Detected columns:</p>
+                      <div className="text-xs flex flex-wrap gap-1">
+                        {csvValidation.headers.map((header, index) => (
+                          <span key={index} className="bg-muted px-2 py-1 rounded-sm">{header}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {duplicateTransactions.length > 0 && (
-                <Alert variant="destructive" className="mt-4">
+                <Alert variant="warning" className="mt-4">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    <div className="font-medium mb-2">Found {duplicateTransactions.length} duplicate transactions:</div>
+                    <div className="font-medium mb-2">Found {duplicateTransactions.length} possible duplicate transactions:</div>
                     <div className="max-h-40 overflow-y-auto text-xs space-y-1">
                       {duplicateTransactions.slice(0, 5).map((dupe, i) => (
-                        <div key={i} className="py-1 border-b border-red-200">{dupe}</div>
+                        <div key={i} className="py-1 border-b border-amber-200">{dupe}</div>
                       ))}
                       {duplicateTransactions.length > 5 && (
                         <div className="text-sm font-medium pt-1">
@@ -298,7 +367,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
                 </Button>
                 <Button 
                   onClick={nextStep} 
-                  disabled={!selectedFile}
+                  disabled={!selectedFile || !csvValidation.isValid}
                   className="bg-finance-green hover:bg-finance-green-light"
                 >
                   Next <ArrowRight className="ml-2 h-4 w-4" />
@@ -413,6 +482,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
         onClose={() => setIsReviewDialogOpen(false)}
         transactions={parsedTransactions}
         onConfirm={handleConfirmUpload}
+        warnings={warningMessages}
       />
     </>
   );

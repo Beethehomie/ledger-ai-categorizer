@@ -2,54 +2,208 @@
 import { Transaction, Category } from "../types";
 import { mockCategories } from "../data/mockData";
 
-export const parseCSV = (csvString: string): Transaction[] => {
+interface CSVParseResult {
+  transactions: Transaction[];
+  warnings: string[];
+  headers: string[];
+  mappedFields: Record<string, string>;
+}
+
+export const validateCSVStructure = (csvString: string): { 
+  isValid: boolean; 
+  headers: string[];
+  errorMessage?: string;
+} => {
+  if (!csvString || typeof csvString !== 'string') {
+    return { isValid: false, headers: [], errorMessage: 'Invalid CSV content' };
+  }
+
+  const lines = csvString.split('\n');
+  if (lines.length < 2) {
+    return { isValid: false, headers: [], errorMessage: 'CSV file must have at least a header row and one data row' };
+  }
+
+  const headers = lines[0].split(',').map(h => h.trim());
+  
+  // Check for required headers (case insensitive)
+  const requiredFields = ['date', 'description', 'amount'];
+  const lowerCaseHeaders = headers.map(h => h.toLowerCase());
+  
+  const missingFields = requiredFields.filter(field => 
+    !lowerCaseHeaders.some(header => header.includes(field))
+  );
+
+  if (missingFields.length > 0) {
+    return { 
+      isValid: false, 
+      headers,
+      errorMessage: `Required fields missing: ${missingFields.join(', ')}. Please ensure your CSV has Date, Description, and Amount columns.` 
+    };
+  }
+
+  return { isValid: true, headers };
+};
+
+export const mapCSVHeaders = (headers: string[]): Record<string, string> => {
+  const lowerCaseHeaders = headers.map(h => h.toLowerCase());
+  const fieldMapping: Record<string, string> = {};
+  
+  // Map headers to standard fields
+  headers.forEach((header, index) => {
+    const lowerHeader = lowerCaseHeaders[index];
+    
+    if (lowerHeader.includes('date')) {
+      fieldMapping['date'] = header;
+    } else if (lowerHeader.includes('desc')) {
+      fieldMapping['description'] = header;
+    } else if (lowerHeader.includes('amount') || lowerHeader.includes('sum') || lowerHeader.includes('value')) {
+      fieldMapping['amount'] = header;
+    } else if (lowerHeader.includes('balance')) {
+      fieldMapping['balance'] = header;
+    } else if (lowerHeader.includes('category') || lowerHeader.includes('type')) {
+      fieldMapping['category'] = header;
+    }
+  });
+  
+  return fieldMapping;
+};
+
+export const parseCSV = (csvString: string): CSVParseResult => {
+  const result: CSVParseResult = {
+    transactions: [],
+    warnings: [],
+    headers: [],
+    mappedFields: {}
+  };
+  
+  // Validate CSV structure
+  const validation = validateCSVStructure(csvString);
+  if (!validation.isValid) {
+    result.warnings.push(validation.errorMessage || 'Invalid CSV format');
+    return result;
+  }
+  
+  // Get headers and map them
+  result.headers = validation.headers;
+  result.mappedFields = mapCSVHeaders(validation.headers);
+  
   // Skip the header line and split by newlines
   const rows = csvString.split('\n').slice(1).filter(row => row.trim() !== '');
   
-  const transactions: Transaction[] = rows.map((row, index) => {
-    const columns = row.split(',').map(col => col.trim());
-    
-    // Assume CSV structure: Date, Description, Amount
-    // Adjust indices as needed based on your actual CSV structure
-    if (columns.length >= 3) {
-      const date = columns[0];
-      const description = columns[1];
-      const amount = parseFloat(columns[2].replace(/[^\d.-]/g, ''));
-      
-      // Generate a unique ID
-      const id = (Date.now() + index).toString();
-      
-      const transaction: Transaction = {
-        id,
-        date,
-        description,
-        amount,
-        isVerified: false,
-      };
-      
-      // Try auto-categorization
-      const categorization = categorizeByCriteria(transaction);
-      if (categorization) {
-        transaction.category = categorization.categoryName;
-        transaction.type = categorization.type;
-        transaction.statementType = categorization.statementType;
-        transaction.aiSuggestion = categorization.categoryName;
+  // Find indexes for required fields
+  const headerIndexes = result.headers.reduce<Record<string, number>>((acc, header, index) => {
+    Object.entries(result.mappedFields).forEach(([field, mappedHeader]) => {
+      if (mappedHeader === header) {
+        acc[field] = index;
       }
+    });
+    return acc;
+  }, {});
+  
+  if (!('date' in headerIndexes) || !('description' in headerIndexes) || !('amount' in headerIndexes)) {
+    result.warnings.push('Could not identify all required fields (date, description, amount)');
+    return result;
+  }
+  
+  result.transactions = rows.map((row, index) => {
+    // Handle values that might contain commas by looking for quoted values
+    const values: string[] = [];
+    let inQuotes = false;
+    let currentValue = '';
+    
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
       
-      return transaction;
+      if (char === '"' && (i === 0 || row[i-1] !== '\\')) {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        values.push(currentValue);
+        currentValue = '';
+      } else {
+        currentValue += char;
+      }
+    }
+    values.push(currentValue); // Add the last value
+    
+    // Clean up quotes from values
+    const cleanValues = values.map(val => {
+      if (val.startsWith('"') && val.endsWith('"')) {
+        return val.slice(1, -1).replace(/""/g, '"');
+      }
+      return val.trim();
+    });
+    
+    // Extract values using mapped indexes
+    const date = cleanValues[headerIndexes.date] || '';
+    const description = cleanValues[headerIndexes.description] || '';
+    let amount = 0;
+    
+    // Parse amount, handling various formats
+    try {
+      const amountStr = cleanValues[headerIndexes.amount] || '0';
+      // Remove currency symbols, handle parentheses for negative values
+      const cleanAmount = amountStr
+        .replace(/[$£€]/g, '')
+        .replace(/,/g, '')
+        .replace(/\(([^)]+)\)/, '-$1')
+        .trim();
+      
+      amount = parseFloat(cleanAmount);
+      
+      // If amount is NaN, add a warning
+      if (isNaN(amount)) {
+        result.warnings.push(`Could not parse amount "${amountStr}" on row ${index + 2}`);
+        amount = 0;
+      }
+    } catch (e) {
+      result.warnings.push(`Error parsing amount on row ${index + 2}`);
+      amount = 0;
     }
     
-    // Return a default transaction if parsing fails
-    return {
-      id: (Date.now() + index).toString(),
-      date: '',
-      description: 'Error parsing row',
-      amount: 0,
+    // Generate a unique ID
+    const id = `temp-${Date.now()}-${index}`;
+    
+    // Create transaction object
+    const transaction: Transaction = {
+      id,
+      date,
+      description,
+      amount,
       isVerified: false,
     };
+    
+    // Add balance if available
+    if ('balance' in headerIndexes) {
+      try {
+        const balanceStr = cleanValues[headerIndexes.balance] || '';
+        const cleanBalance = balanceStr
+          .replace(/[$£€]/g, '')
+          .replace(/,/g, '')
+          .replace(/\(([^)]+)\)/, '-$1')
+          .trim();
+        
+        const balance = parseFloat(cleanBalance);
+        if (!isNaN(balance)) {
+          transaction.balance = balance;
+        }
+      } catch (e) {
+        // Ignore balance parsing errors
+      }
+    }
+    
+    // Try auto-categorization
+    const categorization = categorizeByCriteria(transaction);
+    if (categorization) {
+      transaction.category = categorization.categoryName;
+      transaction.type = categorization.type;
+      transaction.statementType = categorization.statementType;
+      transaction.aiSuggestion = categorization.categoryName;
+    }
+    
+    return transaction;
   });
   
-  return transactions;
+  return result;
 };
 
 // Simulate AI-driven categorization using keyword matching

@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, FileSpreadsheet, AlertCircle } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
+import { validateCSVStructure, parseCSV } from '@/utils/csvParser';
 import {
   Select,
   SelectContent,
@@ -12,12 +13,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const FileUpload: React.FC = () => {
   const { uploadCSV, loading, bankConnections } = useBookkeeping();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [csvContent, setCsvContent] = useState<string>("");
+  const [csvValidation, setCsvValidation] = useState<{
+    isValid: boolean;
+    headers: string[];
+    errorMessage?: string;
+  }>({ isValid: false, headers: [] });
   const [selectedBankId, setSelectedBankId] = useState<string>('');
+  const [warningMessages, setWarningMessages] = useState<string[]>([]);
+
+  // Get CSV-type bank connections
+  const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
+
+  useEffect(() => {
+    if (csvContent) {
+      // Validate CSV structure
+      const validation = validateCSVStructure(csvContent);
+      setCsvValidation(validation);
+    }
+  }, [csvContent]);
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -54,6 +74,16 @@ const FileUpload: React.FC = () => {
     }
     
     setSelectedFile(file);
+    setWarningMessages([]);
+    
+    // Read file content
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target && typeof event.target.result === 'string') {
+        setCsvContent(event.target.result);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const processFile = () => {
@@ -66,20 +96,36 @@ const FileUpload: React.FC = () => {
       toast.error('Please select a bank account for this upload');
       return;
     }
+    
+    if (!csvValidation.isValid) {
+      toast.error(csvValidation.errorMessage || 'Invalid CSV format');
+      return;
+    }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target && typeof event.target.result === 'string') {
-        uploadCSV(event.target.result, selectedBankId);
-        setSelectedFile(null);
-        setSelectedBankId('');
-      }
-    };
-    reader.readAsText(selectedFile);
+    // Parse CSV content into transactions
+    const parseResult = parseCSV(csvContent);
+    
+    if (parseResult.warnings.length > 0) {
+      setWarningMessages(parseResult.warnings);
+      toast.warning(`Found ${parseResult.warnings.length} warnings during import`);
+    }
+    
+    if (parseResult.transactions.length === 0) {
+      toast.error('No valid transactions found in the CSV file');
+      return;
+    }
+    
+    uploadCSV(csvContent, selectedBankId);
+    resetForm();
   };
 
-  // Get CSV-type bank connections
-  const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
+  const resetForm = () => {
+    setSelectedFile(null);
+    setCsvContent("");
+    setCsvValidation({ isValid: false, headers: [] });
+    setSelectedBankId('');
+    setWarningMessages([]);
+  };
 
   return (
     <Card className="w-full hover:shadow-md transition-all">
@@ -134,10 +180,37 @@ const FileUpload: React.FC = () => {
                   {(selectedFile.size / 1024).toFixed(1)} KB
                 </p>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => setSelectedFile(null)} className="hover-scale">
+              <Button variant="secondary" size="sm" onClick={() => {
+                setSelectedFile(null);
+                setCsvContent("");
+                setCsvValidation({ isValid: false, headers: [] });
+              }} className="hover-scale">
                 Remove
               </Button>
             </div>
+            
+            {csvValidation.isValid ? (
+              <div className="mb-4 flex items-center text-sm text-green-600">
+                <CheckCircle className="h-4 w-4 mr-1" />
+                <span>CSV validation successful</span>
+              </div>
+            ) : csvContent ? (
+              <div className="mb-4 flex items-center text-sm text-red-600">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                <span>{csvValidation.errorMessage || 'Invalid CSV format'}</span>
+              </div>
+            ) : null}
+            
+            {csvValidation.isValid && csvValidation.headers.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-muted-foreground mb-1">Detected columns:</p>
+                <div className="text-xs flex flex-wrap gap-1">
+                  {csvValidation.headers.map((header, index) => (
+                    <span key={index} className="bg-muted px-2 py-1 rounded-sm">{header}</span>
+                  ))}
+                </div>
+              </div>
+            )}
             
             <div className="space-y-2">
               <p className="text-sm font-medium">Select Bank Account</p>
@@ -163,6 +236,23 @@ const FileUpload: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+            
+            {warningMessages.length > 0 && (
+              <Alert variant="warning" className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="font-medium mb-1">Import warnings:</div>
+                  <ul className="text-xs list-disc pl-4 space-y-1 max-h-24 overflow-y-auto">
+                    {warningMessages.slice(0, 3).map((warning, index) => (
+                      <li key={index}>{warning}</li>
+                    ))}
+                    {warningMessages.length > 3 && (
+                      <li>...and {warningMessages.length - 3} more</li>
+                    )}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
 
@@ -174,7 +264,7 @@ const FileUpload: React.FC = () => {
       <CardFooter className="flex justify-end">
         <Button
           onClick={processFile}
-          disabled={!selectedFile || !selectedBankId || loading}
+          disabled={!selectedFile || !selectedBankId || !csvValidation.isValid || loading}
           className="bg-finance-green hover:bg-finance-green-light hover-scale"
         >
           {loading ? 'Processing...' : 'Process Transactions'}
