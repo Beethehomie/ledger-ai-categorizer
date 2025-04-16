@@ -4,13 +4,14 @@ import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
 import { useFinancialSummary } from './bookkeeping/useFinancialSummary';
 import { BookkeepingContextType } from './bookkeeping/types';
-import { useAuth } from '../AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { BankConnectionRow } from '@/types/supabase';
+import { Category } from '@/types';
 
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 
-export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session } = useAuth();
   const [categories, setCategories] = useState<Category[]>(mockCategories);
   const [bankConnections, setBankConnections] = useState<BankConnectionRow[]>([]);
