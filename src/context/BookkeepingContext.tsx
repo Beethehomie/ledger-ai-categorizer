@@ -1,12 +1,10 @@
-
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { mockCategories } from '@/data/mockData';
-import { Category, Transaction } from '@/types';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
 import { useFinancialSummary } from './bookkeeping/useFinancialSummary';
 import { BookkeepingContextType } from './bookkeeping/types';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { BankConnectionRow } from '@/types/supabase';
 
@@ -17,7 +15,6 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [categories, setCategories] = useState<Category[]>(mockCategories);
   const [bankConnections, setBankConnections] = useState<BankConnectionRow[]>([]);
   
-  // Fetch bank connections
   useEffect(() => {
     if (!session) return;
 
@@ -48,7 +45,6 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     fetchBankConnections();
   }, [session]);
   
-  // Initialize hooks
   const {
     transactions,
     loading: transactionsLoading,
@@ -79,10 +75,8 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     calculateFinancialSummary
   } = useFinancialSummary(transactions);
   
-  // Combine loading states
   const loading = transactionsLoading || vendorsLoading;
   
-  // Construct the context value
   const value: BookkeepingContextType = {
     transactions,
     categories,
