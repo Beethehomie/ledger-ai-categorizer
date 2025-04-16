@@ -1,7 +1,19 @@
 
-import { toast as sonnerToast, ToastOptions } from "sonner";
+import { toast as sonnerToast } from "sonner";
 
 type ToastType = "success" | "error" | "info" | "warning";
+
+// Define our own ToastOptions type since sonner's is not exported
+interface ToastOptions {
+  id?: string | number;
+  duration?: number;
+  icon?: React.ReactNode;
+  promise?: Promise<any>;
+  description?: React.ReactNode;
+  position?: 'top-center' | 'top-right' | 'top-left' | 'bottom-center' | 'bottom-right' | 'bottom-left';
+  className?: string;
+  [key: string]: any;
+}
 
 interface ToastFunction {
   (message: string, options?: ToastOptions): void;

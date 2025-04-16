@@ -1,11 +1,12 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { mockCategories } from '@/data/mockData';
 import { Category, Transaction } from '@/types';
-import { useTransactions } from './useTransactions';
-import { useVendors } from './useVendors';
-import { useFinancialSummary } from './useFinancialSummary';
-import { BookkeepingContextType } from './types';
-import { useAuth } from '../AuthContext';
+import { useTransactions } from './bookkeeping/useTransactions';
+import { useVendors } from './bookkeeping/useVendors';
+import { useFinancialSummary } from './bookkeeping/useFinancialSummary';
+import { BookkeepingContextType } from './bookkeeping/types';
+import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { BankConnectionRow } from '@/types/supabase';
 
