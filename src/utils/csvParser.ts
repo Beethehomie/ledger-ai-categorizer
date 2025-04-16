@@ -184,7 +184,7 @@ export const parseCSV = (csvString: string): CSVParseResult => {
     // Generate a unique ID
     const id = `temp-${Date.now()}-${index}`;
     
-    // Extract vendor name from description
+    // Extract vendor name from description, ensuring we always get a value
     const vendorName = extractVendorName(description);
     
     // Create transaction object

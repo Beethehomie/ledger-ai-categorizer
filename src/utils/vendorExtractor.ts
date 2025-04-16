@@ -28,7 +28,7 @@ const WORDS_TO_REMOVE = [
  * Enhanced with better pattern recognition and more extensive filtering
  */
 export function extractVendorName(description: string): string {
-  if (!description) return "";
+  if (!description) return "Unknown";
   
   let vendor = description.trim().toUpperCase();
   
@@ -80,6 +80,11 @@ export function extractVendorName(description: string): string {
   vendor = vendor.replace(/\w\S*/g, txt => 
     txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
   );
+  
+  // If vendor is empty after all processing, use "Unknown"
+  if (!vendor.trim()) {
+    return "Unknown";
+  }
   
   return vendor.trim();
 }

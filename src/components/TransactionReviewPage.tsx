@@ -1,98 +1,55 @@
 
-import React, { useEffect, useState } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import TransactionTable from './TransactionTable';
+import React from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, CheckCircle, Info } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import TransactionTable from './TransactionTable';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { toast } from '@/utils/toast';
+import UnknownVendorsReview from './UnknownVendorsReview';
 
 const TransactionReviewPage: React.FC = () => {
-  const { transactions, loading } = useBookkeeping();
-  const [lowConfidenceCount, setLowConfidenceCount] = useState(0);
-  
-  useEffect(() => {
-    // Count transactions with low confidence scores
-    const count = transactions.filter(t => 
-      t.confidenceScore !== undefined && 
-      t.confidenceScore < 0.5 && 
-      !t.isVerified
-    ).length;
-    
-    setLowConfidenceCount(count);
-  }, [transactions]);
-  
+  const { transactions } = useBookkeeping();
+
+  // Filter transactions that need review (low confidence)
+  const transactionsNeedingReview = transactions.filter(t => 
+    t.confidenceScore !== undefined && 
+    t.confidenceScore < 0.5 && 
+    !t.isVerified
+  );
+
+  const handleRefresh = () => {
+    toast.success('Refreshing transactions for review');
+  };
+
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2 text-amber-500" />
+      <div className="bg-[hsl(var(--card))] rounded-lg shadow-sm border border-[hsl(var(--border))] p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold flex items-center">
+            <AlertTriangle className="h-6 w-6 text-amber-500 mr-2" />
             Transactions Requiring Review
-          </CardTitle>
-          <CardDescription>
-            Review and approve categorizations for transactions where AI confidence is low or patterns are unclear
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center p-8">
-              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-            </div>
-          ) : (
-            <>
-              {lowConfidenceCount === 0 ? (
-                <Alert className="bg-green-50 border-green-200">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <AlertDescription className="text-green-700">
-                    No transactions require your review at this time. All transactions have been categorized with high confidence.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <Tabs defaultValue="pending">
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="pending">
-                      Needs Review ({lowConfidenceCount})
-                    </TabsTrigger>
-                    <TabsTrigger value="verified">
-                      Verified
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="pending">
-                    <Alert className="mb-4">
-                      <Info className="h-4 w-4" />
-                      <AlertDescription>
-                        These transactions have been categorized by AI with low confidence (&lt;50%) and need your review.
-                        Selecting a category will verify the transaction and help train the system for future categorizations.
-                      </AlertDescription>
-                    </Alert>
-                    
-                    <TransactionTable 
-                      filter="review" 
-                      transactions={transactions} 
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="verified">
-                    <TransactionTable 
-                      filter="all" 
-                      transactions={transactions.filter(t => t.isVerified)} 
-                    />
-                  </TabsContent>
-                </Tabs>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              ({transactionsNeedingReview.length} transactions)
+            </span>
+          </h2>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            title="Refresh review list"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+        <TransactionTable 
+          filter="review" 
+          transactions={transactions} 
+          onRefresh={handleRefresh}
+        />
+      </div>
+
+      <UnknownVendorsReview />
     </div>
   );
 };

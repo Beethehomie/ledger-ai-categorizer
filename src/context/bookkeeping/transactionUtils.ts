@@ -85,12 +85,14 @@ export const processTransactions = (
   transactions: Transaction[]
 ): Transaction[] => {
   return transactions.map(transaction => {
-    const vendor = extractVendorName(transaction.description);
+    // Extract vendor name, ensuring we always have a value (will return "Unknown" if nothing found)
+    const vendor = transaction.vendor || extractVendorName(transaction.description);
+    
     return {
       ...transaction,
       vendor,
       vendorVerified: false,
-      confidenceScore: Math.random() * 0.5 + 0.5
+      confidenceScore: vendor === "Unknown" ? 0.3 : Math.random() * 0.5 + 0.5
     };
   });
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -25,7 +24,8 @@ import {
   RefreshCw,
   Scale,
   Edit,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import { Transaction, Category } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
@@ -399,13 +399,15 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                     {tableColumns.find(col => col.id === 'vendor')?.visible && (
                       <TableCell className="max-w-[200px]">
                         <div className="flex items-center gap-2">
-                          <Store className="h-4 w-4 text-finance-gray shrink-0" />
                           <Select
-                            defaultValue={transaction.vendor || ""}
+                            defaultValue={transaction.vendor || "Unknown"}
                             onValueChange={(value) => handleVendorChange(transaction, value)}
                           >
-                            <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 focus:ring-0">
-                              <SelectValue placeholder="Select vendor" />
+                            <SelectTrigger className="h-8 w-full border-0 bg-transparent hover:bg-muted/50 focus:ring-0 pl-0 truncate">
+                              <div className="flex items-center">
+                                <Store className="h-4 w-4 text-finance-gray shrink-0 mr-2" />
+                                <span className="truncate">{transaction.vendor || "Unknown"}</span>
+                              </div>
                             </SelectTrigger>
                             <SelectContent>
                               {transaction.vendor && !uniqueVendors.includes(transaction.vendor) && (
@@ -413,7 +415,16 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                                   {transaction.vendor}
                                 </SelectItem>
                               )}
-                              {uniqueVendors.map(vendor => (
+                              <SelectItem value="Unknown">
+                                <div className="flex items-center">
+                                  <AlertCircle className="h-3.5 w-3.5 mr-1 text-amber-500" />
+                                  <span>Unknown</span>
+                                </div>
+                              </SelectItem>
+                              {uniqueVendors
+                                .filter(vendor => vendor !== "Unknown")
+                                .sort()
+                                .map(vendor => (
                                 <SelectItem key={vendor} value={vendor}>
                                   {vendor}
                                 </SelectItem>
