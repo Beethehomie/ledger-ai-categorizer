@@ -403,8 +403,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
           );
           
           if (matchingTransactions.length > 0) {
-            toast({
-              description: `Found ${matchingTransactions.length} more transactions from ${vendorName}. Would you like to categorize them the same way?`,
+            toast.info(`Found ${matchingTransactions.length} more transactions from ${vendorName}. Would you like to categorize them the same way?`, {
               action: {
                 label: 'Yes, categorize all',
                 onClick: () => batchVerifyVendorTransactions(vendorName, data.category, data.type, data.statementType)
