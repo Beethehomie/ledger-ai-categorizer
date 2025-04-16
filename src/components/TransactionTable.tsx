@@ -25,7 +25,8 @@ import {
   Scale,
   Edit,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Plus
 } from "lucide-react";
 import { Transaction, Category, Vendor, VendorItem, TableColumn } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
@@ -37,6 +38,7 @@ import ColumnSelector, { Column } from './ColumnSelector';
 import ReconcileDialog from './ReconcileDialog';
 import { exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import VendorEditor from './VendorEditor';
 
 interface TransactionTableProps {
   filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor' | 'review';
@@ -74,6 +76,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isReconcileDialogOpen, setIsReconcileDialogOpen] = useState(false);
   const [reconciliationBalance, setReconciliationBalance] = useState<number | undefined>(expectedEndBalance);
+  const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
 
   const filteredTransactions = transactions.filter(transaction => {
     if (filter === 'unverified') {
@@ -167,7 +170,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
 
   const handleVendorChange = (transaction: Transaction, vendorName: string) => {
     if (vendorName === 'add-new') {
-      toast.info("Use the 'Add New Vendor' button in the Vendors tab to add a new vendor");
+      setIsVendorEditorOpen(true);
       return;
     }
     
@@ -182,6 +185,39 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
         vendorInfo.type,
         vendorInfo.statementType
       );
+    }
+  };
+
+  const handleAddVendor = async (newVendor: Vendor) => {
+    if (vendors.some(v => v.name === newVendor.name)) {
+      toast.error(`Vendor "${newVendor.name}" already exists`);
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newVendor),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add vendor');
+      }
+      
+      toast.success(`Added new vendor: ${newVendor.name}`);
+      setIsVendorEditorOpen(false);
+      
+      if (onRefresh) {
+        onRefresh();
+      }
+      
+    } catch (err) {
+      console.error('Error adding vendor:', err);
+      toast.error('Failed to add vendor. Please try again.');
     }
   };
 
@@ -249,7 +285,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const mapTableColumnsToColumnSelector = (): Column[] => {
     return tableColumns.map(col => ({
       id: col.id,
-      label: col.name || col.id,
+      label: col.label || col.name,
       visible: col.visible
     }));
   };
@@ -300,6 +336,23 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p>Refresh transactions and reports</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsVendorEditorOpen(true)}
+                  className="hover-scale"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Vendor
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Add a new vendor</p>
               </TooltipContent>
             </Tooltip>
             
@@ -595,6 +648,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           onClose={() => setIsReconcileDialogOpen(false)}
           transactions={transactions}
           onReconcile={handleReconcile}
+        />
+        
+        <VendorEditor
+          isOpen={isVendorEditorOpen}
+          onClose={() => setIsVendorEditorOpen(false)}
+          onSave={handleAddVendor}
         />
       </div>
     </TooltipProvider>

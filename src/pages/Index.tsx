@@ -1,8 +1,7 @@
-
 import React, { useState, useCallback } from 'react';
 import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import Dashboard from '@/components/Dashboard';
-import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard, RefreshCw, AlertTriangle, Store } from 'lucide-react';
+import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import BankConnections from '@/components/BankConnections';
@@ -10,7 +9,6 @@ import { useSettings } from '@/context/SettingsContext';
 import CurrencySelector from '@/components/CurrencySelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TransactionTable from '@/components/TransactionTable';
-import VendorTransactions from '@/components/VendorTransactions';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { Link } from 'react-router-dom';
 import { exportToCSV } from '@/utils/csvParser';
@@ -25,7 +23,6 @@ const Index = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Check if user is admin (in a real app, this would be fetched from the database)
   const isAdmin = user?.email === 'terramultaacc@gmail.com';
   
   return (
@@ -108,7 +105,6 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // This would be a real data refresh in a production app
       await new Promise(resolve => setTimeout(resolve, 1500));
       toast.success('All data refreshed successfully');
     } catch (error) {
@@ -119,7 +115,6 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
     }
   }, []);
   
-  // Count transactions needing review
   const transactionsNeedingReview = transactions.filter(t => 
     t.confidenceScore !== undefined && 
     t.confidenceScore < 0.5 && 
@@ -130,7 +125,7 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
     <>
       <Tabs defaultValue="reports" className="w-full">
         <div className="mb-6">
-          <TabsList className="w-full grid grid-cols-6">
+          <TabsList className="w-full grid grid-cols-5">
             <TabsTrigger value="reports">
               <PieChart className="h-4 w-4 mr-2" />
               Reports
@@ -138,10 +133,6 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
             <TabsTrigger value="transactions">
               <FileText className="h-4 w-4 mr-2" />
               Transactions
-            </TabsTrigger>
-            <TabsTrigger value="vendors">
-              <Store className="h-4 w-4 mr-2" />
-              Vendors
             </TabsTrigger>
             <TabsTrigger value="review">
               <AlertTriangle className="h-4 w-4 mr-2" />
@@ -186,29 +177,6 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
               filter="all" 
               transactions={transactions} 
               onRefresh={handleRefresh}
-            />
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="vendors" className="mt-0">
-          <div className="bg-[hsl(var(--card))] rounded-lg shadow-sm border border-[hsl(var(--border))] p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Vendor Management</h2>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  title="Refresh vendors"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-              </div>
-            </div>
-            <VendorTransactions 
-              transactions={transactions} 
             />
           </div>
         </TabsContent>
