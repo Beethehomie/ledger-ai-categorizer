@@ -13,6 +13,7 @@ interface TwoFactorAuthProps {
   onVerify: () => void;
   onCancel: () => void;
   onCodeChange: (code: string) => void;
+  onResend: () => void;
 }
 
 export const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
@@ -21,7 +22,8 @@ export const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
   loading,
   onVerify,
   onCancel,
-  onCodeChange
+  onCodeChange,
+  onResend
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +68,7 @@ export const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({
               </div>
               <p className="text-center text-sm text-muted-foreground">
                 Didn't receive a code?{" "}
-                <Button type="button" variant="link" className="p-0 h-auto font-medium">
+                <Button type="button" variant="link" className="p-0 h-auto font-medium" onClick={onResend} disabled={loading}>
                   Resend
                 </Button>
               </p>

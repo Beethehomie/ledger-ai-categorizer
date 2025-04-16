@@ -96,8 +96,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: data.id,
         email: data.email || user?.email || '',
         // Use type assertions for subscription_tier and is_admin with defaults
-        subscription_tier: data.subscription_tier as SubscriptionTier || 'free',
-        is_admin: data.is_admin || adminStatus
+        subscription_tier: (data as any).subscription_tier || 'free',
+        is_admin: (data as any).is_admin || adminStatus
       };
       
       setUserProfile(profile);

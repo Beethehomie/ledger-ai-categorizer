@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ const Auth = () => {
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [tempSession, setTempSession] = useState(null);
   const [supportsBiometric, setSupportsBiometric] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
   
   const navigate = useNavigate();
 
@@ -82,18 +84,17 @@ const Auth = () => {
       if (error) throw error;
       
       // Check if we need 2FA
-      // For now, we'll simulate 2FA for all users except remembered ones
+      // Skip 2FA if the user has logged in recently and selected "remember me"
       const shouldRequire2FA = !checkIfRecentLogin();
       
       if (shouldRequire2FA) {
         setTempSession(data.session);
-        // Send 2FA email code (in a real app, this would be an API call)
+        // Generate and send 2FA code
         await sendTwoFactorCode(email);
         setShowTwoFactor(true);
       } else {
         // No 2FA needed, proceed with login
-        toast.success('Signed in successfully');
-        navigate('/');
+        completeSignIn();
       }
     } catch (error: any) {
       toast.error(error.message || 'Error signing in');
@@ -141,13 +142,26 @@ const Auth = () => {
     }
   };
 
-  // Send 2FA code via email (simulated)
+  // Send 2FA code via email
   const sendTwoFactorCode = async (email: string) => {
     try {
-      // In a real app, this would be an API call to your server
-      // which would generate a code and send an email
-      // For now we'll just simulate success
-      toast.success('Verification code sent to your email');
+      // Generate a random 6-digit code
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Store the code in localStorage for verification (IN A REAL APP, USE SERVER-SIDE STORAGE)
+      localStorage.setItem(`2fa_${email}`, code);
+      localStorage.setItem(`2fa_${email}_timestamp`, new Date().toISOString());
+      
+      // Set the verification code in state so we can display it to the user
+      // In a production app, you'd send this via email using a service like SendGrid, Mailgun, etc.
+      setVerificationCode(code);
+      
+      // Display the code in a toast message for testing purposes
+      // In a real app, you would NOT do this, but would send it via email
+      toast.info(`Your verification code is: ${code}`, { 
+        duration: 15000  // Show for 15 seconds
+      });
+      
       return true;
     } catch (error) {
       console.error('Error sending 2FA code:', error);
@@ -156,20 +170,37 @@ const Auth = () => {
     }
   };
 
+  // Resend the 2FA code
+  const resendTwoFactorCode = async () => {
+    setLoading(true);
+    try {
+      await sendTwoFactorCode(email);
+      toast.success('Verification code resent');
+    } catch (error) {
+      toast.error('Failed to resend verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const verifyTwoFactorCode = async () => {
     setLoading(true);
     try {
-      // In a real app, this would verify the code with your backend
-      // For now, we'll just accept any 6-digit code
-      if (twoFactorCode.length === 6 && /^\d+$/.test(twoFactorCode)) {
-        // If code is valid
-        if (rememberMe) {
-          // Store the last login time for the "remember me" feature
-          localStorage.setItem('lastLoginTime', new Date().toISOString());
-        }
-        
-        toast.success('Signed in successfully');
-        navigate('/');
+      // Get the stored code from localStorage
+      const storedCode = localStorage.getItem(`2fa_${email}`);
+      const timestamp = localStorage.getItem(`2fa_${email}_timestamp`);
+      
+      // Check if code is expired (10 minute validity)
+      const isExpired = timestamp && (new Date().getTime() - new Date(timestamp).getTime() > 10 * 60 * 1000);
+      
+      if (isExpired) {
+        toast.error('Verification code has expired. Please request a new one.');
+        return;
+      }
+      
+      if (storedCode && twoFactorCode === storedCode) {
+        // Code is valid, complete sign in
+        completeSignIn();
       } else {
         toast.error('Invalid verification code');
       }
@@ -178,6 +209,20 @@ const Auth = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const completeSignIn = () => {
+    if (rememberMe) {
+      // Store the last login time for the "remember me" feature
+      localStorage.setItem('lastLoginTime', new Date().toISOString());
+    }
+    
+    // Clean up 2FA data
+    localStorage.removeItem(`2fa_${email}`);
+    localStorage.removeItem(`2fa_${email}_timestamp`);
+    
+    toast.success('Signed in successfully');
+    navigate('/');
   };
 
   if (showTwoFactor) {
@@ -189,6 +234,7 @@ const Auth = () => {
         onCodeChange={setTwoFactorCode}
         code={twoFactorCode}
         loading={loading}
+        onResend={resendTwoFactorCode}
       />
     );
   }
