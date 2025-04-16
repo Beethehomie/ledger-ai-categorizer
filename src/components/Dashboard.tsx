@@ -167,10 +167,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Select
-                    value={goalProgressSource}
-                    onValueChange={(val: 'income' | 'balance') => setGoalProgressSource(val)}
-                  >
+                  <Select value={goalProgressSource} onValueChange={(val: 'income' | 'balance') => setGoalProgressSource(val)}>
                     <SelectTrigger className="w-[120px] h-8">
                       <SelectValue placeholder="Source" />
                     </SelectTrigger>

@@ -1,9 +1,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { FinancialSummary, Transaction } from '@/types';
-import { initialFinancialSummary } from './types';
 
 export const useFinancialSummary = (transactions: Transaction[]) => {
+  const initialFinancialSummary: FinancialSummary = {
+    totalIncome: 0,
+    totalExpenses: 0,
+    totalAssets: 0,
+    totalLiabilities: 0,
+    totalEquity: 0,
+    netProfit: 0,
+    cashBalance: 0,
+    income: 0, // Add this line
+  };
+
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary>(initialFinancialSummary);
 
   const calculateFinancialSummary = useCallback((): FinancialSummary => {
@@ -28,6 +38,7 @@ export const useFinancialSummary = (transactions: Transaction[]) => {
       switch(transaction.type) {
         case 'income':
           summary.totalIncome += amount;
+          summary.income += amount; // Add this line
           break;
         case 'expense':
           summary.totalExpenses += amount;
