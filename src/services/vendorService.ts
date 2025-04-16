@@ -5,7 +5,7 @@ import { toast } from '@/utils/toast';
 
 export async function addVendor(newVendor: Vendor) {
   try {
-    const result = await supabase
+    const { data, error } = await supabase
       .from('vendor_categorizations')
       .insert({
         vendor_name: newVendor.name,
@@ -14,14 +14,15 @@ export async function addVendor(newVendor: Vendor) {
         statement_type: newVendor.statementType || 'profit_loss',
         occurrences: 1,
         verified: false
-      });
+      })
+      .single();
     
-    if (result.error) {
-      console.error('Supabase error:', result.error);
-      throw result.error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
     }
     
-    return { success: true };
+    return { success: true, data };
   } catch (err) {
     console.error('Error adding vendor:', err);
     return { 

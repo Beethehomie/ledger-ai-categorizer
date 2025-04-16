@@ -41,6 +41,7 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
   };
   
   const handleAddVendor = async (newVendor: Vendor) => {
+    // Check if vendor already exists
     if (vendors.some(v => v.name === newVendor.name)) {
       toast.error(`Vendor "${newVendor.name}" already exists`);
       return;
@@ -49,12 +50,15 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
     setProcessingAction(true);
     
     try {
+      console.log('Adding vendor:', newVendor);
       const result = await addVendor(newVendor);
+      console.log('Add vendor result:', result);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to add vendor');
       }
       
+      // Reload vendors list (will be triggered by context)
       toast.success(`Added new vendor: ${newVendor.name}`);
       setIsVendorEditorOpen(false);
       setSelectedVendor(newVendor.name);
