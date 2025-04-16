@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import TransactionTable from './TransactionTable';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,8 @@ import { toast } from '@/utils/toast';
 import UnknownVendorsReview from './UnknownVendorsReview';
 
 const TransactionReviewPage: React.FC = () => {
-  const { transactions } = useBookkeeping();
+  const { transactions, fetchTransactions } = useBookkeeping();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filter transactions that need review (low confidence)
   const transactionsNeedingReview = transactions.filter(t => 
@@ -17,8 +18,17 @@ const TransactionReviewPage: React.FC = () => {
     !t.isVerified
   );
 
-  const handleRefresh = () => {
-    toast.success('Refreshing transactions for review');
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchTransactions();
+      toast.success('Refreshed transactions for review');
+    } catch (error) {
+      console.error('Error refreshing transactions:', error);
+      toast.error('Failed to refresh transactions');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -36,9 +46,10 @@ const TransactionReviewPage: React.FC = () => {
             variant="outline" 
             size="sm" 
             onClick={handleRefresh}
+            disabled={isRefreshing}
             title="Refresh review list"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>

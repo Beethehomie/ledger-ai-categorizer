@@ -28,7 +28,7 @@ const WORDS_TO_REMOVE = [
  * Enhanced with better pattern recognition and more extensive filtering
  */
 export function extractVendorName(description: string): string {
-  if (!description) return "Unknown";
+  if (!description || typeof description !== 'string') return "Unknown";
   
   let vendor = description.trim().toUpperCase();
   

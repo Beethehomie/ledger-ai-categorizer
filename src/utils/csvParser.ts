@@ -1,4 +1,3 @@
-
 import { Transaction, Category } from "../types";
 import { mockCategories } from "../data/mockData";
 import { extractVendorName } from "./vendorExtractor";
