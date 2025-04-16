@@ -66,6 +66,8 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
         throw new Error(errorData.message || 'Failed to add vendor');
       }
       
+      const data = await response.json();
+      
       toast.success(`Added new vendor: ${newVendor.name}`);
       setIsVendorEditorOpen(false);
       setSelectedVendor(newVendor.name);
@@ -170,6 +172,7 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
         </div>
       )}
       
+      {/* VendorEditor Modal - will open when isVendorEditorOpen is true */}
       <VendorEditor
         categories={categories}
         onSave={handleAddVendor}

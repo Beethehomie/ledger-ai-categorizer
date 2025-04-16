@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/select';
 import { Vendor, Category, TransactionType, StatementType } from '@/types';
 import { toast } from '@/utils/toast';
-import { useBookkeeping } from '@/context/BookkeepingContext';
 
 interface VendorEditorProps {
   categories: Category[];
@@ -50,8 +49,8 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
       return;
     }
 
-    // Check if "add-new" was selected, which is not a valid vendor name
-    if (newVendor.name === 'add-new') {
+    // Check if the name is empty or a placeholder
+    if (!newVendor.name.trim() || newVendor.name === 'add-new' || newVendor.name === 'select-placeholder') {
       toast.error('Please enter a valid vendor name');
       return;
     }
@@ -78,8 +77,21 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
       verified: false
     });
   };
+  
+  // Reset form when dialog closes
+  const handleDialogClose = () => {
+    setNewVendor({
+      name: '',
+      category: '',
+      type: 'expense',
+      statementType: 'profit_loss',
+      occurrences: 1,
+      verified: false
+    });
+    onClose();
+  };
 
-  // Group categories by type
+  // Group categories by type for better organization in the dropdown
   const categoriesByType: Record<string, Category[]> = {
     income: categories.filter(c => c.type === 'income'),
     expense: categories.filter(c => c.type === 'expense'),
@@ -89,7 +101,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Vendor</DialogTitle>
@@ -108,6 +120,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
               onChange={(e) => setNewVendor({ ...newVendor, name: e.target.value })}
               className="col-span-3"
               placeholder="Enter vendor name"
+              autoFocus
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -120,7 +133,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
                 setNewVendor({ ...newVendor, type: value })
               }
             >
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3" id="vendor-type">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
@@ -142,7 +155,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
                 setNewVendor({ ...newVendor, statementType: value })
               }
             >
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3" id="vendor-statement">
                 <SelectValue placeholder="Select statement type" />
               </SelectTrigger>
               <SelectContent>
@@ -161,14 +174,11 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
                 setNewVendor({ ...newVendor, category: value })
               }
             >
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3" id="vendor-category">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="select-placeholder" disabled>
-                  Select a category
-                </SelectItem>
-                
+                {/* Income categories */}
                 <SelectItem value="header-income" disabled className="font-bold text-finance-blue">
                   Income
                 </SelectItem>
@@ -178,6 +188,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
                   </SelectItem>
                 ))}
                 
+                {/* Expense categories */}
                 <SelectItem value="header-expense" disabled className="font-bold text-finance-blue mt-2">
                   Expenses
                 </SelectItem>
@@ -187,6 +198,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
                   </SelectItem>
                 ))}
                 
+                {/* Asset categories */}
                 <SelectItem value="header-asset" disabled className="font-bold text-finance-blue mt-2">
                   Assets
                 </SelectItem>
@@ -196,6 +208,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
                   </SelectItem>
                 ))}
                 
+                {/* Liability categories */}
                 <SelectItem value="header-liability" disabled className="font-bold text-finance-blue mt-2">
                   Liabilities
                 </SelectItem>
@@ -205,6 +218,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
                   </SelectItem>
                 ))}
                 
+                {/* Equity categories */}
                 <SelectItem value="header-equity" disabled className="font-bold text-finance-blue mt-2">
                   Equity
                 </SelectItem>
@@ -218,7 +232,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleDialogClose}>
             Cancel
           </Button>
           <Button onClick={handleSave}>Add Vendor</Button>
