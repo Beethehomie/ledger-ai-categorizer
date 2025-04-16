@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { BookkeepingProvider, useBookkeeping } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';
-import { Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home, Upload, Download, Trash, Code, Terminal } from "lucide-react";
+import { Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home, Upload, Download, Trash, Code, Terminal, AlertCircle } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { useAuth } from '@/context/AuthContext';
@@ -17,6 +17,7 @@ import { Pagination } from '@/components/ui/pagination';
 import UploadDialog from '@/components/UploadDialog';
 import CodeEditor from '@/components/admin/CodeEditor';
 import OpenAILogs from '@/components/admin/OpenAILogs';
+import ProductionTodoList from '@/components/admin/ProductionTodoList';
 
 interface UsageData {
   openai: {
@@ -290,6 +291,10 @@ const AdminContent: React.FC = () => {
             <Terminal className="h-4 w-4 mr-2" />
             OpenAI Logs
           </TabsTrigger>
+          <TabsTrigger value="todo">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Production Todo
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="keywords" className="border rounded-lg p-4">
@@ -463,6 +468,10 @@ const AdminContent: React.FC = () => {
         
         <TabsContent value="openaiLogs" className="border rounded-lg p-4">
           <OpenAILogs />
+        </TabsContent>
+        
+        <TabsContent value="todo" className="mt-0">
+          <ProductionTodoList />
         </TabsContent>
       </Tabs>
       

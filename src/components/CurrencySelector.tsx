@@ -21,7 +21,7 @@ const CurrencySelector: React.FC<CurrencySelectorProps> = ({ value, onChange }) 
       value={value} 
       onValueChange={(val: Currency) => onChange(val)}
     >
-      <SelectTrigger className="w-[120px]">
+      <SelectTrigger className="w-[120px] text-purple-600 hover:text-purple-700 font-medium">
         <SelectValue placeholder="Currency" />
       </SelectTrigger>
       <SelectContent>
