@@ -91,12 +91,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const adminStatus = user?.email === 'terramultaacc@gmail.com';
       setIsAdmin(adminStatus);
       
-      // Set default subscription tier if not set
+      // Create the UserProfile object with proper type handling
       const profile: UserProfile = {
         id: data.id,
         email: data.email || user?.email || '',
-        // Handle the profile data from supabase and ensure subscription_tier exists
-        subscription_tier: (data.subscription_tier as SubscriptionTier) || 'free',
+        // Use type assertions for subscription_tier and is_admin with defaults
+        subscription_tier: data.subscription_tier as SubscriptionTier || 'free',
         is_admin: data.is_admin || adminStatus
       };
       
