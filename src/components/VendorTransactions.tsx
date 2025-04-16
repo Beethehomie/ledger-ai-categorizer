@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import TransactionTable from './TransactionTable';
@@ -207,9 +206,7 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
         </div>
       )}
       
-      {/* VendorEditor Modal - will open when isVendorEditorOpen is true */}
       <VendorEditor
-        categories={categories}
         onSave={handleAddVendor}
         isOpen={isVendorEditorOpen}
         onClose={() => setIsVendorEditorOpen(false)}
