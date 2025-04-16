@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { VendorCategorizationRow, BankConnectionRow, BankTransactionRow } from '@/types/supabase';
 import { useSettings } from './SettingsContext';
-import { useQueryClient } from 'react-query';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface BookkeepingContextType {
   transactions: Transaction[];
