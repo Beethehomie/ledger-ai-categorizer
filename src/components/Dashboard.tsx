@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TransactionTable from "./TransactionTable";
@@ -17,6 +16,18 @@ import ReportExporter from './ReportExporter';
 import { toast } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from '@/integrations/supabase/client';
+
+interface RefreshableComponentProps {
+  refreshing?: boolean;
+}
+
+declare module "@/components/FinancialSummary" {
+  interface FinancialSummaryProps extends RefreshableComponentProps {}
+}
+
+declare module "@/components/ChartSection" {
+  interface ChartSectionProps extends RefreshableComponentProps {}
+}
 
 const Dashboard: React.FC = () => {
   const { 
@@ -40,7 +51,6 @@ const Dashboard: React.FC = () => {
   const [filteredTransactions, setFilteredTransactions] = useState(transactions);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Update filtered transactions when date range or transactions change
   useEffect(() => {
     setFilteredTransactions(
       filterTransactionsByDate(dateRange.startDate, dateRange.endDate)
@@ -52,24 +62,7 @@ const Dashboard: React.FC = () => {
     toast.success('Refreshing data...');
     
     try {
-      // Trigger any needed refreshes from the database or external sources
-      // For real bank API integrations, you would trigger a sync here
-      // For now just simulate a refresh with a timeout
-      
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // In a real implementation, you would fetch updated data here
-      // For example:
-      /*
-      const { data: freshTransactions } = await supabase
-        .from('bank_transactions')
-        .select('*')
-        .order('date', { ascending: false });
-      
-      if (freshTransactions) {
-        // Update state with fresh data
-      }
-      */
       
       toast.success('Data successfully refreshed');
     } catch (error) {
@@ -133,7 +126,6 @@ const Dashboard: React.FC = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            {/* Goal Progress Visualization with updated nude colors */}
             <div className="mt-0 bg-[hsl(var(--finance-nude-gray))] rounded-lg p-6 border border-[hsl(var(--border))] shadow-sm animate-fade-in hover:shadow-md transition-all">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center">
@@ -178,7 +170,6 @@ const Dashboard: React.FC = () => {
               </div>
               
               <div className="relative h-64 progress-container">
-                {/* Goal marker at 80% */}
                 <div className="goal-marker" style={{ bottom: '80%' }}>
                   <div className="absolute -right-16 -top-4 flex items-center animate-pulse">
                     <Target className="h-4 w-4 text-[hsl(var(--finance-soft-red))]" />
@@ -186,7 +177,6 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Progress fill with nude gradient */}
                 <div 
                   className="progress-fill animate-fill-up" 
                   style={{ 
@@ -195,7 +185,6 @@ const Dashboard: React.FC = () => {
                   } as React.CSSProperties}
                 ></div>
                 
-                {/* Avatar */}
                 <div 
                   className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 animate-bounce-subtle"
                   style={{ bottom: `${Math.min(financialGoal.currentAmount / financialGoal.targetAmount * 100, 100)}%` }}
@@ -218,12 +207,10 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
         
-        {/* Export Reports Button */}
         <div className="flex justify-end mt-6">
           <ReportExporter transactions={filteredTransactions} currency={currency} />
         </div>
         
-        {/* Upload Dialog */}
         <UploadDialog 
           isOpen={isUploadDialogOpen}
           onClose={() => setIsUploadDialogOpen(false)}

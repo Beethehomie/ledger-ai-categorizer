@@ -1,6 +1,6 @@
 
 export type TransactionType = "income" | "expense" | "asset" | "liability" | "equity";
-export type StatementType = "profit_loss" | "balance_sheet" | "operating";
+export type StatementType = "profit_loss" | "balance_sheet"; // Removed "operating" as it's not used
 export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR";
 
 export interface Transaction {
@@ -27,6 +27,7 @@ export interface Category {
   type: TransactionType;
   statementType: StatementType;
   keywords: string[];
+  // Removed icon property as it was causing TypeScript errors
 }
 
 export interface Vendor {
@@ -84,4 +85,9 @@ export interface TableColumn {
 export interface InitialBalanceInput {
   amount: number;
   date: string;
+}
+
+// Define component props that need refreshing status
+export interface RefreshableComponentProps {
+  refreshing?: boolean;
 }

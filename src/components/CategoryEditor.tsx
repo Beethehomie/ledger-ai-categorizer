@@ -33,8 +33,11 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
   const [type, setType] = useState<'income' | 'expense' | 'asset' | 'liability' | 'equity'>(
     editCategory?.type || 'expense'
   );
+  // Ensure statementType only accepts 'profit_loss' or 'balance_sheet'
   const [statementType, setStatementType] = useState<'profit_loss' | 'balance_sheet'>(
-    editCategory?.statementType || 'profit_loss'
+    (editCategory?.statementType === 'profit_loss' || editCategory?.statementType === 'balance_sheet') 
+      ? editCategory.statementType 
+      : 'profit_loss'
   );
   const [keywords, setKeywords] = useState<string>(editCategory?.keywords?.join(', ') || '');
 
@@ -60,8 +63,7 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
       name,
       type,
       statementType,
-      keywords: keywordsList,
-      icon: editCategory?.icon || 'category'
+      keywords: keywordsList
     };
 
     onSave(newCategory);
