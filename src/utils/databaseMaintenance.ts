@@ -2,7 +2,12 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 
-export const cleanupOldTransactions = async (olderThan: Date) => {
+/**
+ * Removes transactions older than the specified date
+ * @param olderThan Date threshold for removal
+ * @returns Promise<boolean> indicating success
+ */
+export const cleanupOldTransactions = async (olderThan: Date): Promise<boolean> => {
   try {
     const { error } = await supabase
       .from('bank_transactions')
@@ -12,13 +17,19 @@ export const cleanupOldTransactions = async (olderThan: Date) => {
     if (error) throw error;
     
     toast.success('Successfully cleaned up old transactions');
+    return true;
   } catch (err) {
     console.error('Error cleaning up old transactions:', err);
     toast.error('Failed to clean up old transactions');
+    return false;
   }
 };
 
-export const optimizeVendorCategories = async () => {
+/**
+ * Optimizes vendor categories by removing unused ones
+ * @returns Promise<boolean> indicating success
+ */
+export const optimizeVendorCategories = async (): Promise<boolean> => {
   try {
     // Delete vendor categories that haven't been used in 6 months
     const sixMonthsAgo = new Date();
@@ -33,13 +44,31 @@ export const optimizeVendorCategories = async () => {
     if (error) throw error;
     
     toast.success('Successfully optimized vendor categories');
+    return true;
   } catch (err) {
     console.error('Error optimizing vendor categories:', err);
     toast.error('Failed to optimize vendor categories');
+    return false;
   }
 };
 
-export const verifyBankReconciliation = async (bankConnectionId: string, expectedBalance: number, asOfDate: Date) => {
+/**
+ * Verifies bank reconciliation by comparing expected and actual balances
+ * @param bankConnectionId The bank connection ID
+ * @param expectedBalance The expected balance
+ * @param asOfDate The date to check the balance as of
+ * @returns Reconciliation result object
+ */
+export const verifyBankReconciliation = async (
+  bankConnectionId: string, 
+  expectedBalance: number, 
+  asOfDate: Date
+): Promise<{
+  reconciled: boolean;
+  difference?: number;
+  actualBalance?: number;
+  error?: any;
+}> => {
   try {
     const { data, error } = await supabase
       .from('bank_transactions')

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { mockCategories } from '@/data/mockData';
 import { Category, Transaction } from '@/types';
