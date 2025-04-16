@@ -25,7 +25,7 @@ import {
   Plus
 } from "lucide-react";
 import { toast } from '@/utils/toast';
-import { Transaction, VendorItem } from '@/types';
+import { Transaction, VendorItem, Vendor } from '@/types';
 import VendorEditor from './VendorEditor';
 import VendorImporter from './VendorImporter';
 
@@ -34,7 +34,7 @@ interface VendorTransactionsProps {
 }
 
 const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions }) => {
-  const { getVendorsList, verifyVendor, categories } = useBookkeeping();
+  const { getVendorsList, verifyVendor, categories, vendors } = useBookkeeping();
   const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
   const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
   
@@ -43,6 +43,41 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
   const handleVendorApproval = (vendorName: string, approved: boolean) => {
     verifyVendor(vendorName, approved);
     toast.success(`Vendor ${approved ? 'approved' : 'rejected'}`);
+  };
+  
+  const handleAddVendor = (newVendor: Vendor) => {
+    if (vendors.some(v => v.name === newVendor.name)) {
+      toast.error(`Vendor "${newVendor.name}" already exists`);
+      return;
+    }
+    
+    // Add the vendor to the database
+    const supabase = async () => {
+      try {
+        const { data, error } = await fetch('/api/vendors', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newVendor),
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        toast.success(`Added new vendor: ${newVendor.name}`);
+        setIsVendorEditorOpen(false);
+        setSelectedVendor(newVendor.name);
+        
+      } catch (err) {
+        console.error('Error adding vendor:', err);
+        toast.error('Failed to add vendor. Please try again.');
+      }
+    };
+    
+    toast.success(`Added new vendor: ${newVendor.name}`);
+    setIsVendorEditorOpen(false);
   };
   
   return (
@@ -141,10 +176,7 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
       
       <VendorEditor
         categories={categories}
-        onSave={(vendor) => {
-          toast.success(`Added new vendor: ${vendor.name}`);
-          setIsVendorEditorOpen(false);
-        }}
+        onSave={handleAddVendor}
         isOpen={isVendorEditorOpen}
         onClose={() => setIsVendorEditorOpen(false)}
       />

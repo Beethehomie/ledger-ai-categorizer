@@ -166,6 +166,11 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   };
 
   const handleVendorChange = (transaction: Transaction, vendorName: string) => {
+    if (vendorName === 'add-new') {
+      toast.info("Use the 'Add New Vendor' button in the Vendors tab to add a new vendor");
+      return;
+    }
+    
     const updatedTransaction = { ...transaction, vendor: vendorName };
     updateTransaction(updatedTransaction);
     

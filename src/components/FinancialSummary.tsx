@@ -8,13 +8,13 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { FinancialSummaryProps } from '@/types';
 
 const FinancialSummary: React.FC<FinancialSummaryProps> = ({ refreshing }) => {
-  const { financialSummary, calculateFinancialSummary } = useBookkeeping();
+  const { financialSummary, calculateFinancialSummary, transactions } = useBookkeeping();
   const { currency } = useSettings();
   
-  // Ensure financial summary is calculated when component mounts
+  // Ensure financial summary is calculated when component mounts or transactions change
   useEffect(() => {
     calculateFinancialSummary();
-  }, [calculateFinancialSummary]);
+  }, [calculateFinancialSummary, transactions]);
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-fade-in">

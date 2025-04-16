@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Vendor, Category, TransactionType, StatementType } from '@/types';
 import { toast } from '@/utils/toast';
+import { useBookkeeping } from '@/context/BookkeepingContext';
 
 interface VendorEditorProps {
   categories: Category[];
@@ -49,6 +50,12 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
       return;
     }
 
+    // Check if "add-new" was selected, which is not a valid vendor name
+    if (newVendor.name === 'add-new') {
+      toast.error('Please enter a valid vendor name');
+      return;
+    }
+
     // Convert to full vendor
     const vendor: Vendor = {
       name: newVendor.name!,
@@ -60,7 +67,6 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
     };
 
     onSave(vendor);
-    onClose();
 
     // Reset form
     setNewVendor({
@@ -101,6 +107,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
               value={newVendor.name}
               onChange={(e) => setNewVendor({ ...newVendor, name: e.target.value })}
               className="col-span-3"
+              placeholder="Enter vendor name"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
