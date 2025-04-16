@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
-import { Lock, User, Mail, Eye, EyeOff, Fingerprint } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import { Checkbox } from "@/components/ui/checkbox";
-import { TwoFactorAuth } from '@/components/TwoFactorAuth';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -18,32 +17,8 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showTwoFactor, setShowTwoFactor] = useState(false);
-  const [twoFactorCode, setTwoFactorCode] = useState('');
-  const [tempSession, setTempSession] = useState(null);
-  const [supportsBiometric, setSupportsBiometric] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
   
   const navigate = useNavigate();
-
-  // Check if the browser supports biometric authentication
-  useEffect(() => {
-    const checkBiometricSupport = async () => {
-      try {
-        // Check if the PublicKeyCredential API is available (WebAuthn)
-        if (window.PublicKeyCredential && 
-            PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
-          const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-          setSupportsBiometric(available);
-        }
-      } catch (error) {
-        console.error('Error checking biometric support:', error);
-        setSupportsBiometric(false);
-      }
-    };
-    
-    checkBiometricSupport();
-  }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +36,6 @@ const Auth = () => {
       if (error) throw error;
       
       toast.success('Account created! Please check your email for verification.');
-      // Navigate to the main page, the app will handle redirecting based on auth state
       navigate('/');
     } catch (error: any) {
       toast.error(error.message || 'Error creating account');
@@ -75,26 +49,24 @@ const Auth = () => {
     setLoading(true);
     
     try {
-      // First, try to sign in normally
       const { data, error } = await supabase.auth.signInWithPassword({ 
         email, 
         password
       });
       
-      if (error) throw error;
-      
-      // Check if we need 2FA
-      // Skip 2FA if the user has logged in recently and selected "remember me"
-      const shouldRequire2FA = !checkIfRecentLogin();
-      
-      if (shouldRequire2FA) {
-        setTempSession(data.session);
-        // Generate and send 2FA code
-        await sendTwoFactorCode(email);
-        setShowTwoFactor(true);
+      if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          toast.error('Please verify your email before logging in');
+        } else {
+          throw error;
+        }
       } else {
-        // No 2FA needed, proceed with login
-        completeSignIn();
+        if (rememberMe) {
+          localStorage.setItem('lastLoginTime', new Date().toISOString());
+        }
+        
+        toast.success('Signed in successfully');
+        navigate('/');
       }
     } catch (error: any) {
       toast.error(error.message || 'Error signing in');
@@ -103,148 +75,12 @@ const Auth = () => {
     }
   };
 
-  const handleBiometricLogin = async () => {
-    try {
-      setLoading(true);
-      
-      // This is a simplified example - in a real app you would:
-      // 1. Call your backend to get a challenge
-      // 2. Use WebAuthn API to get credentials
-      // 3. Verify the credentials on the server
-      
-      toast.info('Biometric authentication would happen here');
-      // Simulate successful authentication after delay
-      setTimeout(() => {
-        toast.success('Biometric authentication successful');
-        navigate('/');
-      }, 1500);
-    } catch (error: any) {
-      console.error('Biometric authentication error:', error);
-      toast.error('Biometric authentication failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Check if the user has logged in recently (within 30 days)
-  const checkIfRecentLogin = () => {
-    try {
-      const lastLogin = localStorage.getItem('lastLoginTime');
-      if (!lastLogin) return false;
-      
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      return new Date(lastLogin) > thirtyDaysAgo && rememberMe;
-    } catch (error) {
-      console.error('Error checking last login:', error);
-      return false;
-    }
-  };
-
-  // Send 2FA code via email
-  const sendTwoFactorCode = async (email: string) => {
-    try {
-      // Generate a random 6-digit code
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      
-      // Store the code in localStorage for verification (IN A REAL APP, USE SERVER-SIDE STORAGE)
-      localStorage.setItem(`2fa_${email}`, code);
-      localStorage.setItem(`2fa_${email}_timestamp`, new Date().toISOString());
-      
-      // Set the verification code in state so we can display it to the user
-      // In a production app, you'd send this via email using a service like SendGrid, Mailgun, etc.
-      setVerificationCode(code);
-      
-      // Display the code in a toast message for testing purposes
-      // In a real app, you would NOT do this, but would send it via email
-      toast.info(`Your verification code is: ${code}`, { 
-        duration: 15000  // Show for 15 seconds
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Error sending 2FA code:', error);
-      toast.error('Failed to send verification code');
-      return false;
-    }
-  };
-
-  // Resend the 2FA code
-  const resendTwoFactorCode = async () => {
-    setLoading(true);
-    try {
-      await sendTwoFactorCode(email);
-      toast.success('Verification code resent');
-    } catch (error) {
-      toast.error('Failed to resend verification code');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const verifyTwoFactorCode = async () => {
-    setLoading(true);
-    try {
-      // Get the stored code from localStorage
-      const storedCode = localStorage.getItem(`2fa_${email}`);
-      const timestamp = localStorage.getItem(`2fa_${email}_timestamp`);
-      
-      // Check if code is expired (10 minute validity)
-      const isExpired = timestamp && (new Date().getTime() - new Date(timestamp).getTime() > 10 * 60 * 1000);
-      
-      if (isExpired) {
-        toast.error('Verification code has expired. Please request a new one.');
-        return;
-      }
-      
-      if (storedCode && twoFactorCode === storedCode) {
-        // Code is valid, complete sign in
-        completeSignIn();
-      } else {
-        toast.error('Invalid verification code');
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Error verifying code');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const completeSignIn = () => {
-    if (rememberMe) {
-      // Store the last login time for the "remember me" feature
-      localStorage.setItem('lastLoginTime', new Date().toISOString());
-    }
-    
-    // Clean up 2FA data
-    localStorage.removeItem(`2fa_${email}`);
-    localStorage.removeItem(`2fa_${email}_timestamp`);
-    
-    toast.success('Signed in successfully');
-    navigate('/');
-  };
-
-  if (showTwoFactor) {
-    return (
-      <TwoFactorAuth
-        email={email}
-        onVerify={verifyTwoFactorCode}
-        onCancel={() => setShowTwoFactor(false)}
-        onCodeChange={setTwoFactorCode}
-        code={twoFactorCode}
-        loading={loading}
-        onResend={resendTwoFactorCode}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="w-full max-w-md animate-fade-in">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-3xl font-bold text-primary">Ledger AI</CardTitle>
-          <CardDescription>Enter your email to sign in to your account</CardDescription>
+          <CardDescription>Enter your email to sign in or create an account</CardDescription>
         </CardHeader>
         <Tabs defaultValue="signin" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
@@ -302,11 +138,11 @@ const Auth = () => {
                     onCheckedChange={(checked) => setRememberMe(checked === true)}
                   />
                   <Label htmlFor="remember-me" className="text-sm cursor-pointer">
-                    Remember me for 30 days
+                    Remember me
                   </Label>
                 </div>
               </CardContent>
-              <CardFooter className="flex flex-col space-y-3">
+              <CardFooter>
                 <Button 
                   type="submit" 
                   className="w-full" 
@@ -314,19 +150,6 @@ const Auth = () => {
                 >
                   {loading ? 'Signing in...' : 'Sign In'}
                 </Button>
-                
-                {supportsBiometric && (
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="w-full flex items-center justify-center gap-2" 
-                    onClick={handleBiometricLogin}
-                    disabled={loading}
-                  >
-                    <Fingerprint className="h-5 w-5" />
-                    Sign in with Biometrics
-                  </Button>
-                )}
               </CardFooter>
             </form>
           </TabsContent>
@@ -382,11 +205,11 @@ const Auth = () => {
                     onCheckedChange={(checked) => setRememberMe(checked === true)}
                   />
                   <Label htmlFor="signup-remember-me" className="text-sm cursor-pointer">
-                    Remember me for 30 days
+                    Remember me
                   </Label>
                 </div>
               </CardContent>
-              <CardFooter className="flex flex-col">
+              <CardFooter>
                 <Button 
                   type="submit" 
                   className="w-full" 
