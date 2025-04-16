@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import { Transaction } from '@/types';
@@ -384,6 +383,66 @@ export const useTransactions = (
     return bankConnections.find(conn => conn.id === id);
   };
 
+  const fetchTransactions = async (): Promise<void> => {
+    if (!session) {
+      toast.error('You must be logged in to fetch transactions');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('bank_transactions')
+        .select('*')
+        .order('date', { ascending: false });
+        
+      if (error) {
+        console.error('Error fetching transactions:', error);
+        toast.error('Failed to fetch transactions');
+        return;
+      }
+      
+      if (data) {
+        const fetchedTransactions: Transaction[] = data.map((t) => ({
+          id: t.id,
+          date: t.date,
+          description: t.description,
+          amount: Number(t.amount),
+          category: t.category || undefined,
+          type: t.type as Transaction['type'] || undefined,
+          statementType: t.statement_type as Transaction['statementType'] || undefined,
+          isVerified: t.is_verified || false,
+          aiSuggestion: undefined,
+          vendor: t.vendor || undefined,
+          vendorVerified: t.vendor_verified || false,
+          confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
+          bankAccountId: t.bank_connection_id || undefined,
+          bankAccountName: undefined,
+          balance: t.balance || undefined,
+        }));
+        
+        if (fetchedTransactions.length > 0) {
+          for (const transaction of fetchedTransactions) {
+            if (transaction.bankAccountId) {
+              const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
+              if (bankConnection) {
+                transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
+              }
+            }
+          }
+        }
+        
+        setTransactions(fetchedTransactions);
+        toast.success('Transactions refreshed successfully');
+      }
+    } catch (err) {
+      console.error('Error in fetchTransactions:', err);
+      toast.error('Failed to refresh transactions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     transactions,
     loading,
@@ -396,6 +455,7 @@ export const useTransactions = (
     filterTransactionsByDate,
     fetchTransactionsForBankAccount,
     getBankConnectionById,
-    setTransactions
+    setTransactions,
+    fetchTransactions
   };
 };

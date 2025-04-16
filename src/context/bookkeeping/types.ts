@@ -1,5 +1,5 @@
 
-import { Transaction, Category, FinancialSummary } from '@/types';
+import { Transaction, Category, FinancialSummary, Vendor } from '@/types';
 import { BankConnectionRow } from '@/types/supabase';
 
 export const initialFinancialSummary: FinancialSummary = {

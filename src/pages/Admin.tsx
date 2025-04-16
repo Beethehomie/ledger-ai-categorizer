@@ -192,10 +192,14 @@ const AdminContent: React.FC = () => {
 
   const handleRemoveDuplicates = async () => {
     setIsLoading(true);
-    const success = await removeDuplicateVendors();
-    setIsLoading(false);
-    if (success) {
+    try {
+      await removeDuplicateVendors();
       fetchSystemStats();
+    } catch (error) {
+      console.error('Error removing duplicates:', error);
+      toast.error('Failed to remove duplicate vendors');
+    } finally {
+      setIsLoading(false);
     }
   };
   
