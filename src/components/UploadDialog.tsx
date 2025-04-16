@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UploadCloud, FileSpreadsheet, AlertCircle, ArrowRight, Info } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, AlertCircle, ArrowRight, Info, Calendar } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
 import { BankConnectionRow } from '@/types/supabase';
-import { Transaction } from '@/types'; // Changed from @/types/supabase to @/types
+import { Transaction } from '@/types';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { parseCSV } from '@/utils/csvParser';
 import TransactionReviewDialog from './TransactionReviewDialog';
+import { format } from 'date-fns';
 
 interface UploadDialogProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedBankId, setSelectedBankId] = useState<string>('');
   const [initialBalance, setInitialBalance] = useState<string>('0');
+  const [endBalance, setEndBalance] = useState<string>('');
+  const [balanceDate, setBalanceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [duplicateTransactions, setDuplicateTransactions] = useState<string[]>([]);
   const [hasUploaded, setHasUploaded] = useState(false);
   const [parsedTransactions, setParsedTransactions] = useState<Transaction[]>([]);
@@ -140,9 +143,16 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
         
         // Parse CSV content into transactions
         const transactions = parseCSV(csvContent);
-        setParsedTransactions(transactions);
         
-        // Show review dialog instead of directly uploading
+        // Add bankAccountId to transactions
+        const transactionsWithBankId = transactions.map(t => ({
+          ...t,
+          bankAccountId: selectedBankId
+        }));
+        
+        setParsedTransactions(transactionsWithBankId);
+        
+        // Show review dialog with parsed transactions
         setIsReviewDialogOpen(true);
       }
     };
@@ -161,7 +171,9 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     const csvContent = headers + rows;
     
     const initialBalanceValue = parseFloat(initialBalance) || 0;
-    uploadCSV(csvContent, selectedBankId, initialBalanceValue);
+    const endBalanceValue = endBalance ? parseFloat(endBalance) : undefined;
+    
+    uploadCSV(csvContent, selectedBankId, initialBalanceValue, new Date(balanceDate), endBalanceValue);
     setHasUploaded(true);
     setIsReviewDialogOpen(false);
     resetDialog();
@@ -178,6 +190,8 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     setSelectedBankId('');
     setDragActive(false);
     setInitialBalance('0');
+    setEndBalance('');
+    setBalanceDate(format(new Date(), 'yyyy-MM-dd'));
     setDuplicateTransactions([]);
     setHasUploaded(false);
     setParsedTransactions([]);
@@ -295,32 +309,13 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
             <>
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
-                  <Label htmlFor="initial-balance">Initial Balance</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      id="initial-balance"
-                      type="number"
-                      step="0.01"
-                      value={initialBalance}
-                      onChange={(e) => setInitialBalance(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    <Info className="inline h-3 w-3 mr-1" />
-                    This will be used as the starting balance for calculating running balances
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Select Bank Account</Label>
+                  <Label htmlFor="bank-account">Select Bank Account</Label>
                   {csvBankConnections.length > 0 ? (
                     <Select
                       value={selectedBankId}
                       onValueChange={setSelectedBankId}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" id="bank-account">
                         <SelectValue placeholder="Select a bank account" />
                       </SelectTrigger>
                       <SelectContent>
@@ -337,6 +332,62 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
                       <p className="text-sm mt-2">Add a CSV bank connection in the Banking tab first.</p>
                     </div>
                   )}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="balance-date">Balance Date</Label>
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="balance-date"
+                      type="date"
+                      value={balanceDate}
+                      onChange={(e) => setBalanceDate(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    <Info className="inline h-3 w-3 mr-1" />
+                    Date associated with the initial balance
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="initial-balance">Initial Balance</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="initial-balance"
+                      type="number"
+                      step="0.01"
+                      value={initialBalance}
+                      onChange={(e) => setInitialBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    <Info className="inline h-3 w-3 mr-1" />
+                    Starting balance for calculating running balances
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="end-balance">Ending Balance (Optional)</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="end-balance"
+                      type="number"
+                      step="0.01"
+                      value={endBalance}
+                      onChange={(e) => setEndBalance(e.target.value)}
+                      placeholder="Leave empty if unknown"
+                      className="w-full"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    <Info className="inline h-3 w-3 mr-1" />
+                    Used to verify transactions reconcile with your bank statement
+                  </p>
                 </div>
               </div>
 

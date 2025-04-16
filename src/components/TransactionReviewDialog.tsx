@@ -8,6 +8,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Transaction } from "@/types";
 import { formatCurrency } from "@/utils/currencyUtils";
 import { useSettings } from "@/context/SettingsContext";
+import { CheckCircle2 } from "lucide-react";
 
 interface TransactionReviewDialogProps {
   isOpen: boolean;
@@ -55,6 +56,12 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
     onConfirm(selectedItems);
   };
 
+  const isBalanceReconciled = (balance?: number, expectedBalance?: number): boolean => {
+    if (balance === undefined || expectedBalance === undefined) return false;
+    // Allow a small tolerance for floating point differences (e.g., $0.01)
+    return Math.abs(balance - expectedBalance) < 0.02;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -87,6 +94,12 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
                   <TableHead>Amount</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>
+                    Balance
+                    {editedTransactions.some(t => isBalanceReconciled(t.balance, t.balance)) && (
+                      <CheckCircle2 className="inline ml-1 h-4 w-4 text-green-500" />
+                    )}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -137,6 +150,16 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
                         className="h-8 w-full"
                         placeholder="Type"
                       />
+                    </TableCell>
+                    <TableCell className="relative">
+                      {transaction.balance !== undefined && (
+                        <>
+                          {formatCurrency(transaction.balance, currency)}
+                          {isBalanceReconciled(transaction.balance, transaction.balance) && (
+                            <CheckCircle2 className="absolute top-1/2 right-2 transform -translate-y-1/2 h-5 w-5 text-green-500" />
+                          )}
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

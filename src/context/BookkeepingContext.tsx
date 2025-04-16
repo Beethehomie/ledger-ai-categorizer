@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { VendorCategorizationRow, BankConnectionRow, BankTransactionRow } from '@/types/supabase';
 import { useSettings } from './SettingsContext';
+import { useQueryClient } from 'react-query';
 
 interface BookkeepingContextType {
   transactions: Transaction[];
@@ -21,7 +22,7 @@ interface BookkeepingContextType {
   updateTransaction: (updatedTransaction: Transaction) => void;
   verifyTransaction: (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => void;
   verifyVendor: (vendorName: string, approved: boolean) => void;
-  uploadCSV: (csvString: string, bankConnectionId?: string, initialBalance?: number) => void;
+  uploadCSV: (csvString: string, bankConnectionId?: string, initialBalance?: number, balanceDate?: Date, endBalance?: number) => void;
   getFilteredTransactions: (
     statementType?: Transaction['statementType'], 
     verified?: boolean,
@@ -556,7 +557,8 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   const calculateRunningBalance = (
     parsedTransactions: Transaction[], 
-    initialBalance: number
+    initialBalance: number,
+    balanceDate: Date
   ): Transaction[] => {
     const sortedTransactions = [...parsedTransactions].sort((a, b) => {
       const dateA = new Date(a.date).getTime();
@@ -688,7 +690,13 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   };
 
-  const uploadCSV = async (csvString: string, bankConnectionId?: string, initialBalance: number = 0) => {
+  const uploadCSV = async (
+    csvString: string, 
+    bankConnectionId?: string, 
+    initialBalance: number = 0,
+    balanceDate: Date = new Date(),
+    endBalance?: number
+  ) => {
     if (!session) {
       toast.error('You must be logged in to upload transactions');
       return;
@@ -759,7 +767,24 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
           }
         }
         
-        const transactionsWithBalance = calculateRunningBalance(processedTransactions, initialBalance);
+        const transactionsWithBalance = calculateRunningBalance(processedTransactions, initialBalance, balanceDate);
+        
+        if (endBalance !== undefined && transactionsWithBalance.length > 0) {
+          const lastTransaction = transactionsWithBalance[transactionsWithBalance.length - 1];
+          const lastBalance = lastTransaction.balance || 0;
+          const difference = Math.abs(lastBalance - endBalance);
+          
+          if (difference < 0.02) {
+            toast.success('Bank statement successfully reconciled!');
+          } else {
+            toast.warning(
+              `Ending balance (${endBalance.toFixed(2)}) doesn't match calculated balance (${lastBalance.toFixed(2)}). Difference: ${difference.toFixed(2)}`,
+              {
+                duration: 6000,
+              }
+            );
+          }
+        }
         
         try {
           const supabaseTransactions = transactionsWithBalance.map(t => ({
@@ -794,13 +819,18 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
               }
             }
           }
+          
+          setTransactions(prevTransactions => [...prevTransactions, ...transactionsWithBalance]);
+          
+          toast.success(`Successfully processed ${transactionsWithBalance.length} transactions`);
+          
+          const queryClient = useQueryClient();
+          queryClient.invalidateQueries({ queryKey: ['transactions'] });
+          
         } catch (err: any) {
           console.error('Error saving transactions to Supabase:', err);
           toast.error('Failed to save transactions to database');
         }
-        
-        addTransactions(transactionsWithBalance);
-        toast.success(`Successfully processed ${transactionsWithBalance.length} transactions`);
       };
       
       await processTransactions();

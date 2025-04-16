@@ -38,3 +38,33 @@ export const optimizeVendorCategories = async () => {
     toast.error('Failed to optimize vendor categories');
   }
 };
+
+export const verifyBankReconciliation = async (bankConnectionId: string, expectedBalance: number, asOfDate: Date) => {
+  try {
+    const { data, error } = await supabase
+      .from('bank_transactions')
+      .select('balance')
+      .eq('bank_connection_id', bankConnectionId)
+      .lte('date', asOfDate.toISOString())
+      .order('date', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    
+    if (data && data.length > 0) {
+      const latestBalance = Number(data[0].balance);
+      const difference = Math.abs(latestBalance - expectedBalance);
+      
+      if (difference < 0.02) { // Allow small rounding differences (e.g. $0.01)
+        return { reconciled: true, difference: 0 };
+      }
+      
+      return { reconciled: false, difference, actualBalance: latestBalance };
+    }
+    
+    return { reconciled: false, difference: expectedBalance, actualBalance: 0 };
+  } catch (err) {
+    console.error('Error verifying bank reconciliation:', err);
+    return { reconciled: false, error: err };
+  }
+};
