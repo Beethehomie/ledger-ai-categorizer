@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import Dashboard from '@/components/Dashboard';
-import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react';
+import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard, RefreshCw, AlertTriangle, Store } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import BankConnections from '@/components/BankConnections';
@@ -10,6 +10,7 @@ import { useSettings } from '@/context/SettingsContext';
 import CurrencySelector from '@/components/CurrencySelector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TransactionTable from '@/components/TransactionTable';
+import VendorTransactions from '@/components/VendorTransactions';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { Link } from 'react-router-dom';
 import { exportToCSV } from '@/utils/csvParser';

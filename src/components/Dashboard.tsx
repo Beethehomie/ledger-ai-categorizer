@@ -15,8 +15,13 @@ import UploadDialog from './UploadDialog';
 import ReportExporter from './ReportExporter';
 import { toast } from '@/utils/toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { supabase } from '@/integrations/supabase/client';
-import Select from 'react-select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface RefreshableComponentProps {
   refreshing?: boolean;
@@ -167,7 +172,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Select value={goalProgressSource} onValueChange={(val: 'income' | 'balance') => setGoalProgressSource(val)}>
+                  <Select value={goalProgressSource} onValueChange={setGoalProgressSource}>
                     <SelectTrigger className="w-[120px] h-8">
                       <SelectValue placeholder="Source" />
                     </SelectTrigger>

@@ -1,33 +1,38 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import TransactionTable from './TransactionTable';
+import { AlertTriangle, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, AlertTriangle } from 'lucide-react';
-import { toast } from '@/utils/toast';
 import UnknownVendorsReview from './UnknownVendorsReview';
 
-const TransactionReviewPage: React.FC = () => {
-  const { transactions, fetchTransactions } = useBookkeeping();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Filter transactions that need review (low confidence)
-  const transactionsNeedingReview = transactions.filter(t => 
-    t.confidenceScore !== undefined && 
+const TransactionReviewPage = () => {
+  const { transactions, analyzeTransactionWithAI } = useBookkeeping();
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Filter for low confidence transactions
+  const lowConfidenceTransactions = transactions.filter(
+    t => t.confidenceScore !== undefined && 
     t.confidenceScore < 0.5 && 
     !t.isVerified
   );
-
+  
+  // Filter for unknown vendor transactions
+  const unknownVendorTransactions = transactions.filter(
+    t => !t.vendor || t.vendor === 'Unknown'
+  );
+  
   const handleRefresh = async () => {
-    setIsRefreshing(true);
+    setIsLoading(true);
     try {
-      await fetchTransactions();
+      await analyzeTransactionWithAI();
       toast.success('Refreshed transactions for review');
     } catch (error) {
       console.error('Error refreshing transactions:', error);
       toast.error('Failed to refresh transactions');
     } finally {
-      setIsRefreshing(false);
+      setIsLoading(false);
     }
   };
 
@@ -39,17 +44,17 @@ const TransactionReviewPage: React.FC = () => {
             <AlertTriangle className="h-6 w-6 text-amber-500 mr-2" />
             Transactions Requiring Review
             <span className="ml-2 text-sm font-normal text-muted-foreground">
-              ({transactionsNeedingReview.length} transactions)
+              ({lowConfidenceTransactions.length} transactions)
             </span>
           </h2>
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={isLoading}
             title="Refresh review list"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -60,7 +65,7 @@ const TransactionReviewPage: React.FC = () => {
         />
       </div>
 
-      <UnknownVendorsReview />
+      <UnknownVendorsReview transactions={unknownVendorTransactions} />
     </div>
   );
 };

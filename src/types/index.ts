@@ -1,4 +1,3 @@
-
 export type TransactionType = "income" | "expense" | "asset" | "liability" | "equity";
 export type StatementType = "profit_loss" | "balance_sheet"; // Removed "operating" as it's not used
 export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR";
@@ -53,6 +52,7 @@ export interface FinancialSummary {
   totalEquity: number;
   netProfit: number;
   cashBalance: number;
+  income: number;
 }
 
 export interface AIAnalysisResult {
