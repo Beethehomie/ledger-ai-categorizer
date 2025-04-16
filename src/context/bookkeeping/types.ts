@@ -31,6 +31,7 @@ export interface BookkeepingContextType {
   removeDuplicateVendors: () => Promise<boolean>;
   fetchTransactionsForBankAccount: (bankAccountId: string) => Promise<BaseTransaction[]>;
   batchVerifyVendorTransactions: (vendorName: string, category: string, type: BaseTransaction['type'], statementType: BaseTransaction['statementType']) => void;
+  fetchTransactions: () => Promise<void>;
 }
 
 export const initialFinancialSummary: FinancialSummary = {
