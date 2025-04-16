@@ -45,39 +45,35 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
     toast.success(`Vendor ${approved ? 'approved' : 'rejected'}`);
   };
   
-  const handleAddVendor = (newVendor: Vendor) => {
+  const handleAddVendor = async (newVendor: Vendor) => {
     if (vendors.some(v => v.name === newVendor.name)) {
       toast.error(`Vendor "${newVendor.name}" already exists`);
       return;
     }
     
     // Add the vendor to the database
-    const supabase = async () => {
-      try {
-        const { data, error } = await fetch('/api/vendors', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(newVendor),
-        });
-        
-        if (error) {
-          throw error;
-        }
-        
-        toast.success(`Added new vendor: ${newVendor.name}`);
-        setIsVendorEditorOpen(false);
-        setSelectedVendor(newVendor.name);
-        
-      } catch (err) {
-        console.error('Error adding vendor:', err);
-        toast.error('Failed to add vendor. Please try again.');
+    try {
+      const response = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newVendor),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add vendor');
       }
-    };
-    
-    toast.success(`Added new vendor: ${newVendor.name}`);
-    setIsVendorEditorOpen(false);
+      
+      toast.success(`Added new vendor: ${newVendor.name}`);
+      setIsVendorEditorOpen(false);
+      setSelectedVendor(newVendor.name);
+      
+    } catch (err) {
+      console.error('Error adding vendor:', err);
+      toast.error('Failed to add vendor. Please try again.');
+    }
   };
   
   return (
