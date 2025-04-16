@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import TransactionTable from './TransactionTable';
@@ -76,8 +75,7 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
           statement_type: newVendor.statementType || 'profit_loss',
           occurrences: 1,
           verified: false
-        })
-        .select();
+        });
       
       if (error) {
         throw error;
