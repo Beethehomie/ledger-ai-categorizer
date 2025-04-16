@@ -407,8 +407,7 @@ export const BookkeepingProvider: React.FC<{ children: ReactNode }> = ({ childre
               action: {
                 label: 'Yes, categorize all',
                 onClick: () => batchVerifyVendorTransactions(vendorName, data.category, data.type, data.statementType)
-              },
-              duration: 8000,
+              }
             });
           }
         }
