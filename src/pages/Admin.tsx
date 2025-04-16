@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { BookkeepingProvider, useBookkeeping } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';
-import { Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home, Upload, Download, Trash } from "lucide-react";
+import { Check, X, Webhook, Database, Key, User, Activity, BarChart3, Home, Upload, Download, Trash, Code, Terminal } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { useAuth } from '@/context/AuthContext';
@@ -16,6 +15,8 @@ import VendorKeywordsList from '@/components/VendorKeywordsList';
 import VendorImporter from '@/components/VendorImporter';
 import { Pagination } from '@/components/ui/pagination';
 import UploadDialog from '@/components/UploadDialog';
+import CodeEditor from '@/components/admin/CodeEditor';
+import OpenAILogs from '@/components/admin/OpenAILogs';
 
 interface UsageData {
   openai: {
@@ -47,7 +48,6 @@ const Admin: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Simple check for admin access - in a real app, you'd check for admin role
   const isAdmin = user?.email === 'terramultaacc@gmail.com';
   
   if (!user || !isAdmin) {
@@ -100,7 +100,6 @@ const AdminContent: React.FC = () => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Fetch real system stats from the edge function
   const fetchSystemStats = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('sync-bank-transactions', {
@@ -120,7 +119,6 @@ const AdminContent: React.FC = () => {
   useEffect(() => {
     fetchSystemStats();
     
-    // Update AI usage stats based on transactions
     const aiSuggestedTransactions = transactions.filter(t => t.aiSuggestion);
     
     const thirtyDaysAgo = new Date();
@@ -196,7 +194,6 @@ const AdminContent: React.FC = () => {
     const success = await removeDuplicateVendors();
     setIsLoading(false);
     if (success) {
-      // Refresh stats
       fetchSystemStats();
     }
   };
@@ -284,6 +281,14 @@ const AdminContent: React.FC = () => {
           <TabsTrigger value="system">
             <BarChart3 className="h-4 w-4 mr-2" />
             System Stats
+          </TabsTrigger>
+          <TabsTrigger value="code">
+            <Code className="h-4 w-4 mr-2" />
+            Code Editor
+          </TabsTrigger>
+          <TabsTrigger value="openaiLogs">
+            <Terminal className="h-4 w-4 mr-2" />
+            OpenAI Logs
           </TabsTrigger>
         </TabsList>
         
@@ -450,6 +455,14 @@ const AdminContent: React.FC = () => {
               </div>
             </div>
           </div>
+        </TabsContent>
+        
+        <TabsContent value="code" className="border rounded-lg p-4">
+          <CodeEditor />
+        </TabsContent>
+        
+        <TabsContent value="openaiLogs" className="border rounded-lg p-4">
+          <OpenAILogs />
         </TabsContent>
       </Tabs>
       
