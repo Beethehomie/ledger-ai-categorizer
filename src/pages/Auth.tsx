@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,10 +52,7 @@ const Auth = () => {
         email, 
         password,
         options: {
-          emailRedirectTo: window.location.origin,
-          data: {
-            remember_me: rememberMe
-          }
+          emailRedirectTo: window.location.origin
         }
       });
       
@@ -80,12 +76,7 @@ const Auth = () => {
       // First, try to sign in normally
       const { data, error } = await supabase.auth.signInWithPassword({ 
         email, 
-        password,
-        options: {
-          data: {
-            remember_me: rememberMe
-          }
-        }
+        password
       });
       
       if (error) throw error;

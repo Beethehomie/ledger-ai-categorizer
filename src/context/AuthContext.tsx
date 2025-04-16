@@ -95,9 +95,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profile: UserProfile = {
         id: data.id,
         email: data.email || user?.email || '',
-        // Handle the case where subscription_tier might not be in the type
-        subscription_tier: (data.subscription_tier as unknown as SubscriptionTier) || 'free',
-        is_admin: adminStatus
+        // Handle the profile data from supabase and ensure subscription_tier exists
+        subscription_tier: (data.subscription_tier as SubscriptionTier) || 'free',
+        is_admin: data.is_admin || adminStatus
       };
       
       setUserProfile(profile);
