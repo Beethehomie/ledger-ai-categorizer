@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -368,7 +369,14 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                 )}
                 
                 {tableColumns.find(col => col.id === 'balance')?.visible && (
-                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {isAccountReconciled && (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      )}
+                      Balance
+                    </div>
+                  </TableHead>
                 )}
               </TableRow>
             </TableHeader>

@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, DollarSign, PiggyBank, LineChart, Coins } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
@@ -7,8 +8,13 @@ import { formatCurrency } from '@/utils/currencyUtils';
 import { FinancialSummaryProps } from '@/types';
 
 const FinancialSummary: React.FC<FinancialSummaryProps> = ({ refreshing }) => {
-  const { financialSummary } = useBookkeeping();
+  const { financialSummary, calculateFinancialSummary } = useBookkeeping();
   const { currency } = useSettings();
+  
+  // Ensure financial summary is calculated when component mounts
+  useEffect(() => {
+    calculateFinancialSummary();
+  }, [calculateFinancialSummary]);
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-fade-in">

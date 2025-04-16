@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBookkeeping } from '@/context/BookkeepingContext';
@@ -6,7 +7,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { ChartSectionProps } from '@/types';
 
 const ChartSection: React.FC<ChartSectionProps> = ({ refreshing }) => {
-  const { transactions, categories, financialSummary } = useBookkeeping();
+  const { transactions, categories, financialSummary, calculateFinancialSummary } = useBookkeeping();
+  
+  // Recalculate financial summary when component mounts or transactions change
+  useEffect(() => {
+    calculateFinancialSummary();
+  }, [transactions, calculateFinancialSummary]);
   
   // Only consider verified transactions
   const verifiedTransactions = transactions.filter(t => t.isVerified);

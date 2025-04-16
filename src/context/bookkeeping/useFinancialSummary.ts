@@ -25,14 +25,33 @@ export const useFinancialSummary = (transactions: Transaction[]) => {
           break;
         case 'asset':
           summary.totalAssets += amount;
-          summary.cashBalance -= amount;
+          // For asset purchases, we reduce cash balance
+          if (transaction.amount < 0) {
+            summary.cashBalance -= amount;
+          } else {
+            // For asset sales, we increase cash balance
+            summary.cashBalance += amount;
+          }
           break;
         case 'liability':
           summary.totalLiabilities += amount;
-          summary.cashBalance += amount;
+          // For increased liabilities (e.g., taking a loan), we increase cash
+          if (transaction.amount > 0) {
+            summary.cashBalance += amount;
+          } else {
+            // For decreased liabilities (e.g., paying off debt), we decrease cash
+            summary.cashBalance -= amount;
+          }
           break;
         case 'equity':
           summary.totalEquity += amount;
+          // For equity investments, we increase cash
+          if (transaction.amount > 0) {
+            summary.cashBalance += amount;
+          } else {
+            // For equity withdrawals, we decrease cash
+            summary.cashBalance -= amount;
+          }
           break;
       }
     });
