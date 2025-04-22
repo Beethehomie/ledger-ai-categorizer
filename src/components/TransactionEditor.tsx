@@ -1,19 +1,11 @@
-
 import React, { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Transaction } from '@/types';
 import { toast } from '@/utils/toast';
-import { Loader2, Calendar, Store, CreditCard } from 'lucide-react';
+import { Loader2, Calendar, Store } from 'lucide-react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { 
   Select,
@@ -66,7 +58,6 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
   };
 
   const handleAddTransaction = async () => {
-    // Validate form
     if (!date) {
       toast.error('Please select a date');
       return;
@@ -95,7 +86,6 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Create new transaction object
       const newTransaction: Transaction = {
         id: uuidv4(),
         date: format(date, 'yyyy-MM-dd'),
@@ -106,14 +96,12 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
         isVerified: false,
         bankAccountId,
         bankAccountName: bankConnections.find(b => b.id === bankAccountId)?.display_name,
-        type: 'expense', // Default to expense, can be changed later
-        statementType: 'profit_loss', // Default
+        type: 'expense',
+        statementType: 'profit_loss',
       };
 
-      // Add transaction to database
       await addTransactions([newTransaction]);
       
-      // Close dialog and reset form
       handleDialogClose();
       toast.success('Transaction added successfully');
     } catch (error) {
@@ -139,7 +127,6 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {/* Date Picker */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="transaction-date" className="text-right">
                 Date *
@@ -173,7 +160,6 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
               </div>
             </div>
 
-            {/* Amount Field */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="transaction-amount" className="text-right">
                 Amount *
@@ -189,7 +175,6 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
               />
             </div>
 
-            {/* Description Field */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="transaction-description" className="text-right">
                 Description *
@@ -203,7 +188,6 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
               />
             </div>
 
-            {/* Vendor Selection */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="transaction-vendor" className="text-right">
                 Vendor *
@@ -235,7 +219,6 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
               </div>
             </div>
 
-            {/* Bank Account Selection */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="transaction-bank" className="text-right">
                 Bank Account *
