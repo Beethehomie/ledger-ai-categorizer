@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Upload, Download, Scale, Store, Plus } from 'lucide-react';
+import { RefreshCw, Upload, Download, Scale, Store, Plus, CheckCircle2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BankConnectionRow } from '@/types/supabase';
 import ColumnSelector from '../ColumnSelector';

@@ -2,7 +2,7 @@
 import React from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Store } from 'lucide-react';
+import { Store, Building, AlertCircle, Edit } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -13,10 +13,11 @@ import {
 import { formatDate, formatCurrency } from '@/utils/currencyUtils';
 import { Transaction } from '@/types';
 import { cn } from '@/lib/utils';
+import { Currency } from '@/types';
 
 interface TransactionRowProps {
   transaction: Transaction;
-  currency: string;
+  currency: Currency;
   tableColumns: { id: string; visible: boolean }[];
   uniqueVendors: string[];
   onVendorChange: (transaction: Transaction, vendorName: string) => void;
