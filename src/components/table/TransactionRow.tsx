@@ -1,7 +1,5 @@
 import React from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Store, Building, AlertCircle, Edit } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -9,10 +7,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatDate, formatCurrency } from '@/utils/currencyUtils';
+import { Store, Building, AlertCircle, Edit } from 'lucide-react';
 import { Transaction } from '@/types';
 import { Currency } from '@/types';
 import { cn } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/utils/currencyUtils';
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -53,7 +52,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
         <TableCell className="max-w-[200px]">
           <div className="flex items-center gap-2">
             <Select
-              defaultValue={transaction.vendor || "Unknown"}
+              value={transaction.vendor || "Unknown"}
               onValueChange={(value) => onVendorChange(transaction, value)}
             >
               <SelectTrigger className="h-8 w-full border-0 bg-transparent hover:bg-muted/50 focus:ring-0 pl-0 truncate">
@@ -63,11 +62,6 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                 </div>
               </SelectTrigger>
               <SelectContent>
-                {transaction.vendor && !uniqueVendors.includes(transaction.vendor) && (
-                  <SelectItem value={transaction.vendor}>
-                    {transaction.vendor}
-                  </SelectItem>
-                )}
                 <SelectItem value="Unknown">
                   <div className="flex items-center">
                     <AlertCircle className="h-3.5 w-3.5 mr-1 text-amber-500" />
@@ -79,7 +73,10 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                   .sort()
                   .map(vendor => (
                     <SelectItem key={vendor} value={vendor}>
-                      {vendor}
+                      <div className="flex items-center">
+                        <Store className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                        {vendor}
+                      </div>
                     </SelectItem>
                 ))}
                 <SelectItem value="add-new">

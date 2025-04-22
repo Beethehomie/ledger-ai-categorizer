@@ -234,24 +234,36 @@ export const useVendors = (
   };
 
   const getVendorsList = (): VendorListItem[] => {
+    const vendorSet = new Set(vendors.map(v => v.name));
     const vendorCounts: Record<string, { count: number; verified: boolean }> = {};
+    
+    vendors.forEach(vendor => {
+      vendorCounts[vendor.name] = { 
+        count: 0, 
+        verified: vendor.verified 
+      };
+    });
     
     transactions.forEach(transaction => {
       if (transaction.vendor) {
         if (!vendorCounts[transaction.vendor]) {
-          const vendorInfo = vendors.find(v => v.name === transaction.vendor);
           vendorCounts[transaction.vendor] = { 
             count: 1, 
-            verified: vendorInfo?.verified || false 
+            verified: false 
           };
+          vendorSet.add(transaction.vendor);
         } else {
           vendorCounts[transaction.vendor].count += 1;
         }
       }
     });
     
-    return Object.entries(vendorCounts)
-      .map(([name, { count, verified }]) => ({ name, count, verified }))
+    return Array.from(vendorSet)
+      .map(name => ({
+        name,
+        count: vendorCounts[name]?.count || 0,
+        verified: vendorCounts[name]?.verified || false
+      }))
       .sort((a, b) => b.count - a.count);
   };
 
