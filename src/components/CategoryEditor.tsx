@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from '@/utils/toast';
 import { Category } from '@/types';
+import { Loader2 } from 'lucide-react';
+import { addCategory, updateCategory } from '@/services/categoryService';
 
 interface CategoryEditorProps {
   isOpen: boolean;
@@ -40,8 +42,9 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
       : 'profit_loss'
   );
   const [keywords, setKeywords] = useState<string>(editCategory?.keywords?.join(', ') || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name) {
       toast.error('Category name is required');
       return;
@@ -53,12 +56,14 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
       return;
     }
 
+    setIsSubmitting(true);
+
     const keywordsList = keywords
       .split(',')
       .map(k => k.trim())
       .filter(k => k !== '');
 
-    const newCategory: Category = {
+    const categoryData: Category = {
       id: editCategory?.id || `cat-${Date.now()}`,
       name,
       type,
@@ -66,9 +71,27 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
       keywords: keywordsList
     };
 
-    onSave(newCategory);
-    resetForm();
-    onClose();
+    try {
+      // Save to database first
+      const result = editCategory 
+        ? await updateCategory(categoryData)
+        : await addCategory(categoryData);
+        
+      if (!result.success) {
+        throw new Error(result.error || `Failed to ${editCategory ? 'update' : 'add'} category`);
+      }
+      
+      // If successful, update local state via callback
+      onSave(categoryData);
+      resetForm();
+      onClose();
+      toast.success(`Category ${editCategory ? 'updated' : 'created'} successfully`);
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save category');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -76,6 +99,7 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
     setType('expense');
     setStatementType('profit_loss');
     setKeywords('');
+    setIsSubmitting(false);
   };
 
   // Automatically update statement type based on category type
@@ -108,12 +132,13 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Office Supplies"
+              disabled={isSubmitting}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="type">Category Type</Label>
-            <Select value={type} onValueChange={handleTypeChange}>
+            <Select value={type} onValueChange={handleTypeChange} disabled={isSubmitting}>
               <SelectTrigger id="type">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
@@ -132,7 +157,7 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
             <Select 
               value={statementType} 
               onValueChange={(value: 'profit_loss' | 'balance_sheet') => setStatementType(value)}
-              disabled={type === 'income' || type === 'expense'}
+              disabled={(type === 'income' || type === 'expense') || isSubmitting}
             >
               <SelectTrigger id="statementType">
                 <SelectValue placeholder="Select statement type" />
@@ -156,6 +181,7 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
               value={keywords}
               onChange={(e) => setKeywords(e.target.value)}
               placeholder="e.g., office, supplies, stationery"
+              disabled={isSubmitting}
             />
             <p className="text-xs text-muted-foreground">
               Keywords help the AI identify this category from transaction descriptions.
@@ -164,11 +190,18 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            {editCategory ? 'Save Changes' : 'Add Category'}
+          <Button onClick={handleSave} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {editCategory ? 'Updating...' : 'Creating...'}
+              </>
+            ) : (
+              editCategory ? 'Save Changes' : 'Add Category'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

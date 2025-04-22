@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Vendor } from '@/types';
 import { toast } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
+import { addVendor } from '@/services/vendorService';
 
 interface VendorEditorProps {
   onSave: (vendor: Vendor) => void;
@@ -31,7 +32,7 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
   const [newVendor, setNewVendor] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!newVendor.trim()) {
       toast.error('Please enter a valid vendor name');
       return;
@@ -50,10 +51,20 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
     };
 
     try {
+      // Save directly to database through service
+      const result = await addVendor(vendor);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to add vendor');
+      }
+      
+      // Call the onSave callback to update local state
       onSave(vendor);
+      toast.success(`Vendor "${vendor.name}" added successfully`);
+      handleDialogClose();
     } catch (error) {
       console.error('Error saving vendor:', error);
-      toast.error('Failed to save vendor');
+      toast.error(error instanceof Error ? error.message : 'Failed to save vendor');
       setIsSubmitting(false);
     }
   };

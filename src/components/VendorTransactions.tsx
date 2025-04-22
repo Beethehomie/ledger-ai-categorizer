@@ -16,7 +16,7 @@ import VendorImporter from './VendorImporter';
 import UnknownVendorsReview from './UnknownVendorsReview';
 import VendorSelector from './vendor/VendorSelector';
 import VendorTransactionsDisplay from './vendor/VendorTransactionsDisplay';
-import { addVendor, findSimilarVendorTransactions } from '@/services/vendorService';
+import { findSimilarVendorTransactions } from '@/services/vendorService';
 
 interface VendorTransactionsProps {
   transactions: Transaction[];
@@ -49,15 +49,9 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
     setProcessingAction(true);
     
     try {
-      console.log('Adding vendor:', newVendor);
-      const result = await addVendor(newVendor);
-      console.log('Add vendor result:', result);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to add vendor');
-      }
-      
-      toast.success(`Added new vendor: ${newVendor.name}`);
+      // The actual saving to database is now handled in the editor component
+      // This is just for local state updates and subsequent actions
+      console.log('Setting selected vendor to:', newVendor.name);
       setIsVendorEditorOpen(false);
       setSelectedVendor(newVendor.name);
       
@@ -65,8 +59,8 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
       await findSimilarVendorTransactions(newVendor.name, transactions, findSimilarTransactions);
       
     } catch (err) {
-      console.error('Error adding vendor:', err);
-      toast.error('Failed to add vendor. Please try again.');
+      console.error('Error processing after vendor add:', err);
+      toast.error('Failed to process vendor data. Please try again.');
     } finally {
       setProcessingAction(false);
     }
