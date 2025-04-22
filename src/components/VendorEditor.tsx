@@ -11,16 +11,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Vendor } from '@/types';
+import { Vendor, Transaction } from '@/types';
 import { toast } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 import { addVendor } from '@/services/vendorService';
+import { useBookkeeping } from '@/context/BookkeepingContext';
 
 interface VendorEditorProps {
   onSave: (vendor: Vendor) => void;
   isOpen: boolean;
   onClose: () => void;
   isProcessing?: boolean;
+  transaction?: Transaction;
 }
 
 const VendorEditor: React.FC<VendorEditorProps> = ({
@@ -28,9 +30,11 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
   isOpen,
   onClose,
   isProcessing = false,
+  transaction
 }) => {
   const [newVendor, setNewVendor] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { updateTransaction } = useBookkeeping();
 
   const handleSave = async () => {
     if (!newVendor.trim()) {
@@ -43,9 +47,9 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
     // Create a default vendor with just the name
     const vendor: Vendor = {
       name: newVendor.trim(),
-      category: '', // Will be set based on transaction category later
-      type: 'expense', // Default type
-      statementType: 'profit_loss', // Default statement type
+      category: transaction?.category || '', // Use transaction category if available
+      type: transaction?.type || 'expense', // Use transaction type if available
+      statementType: transaction?.statementType || 'profit_loss', // Use transaction statement type if available
       occurrences: 1,
       verified: false
     };
@@ -56,6 +60,16 @@ const VendorEditor: React.FC<VendorEditorProps> = ({
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to add vendor');
+      }
+      
+      // Update the transaction with the new vendor if provided
+      if (transaction) {
+        const updatedTransaction = {
+          ...transaction,
+          vendor: vendor.name,
+          vendorVerified: false
+        };
+        await updateTransaction(updatedTransaction);
       }
       
       // Call the onSave callback to update local state

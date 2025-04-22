@@ -1,73 +1,80 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
-import TransactionTable from './TransactionTable';
-import { AlertTriangle, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import UnknownVendorsReview from './UnknownVendorsReview';
-import { toast } from '@/utils/toast';
+import TransactionTable from './TransactionTable';
+import TransactionEditor from './TransactionEditor';
 
 const TransactionReviewPage = () => {
-  const { transactions, analyzeTransactionWithAI } = useBookkeeping();
-  const [isLoading, setIsLoading] = useState(false);
+  const { transactions } = useBookkeeping();
+  const [isTransactionEditorOpen, setIsTransactionEditorOpen] = useState(false);
   
-  // Filter for low confidence transactions
-  const lowConfidenceTransactions = transactions.filter(
-    t => t.confidenceScore !== undefined && 
-    t.confidenceScore < 0.5 && 
-    !t.isVerified
+  // Filter out transactions that need review (low confidence score)
+  const transactionsNeedingReview = transactions.filter(
+    (t) => (t.confidenceScore !== undefined && t.confidenceScore < 0.5 && !t.isVerified)
   );
   
-  // Filter for unknown vendor transactions
-  const unknownVendorTransactions = transactions.filter(
-    t => !t.vendor || t.vendor === 'Unknown'
+  // Filter out unverified transactions
+  const unverifiedTransactions = transactions.filter(
+    (t) => !t.isVerified
   );
-  
-  const handleRefresh = async () => {
-    setIsLoading(true);
-    try {
-      await analyzeTransactionWithAI(transactions[0]); // Pass a transaction object, not empty
-      toast.success('Refreshed transactions for review');
-    } catch (error) {
-      console.error('Error refreshing transactions:', error);
-      toast.error('Failed to refresh transactions');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
-      <div className="bg-[hsl(var(--card))] rounded-lg shadow-sm border border-[hsl(var(--border))] p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold flex items-center">
-            <AlertTriangle className="h-6 w-6 text-amber-500 mr-2" />
-            Transactions Requiring Review
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              ({lowConfidenceTransactions.length} transactions)
-            </span>
-          </h2>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Transactions Needing Review
+            </CardTitle>
+          </div>
           <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh}
-            disabled={isLoading}
-            title="Refresh review list"
+            onClick={() => setIsTransactionEditorOpen(true)}
+            className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            <Plus className="h-4 w-4" />
+            Add Transaction
           </Button>
-        </div>
-        <TransactionTable 
-          filter="review" 
-          transactions={transactions} 
-          onRefresh={handleRefresh}
-        />
-      </div>
-
-      <UnknownVendorsReview transactions={unknownVendorTransactions} />
+        </CardHeader>
+        <CardContent>
+          {transactionsNeedingReview.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">
+              No transactions currently need review.
+            </div>
+          ) : (
+            <TransactionTable 
+              transactions={transactionsNeedingReview} 
+              filter="needs_review" 
+            />
+          )}
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Unverified Transactions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {unverifiedTransactions.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">
+              No unverified transactions.
+            </div>
+          ) : (
+            <TransactionTable 
+              transactions={unverifiedTransactions} 
+              filter="unverified" 
+            />
+          )}
+        </CardContent>
+      </Card>
+      
+      <TransactionEditor 
+        isOpen={isTransactionEditorOpen}
+        onClose={() => setIsTransactionEditorOpen(false)}
+      />
     </div>
   );
 };
