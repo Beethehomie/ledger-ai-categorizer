@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
@@ -183,6 +184,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     fetchTransactionsForBankAccount,
     batchVerifyVendorTransactions,
     fetchTransactions,
+    findSimilarTransactions,  // Added the missing property here
   };
 
   return (
