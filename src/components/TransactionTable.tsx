@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  TableCell,
 } from "@/components/ui/table";
 import {
   Select,
@@ -39,6 +39,9 @@ import ReconcileDialog from './ReconcileDialog';
 import { exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import VendorEditor from './VendorEditor';
+import TableHeaderComponent from './table/TableHeader';
+import TransactionRow from './table/TransactionRow';
+import ConfidenceScore from './table/ConfidenceScore';
 
 interface TransactionTableProps {
   filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor' | 'review';
@@ -77,7 +80,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const [isReconcileDialogOpen, setIsReconcileDialogOpen] = useState(false);
   const [reconciliationBalance, setReconciliationBalance] = useState<number | undefined>(expectedEndBalance);
   const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
-
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  
   const filteredTransactions = transactions.filter(transaction => {
     if (filter === 'unverified') {
       return !transaction.isVerified;
@@ -300,102 +304,18 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   return (
     <TooltipProvider>
       <div className="space-y-4 animate-fade-in">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-          <h2 className="text-lg font-semibold">
-            {filter === 'unverified' 
-              ? 'Transactions For Review' 
-              : filter === 'profit_loss' 
-                ? 'Profit & Loss Transactions' 
-                : filter === 'balance_sheet' 
-                  ? 'Balance Sheet Transactions'
-                  : filter === 'by_vendor' && vendorName
-                    ? `Transactions for ${vendorName}`
-                    : filter === 'review'
-                      ? 'Transactions Requiring Review'
-                      : 'All Transactions'}
-            {isAccountReconciled && (
-              <span className="ml-2 inline-flex items-center text-sm text-green-600">
-                <CheckCircle2 className="h-4 w-4 mr-1" />
-                Reconciled
-              </span>
-            )}
-          </h2>
-          
-          <div className="flex gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  className="hover-scale"
-                >
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Refresh
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Refresh transactions and reports</p>
-              </TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsVendorEditorOpen(true)}
-                  className="hover-scale"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Vendor
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Add a new vendor</p>
-              </TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportCSV}
-                  className="hover-scale"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  Export
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Export transactions to CSV</p>
-              </TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsReconcileDialogOpen(true)}
-                  className="hover-scale"
-                >
-                  <Scale className="h-4 w-4 mr-1" />
-                  Reconcile
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Reconcile your account balance</p>
-              </TooltipContent>
-            </Tooltip>
-            
-            <ColumnSelector
-              columns={mapTableColumnsToColumnSelector()}
-              onToggleColumn={handleToggleColumn}
-            />
-          </div>
-        </div>
+        <TableHeaderComponent
+          filter={filter}
+          vendorName={vendorName}
+          isAccountReconciled={isAccountReconciled}
+          onRefresh={handleRefresh}
+          onExport={handleExportCSV}
+          onUpload={() => setIsUploadDialogOpen(true)}
+          onReconcile={() => setIsReconcileDialogOpen(true)}
+          onAddVendor={() => setIsVendorEditorOpen(true)}
+          onToggleColumn={handleToggleColumn}
+          columns={mapTableColumnsToColumnSelector()}
+        />
         
         <div className="w-full overflow-auto">
           <Table>
@@ -462,181 +382,18 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                 </TableRow>
               ) : (
                 sortedTransactions.map((transaction) => (
-                  <TableRow key={transaction.id} className={cn(
-                    transaction.isVerified ? "" : "bg-muted/30",
-                    transaction.type === 'income' || transaction.amount > 0 ? "border-l-2 border-l-finance-green" : "",
-                    transaction.type === 'expense' && transaction.amount < 0 ? "border-l-2 border-l-finance-red" : "",
-                    transaction.confidenceScore !== undefined && transaction.confidenceScore < 0.5 ? "border-l-2 border-l-amber-500" : "",
-                    "transition-all hover:bg-muted/30"
-                  )}>
-                    {tableColumns.find(col => col.id === 'date')?.visible && (
-                      <TableCell>{formatDate(transaction.date, currency)}</TableCell>
+                  <TransactionRow
+                    key={transaction.id}
+                    transaction={transaction}
+                    currency={currency}
+                    tableColumns={tableColumns}
+                    uniqueVendors={uniqueVendors}
+                    onVendorChange={handleVendorChange}
+                    getBankName={getBankName}
+                    renderConfidenceScore={(score) => (
+                      <ConfidenceScore score={score} />
                     )}
-                    
-                    {tableColumns.find(col => col.id === 'description')?.visible && (
-                      <TableCell>{transaction.description}</TableCell>
-                    )}
-                    
-                    {tableColumns.find(col => col.id === 'vendor')?.visible && (
-                      <TableCell className="max-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <Select
-                            defaultValue={transaction.vendor || "Unknown"}
-                            onValueChange={(value) => handleVendorChange(transaction, value)}
-                          >
-                            <SelectTrigger className="h-8 w-full border-0 bg-transparent hover:bg-muted/50 focus:ring-0 pl-0 truncate">
-                              <div className="flex items-center">
-                                <Store className="h-4 w-4 text-finance-gray shrink-0 mr-2" />
-                                <span className="truncate">{transaction.vendor || "Unknown"}</span>
-                              </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {transaction.vendor && !uniqueVendors.includes(transaction.vendor) && (
-                                <SelectItem value={transaction.vendor}>
-                                  {transaction.vendor}
-                                </SelectItem>
-                              )}
-                              <SelectItem value="Unknown">
-                                <div className="flex items-center">
-                                  <AlertCircle className="h-3.5 w-3.5 mr-1 text-amber-500" />
-                                  <span>Unknown</span>
-                                </div>
-                              </SelectItem>
-                              {uniqueVendors
-                                .filter(vendor => vendor !== "Unknown")
-                                .sort()
-                                .map(vendor => (
-                                <SelectItem key={vendor} value={vendor}>
-                                  {vendor}
-                                </SelectItem>
-                              ))}
-                              <SelectItem value="add-new">
-                                <div className="flex items-center">
-                                  <Edit className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                                  <span>Add new vendor...</span>
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </TableCell>
-                    )}
-                    
-                    {tableColumns.find(col => col.id === 'amount')?.visible && (
-                      <TableCell 
-                        className={cn(
-                          "text-right font-medium",
-                          transaction.amount > 0 ? "text-finance-green" : "text-finance-red"
-                        )}
-                      >
-                        {formatCurrency(transaction.amount, currency)}
-                      </TableCell>
-                    )}
-                    
-                    {tableColumns.find(col => col.id === 'category')?.visible && (
-                      <TableCell>
-                        {transaction.isVerified ? (
-                          transaction.category
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            <Select 
-                              defaultValue={transaction.aiSuggestion || transaction.category} 
-                              onValueChange={(val) => handleVerify(transaction, val)}
-                            >
-                              <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="select-placeholder" disabled>Select a category</SelectItem>
-                                
-                                <SelectItem value="header-income" disabled className="font-bold text-finance-blue">Income</SelectItem>
-                                {categoriesByType.income.map(category => (
-                                  <SelectItem key={category.id} value={category.name}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                                
-                                <SelectItem value="header-expense" disabled className="font-bold text-finance-blue mt-2">Expenses</SelectItem>
-                                {categoriesByType.expense.map(category => (
-                                  <SelectItem key={category.id} value={category.name}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                                
-                                <SelectItem value="header-asset" disabled className="font-bold text-finance-blue mt-2">Assets</SelectItem>
-                                {categoriesByType.asset.map(category => (
-                                  <SelectItem key={category.id} value={category.name}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                                
-                                <SelectItem value="header-liability" disabled className="font-bold text-finance-blue mt-2">Liabilities</SelectItem>
-                                {categoriesByType.liability.map(category => (
-                                  <SelectItem key={category.id} value={category.name}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                                
-                                <SelectItem value="header-equity" disabled className="font-bold text-finance-blue mt-2">Equity</SelectItem>
-                                {categoriesByType.equity.map(category => (
-                                  <SelectItem key={category.id} value={category.name}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                                
-                                <SelectItem value="add-new">
-                                  <div className="flex items-center">
-                                    <Edit className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                                    <span>Add new category...</span>
-                                  </div>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {transaction.confidenceScore !== undefined && renderConfidenceScore(transaction.confidenceScore)}
-                            {!transaction.confidenceScore && transaction.aiSuggestion && (
-                              <div className="flex items-center">
-                                <Sparkles className="h-3 w-3 mr-1 text-amber-500" />
-                                <span className="text-xs">AI suggested</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </TableCell>
-                    )}
-                    
-                    {tableColumns.find(col => col.id === 'statementType')?.visible && (
-                      <TableCell>
-                        {transaction.statementType ? (
-                          transaction.statementType === 'profit_loss' ? 'P&L' : 'Balance Sheet'
-                        ) : (
-                          <span className="text-muted-foreground">Uncategorized</span>
-                        )}
-                      </TableCell>
-                    )}
-                    
-                    {tableColumns.find(col => col.id === 'bankAccount')?.visible && (
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Building className="h-4 w-4 text-finance-gray" />
-                          <span>{getBankName(transaction)}</span>
-                        </div>
-                      </TableCell>
-                    )}
-                    
-                    {tableColumns.find(col => col.id === 'balance')?.visible && (
-                      <TableCell className="text-right font-medium">
-                        {transaction.balance !== undefined ? 
-                          formatCurrency(transaction.balance, currency) : 
-                          '-'}
-                      </TableCell>
-                    )}
-                    
-                    {tableColumns.find(col => col.id === 'confidence')?.visible !== false && (
-                      <TableCell>
-                        {renderConfidenceScore(transaction.confidenceScore)}
-                      </TableCell>
-                    )}
-                  </TableRow>
+                  />
                 ))
               )}
             </TableBody>
