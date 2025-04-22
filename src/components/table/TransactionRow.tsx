@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -12,8 +11,8 @@ import {
 } from '@/components/ui/select';
 import { formatDate, formatCurrency } from '@/utils/currencyUtils';
 import { Transaction } from '@/types';
-import { cn } from '@/lib/utils';
 import { Currency } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface TransactionRowProps {
   transaction: Transaction;
