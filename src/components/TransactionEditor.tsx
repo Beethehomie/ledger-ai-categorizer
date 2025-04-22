@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,6 @@ import { format } from 'date-fns';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import VendorEditor from './VendorEditor';
-import { v4 as uuidv4 } from 'uuid';
 
 interface TransactionEditorProps {
   isOpen: boolean;
@@ -42,6 +42,12 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   
   const vendorsList = getVendorsList();
+
+  // Function to generate a unique ID
+  const generateUniqueId = () => {
+    // Simple implementation that uses timestamp and random numbers
+    return `transaction_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
 
   const resetForm = () => {
     setDate(new Date());
@@ -87,7 +93,7 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
 
     try {
       const newTransaction: Transaction = {
-        id: uuidv4(),
+        id: generateUniqueId(),
         date: format(date, 'yyyy-MM-dd'),
         description,
         amount: Number(amount),
