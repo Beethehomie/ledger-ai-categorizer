@@ -47,7 +47,7 @@ const TransactionReviewPage = () => {
           ) : (
             <TransactionTable 
               transactions={transactionsNeedingReview} 
-              filter="needs_review" 
+              filter="review" 
             />
           )}
         </CardContent>
