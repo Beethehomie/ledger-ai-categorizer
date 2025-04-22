@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,19 +8,11 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Transaction } from '@/types';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
-import { Store, Plus, Check, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Check, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import ReviewFormFields from './review/ReviewFormFields';
 import VendorEditor from './VendorEditor';
 
 interface TransactionReviewDialogProps {
@@ -40,32 +32,23 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
   onConfirm,
   warnings = [],
 }) => {
-  const { categories, verifyTransaction, updateTransaction, vendors, getVendorsList } = useBookkeeping();
+  const { categories, verifyTransaction, updateTransaction, getVendorsList } = useBookkeeping();
   
-  // If we receive an array of transactions, use it; otherwise, create an array from the single transaction
   const allTransactions = transactions || (transaction ? [transaction] : []);
   const [currentIndex, setCurrentIndex] = useState(0);
   const currentTransaction = allTransactions[currentIndex];
   
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    currentTransaction?.category || null
-  );
-  const [selectedType, setSelectedType] = useState<Transaction['type']>(
-    currentTransaction?.type || 'expense'
-  );
-  const [selectedStatementType, setSelectedStatementType] = useState<Transaction['statementType']>(
-    currentTransaction?.statementType || 'profit_loss'
-  );
-  const [selectedVendor, setSelectedVendor] = useState<string | null>(
-    currentTransaction?.vendor || null
-  );
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<Transaction['type']>('expense');
+  const [selectedStatementType, setSelectedStatementType] = useState<Transaction['statementType']>('profit_loss');
+  const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
   const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
   const [editedTransactions, setEditedTransactions] = useState<Transaction[]>([]);
   
   const vendorsList = getVendorsList();
   
   // Update state when current transaction changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentTransaction) {
       setSelectedCategory(currentTransaction.category || null);
       setSelectedType(currentTransaction.type || 'expense');
@@ -88,7 +71,6 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
     }
     
     try {
-      // Create an updated transaction
       const updatedTransaction: Transaction = {
         ...currentTransaction,
         category: selectedCategory,
@@ -99,23 +81,17 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
         isVerified: true
       };
       
-      // Store the edited transaction
       const updatedEditedTransactions = [...editedTransactions];
       updatedEditedTransactions[currentIndex] = updatedTransaction;
       setEditedTransactions(updatedEditedTransactions);
       
-      // If processing a single transaction
       if (!transactions && transaction) {
-        // Update the transaction with the vendor if it's changed
-        if (selectedVendor !== transaction.vendor) {
-          await updateTransaction({
-            ...transaction,
-            vendor: selectedVendor,
-            vendorVerified: true
-          });
-        }
+        await updateTransaction({
+          ...transaction,
+          vendor: selectedVendor,
+          vendorVerified: true
+        });
         
-        // Then verify the transaction with category and types
         await verifyTransaction(
           transaction.id, 
           selectedCategory,
@@ -126,11 +102,9 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
         toast.success('Transaction verified successfully');
         onClose();
       } else {
-        // If we have more transactions to review, advance to the next one
         if (currentIndex < allTransactions.length - 1) {
           setCurrentIndex(currentIndex + 1);
         } else {
-          // If we've processed all transactions, call onConfirm with all edited transactions
           if (onConfirm) {
             onConfirm(updatedEditedTransactions);
           }
@@ -146,38 +120,9 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
   
   const handleVendorCreated = (newVendor) => {
     setSelectedVendor(newVendor.name);
-    // If this is a new vendor relevant to the current transaction, associate it
-    if (currentTransaction) {
-      updateTransaction({
-        ...currentTransaction,
-        vendor: newVendor.name,
-        vendorVerified: true
-      });
-    }
+    setIsVendorEditorOpen(false);
   };
-  
-  const handleReject = () => {
-    // Implement rejection logic if needed
-    onClose();
-  };
-  
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
-  };
-  
-  const handleNext = () => {
-    if (currentIndex < allTransactions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
-  };
-  
-  // If we don't have any transactions to display, close the dialog
-  if (allTransactions.length === 0) {
-    return null;
-  }
-  
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -190,7 +135,7 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
             </DialogTitle>
           </DialogHeader>
           
-          {warnings && warnings.length > 0 && (
+          {warnings.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-4">
               <h4 className="text-amber-800 font-medium text-sm mb-1">Warnings:</h4>
               <ul className="text-xs text-amber-700 list-disc list-inside">
@@ -204,111 +149,22 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
             </div>
           )}
           
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right font-medium">Description</Label>
-              <div className="col-span-3 text-sm">{currentTransaction?.description}</div>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right font-medium">Amount</Label>
-              <div className="col-span-3 text-sm">${Math.abs(currentTransaction?.amount || 0).toFixed(2)}</div>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right font-medium">Date</Label>
-              <div className="col-span-3 text-sm">{currentTransaction?.date}</div>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="category" className="text-right">
-                Category
-              </Label>
-              <Select 
-                value={selectedCategory || undefined} 
-                onValueChange={setSelectedCategory}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.name}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="vendor" className="text-right">
-                Vendor
-              </Label>
-              <div className="col-span-3 flex gap-2">
-                <Select 
-                  value={selectedVendor || undefined} 
-                  onValueChange={setSelectedVendor}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a vendor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vendorsList.map((vendor) => (
-                      <SelectItem key={vendor.name} value={vendor.name}>
-                        {vendor.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsVendorEditorOpen(true)}
-                  title="Add new vendor"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="type" className="text-right">
-                Type
-              </Label>
-              <Select 
-                value={selectedType} 
-                onValueChange={(value) => setSelectedType(value as Transaction['type'])}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select a type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="income">Income</SelectItem>
-                  <SelectItem value="expense">Expense</SelectItem>
-                  <SelectItem value="transfer">Transfer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="statementType" className="text-right">
-                Statement Type
-              </Label>
-              <Select 
-                value={selectedStatementType} 
-                onValueChange={(value) => setSelectedStatementType(value as Transaction['statementType'])}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select a statement type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="profit_loss">Profit & Loss</SelectItem>
-                  <SelectItem value="balance_sheet">Balance Sheet</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          {currentTransaction && (
+            <ReviewFormFields
+              transaction={currentTransaction}
+              selectedCategory={selectedCategory}
+              selectedType={selectedType}
+              selectedStatementType={selectedStatementType}
+              selectedVendor={selectedVendor}
+              vendorsList={vendorsList}
+              onCategoryChange={setSelectedCategory}
+              onTypeChange={setSelectedType}
+              onStatementTypeChange={setSelectedStatementType}
+              onVendorChange={setSelectedVendor}
+              onAddVendor={() => setIsVendorEditorOpen(true)}
+              categories={categories}
+            />
+          )}
           
           <DialogFooter>
             {transactions && (
@@ -316,7 +172,7 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={handlePrevious}
+                  onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
                   disabled={currentIndex === 0}
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
@@ -326,7 +182,7 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={handleNext}
+                  onClick={() => setCurrentIndex(Math.min(allTransactions.length - 1, currentIndex + 1))}
                   disabled={currentIndex === allTransactions.length - 1}
                 >
                   Next
@@ -339,7 +195,7 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
               </div>
             )}
             
-            <Button variant="outline" onClick={handleReject}>
+            <Button variant="outline" onClick={onClose}>
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
