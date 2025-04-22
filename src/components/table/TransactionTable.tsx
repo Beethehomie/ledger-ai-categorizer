@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -15,8 +15,6 @@ import { isBalanceReconciled } from '@/utils/csvParser';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import TableHeaderComponent from './TableHeader';
 import TransactionRow from './TransactionRow';
-import TableActions from './TableActions';
-import TableSortHeader from './TableSortHeader';
 import { useTableSort } from '@/hooks/useTableSort';
 import { useTransactionFilter } from '@/hooks/useTransactionFilter';
 import ReconcileDialog from '../ReconcileDialog';
@@ -43,7 +41,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const { 
     updateTransaction,
     vendors,
-    getBankConnectionById
+    getBankConnectionById,
+    getVendorsList
   } = useBookkeeping();
   
   const {
@@ -55,9 +54,33 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const [isReconcileDialogOpen, setIsReconcileDialogOpen] = useState(false);
   const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
   const [reconciliationBalance, setReconciliationBalance] = useState<number | undefined>(expectedEndBalance);
+  const [allVendors, setAllVendors] = useState<string[]>([]);
 
   const { sortField, sortDirection, handleSort, sortTransactions } = useTableSort();
   const { filterTransactions } = useTransactionFilter();
+
+  // Get all vendors from the database and transactions
+  useEffect(() => {
+    if (vendors) {
+      // Extract vendor names from vendors array
+      const vendorNames = vendors.map(v => v.name);
+      
+      // Extract unique vendor names from transactions
+      const transactionVendors = transactions
+        .map(t => t.vendor)
+        .filter((v): v is string => v !== undefined && v !== null && v !== "");
+      
+      // Combine both arrays and remove duplicates
+      const combinedVendors = Array.from(new Set([...vendorNames, ...transactionVendors]));
+      
+      // Debug
+      console.log('Vendor names from vendors array:', vendorNames);
+      console.log('Transaction vendors:', transactionVendors);
+      console.log('Combined vendors:', combinedVendors);
+      
+      setAllVendors(combinedVendors);
+    }
+  }, [vendors, transactions]);
 
   const filteredTransactions = filterTransactions(transactions, filter, vendorName);
   const sortedTransactions = sortTransactions(filteredTransactions);
@@ -108,8 +131,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     transactions.length > 0 && 
     isBalanceReconciled(transactions, reconciliationBalance);
 
-  const uniqueVendors = Array.from(new Set(transactions.map(t => t.vendor).filter(Boolean) as string[])).sort();
-
   const mapTableColumnsToColumnSelector = () => {
     return tableColumns.map(col => ({
       id: col.id,
@@ -118,7 +139,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     }));
   };
 
-  // Update the parameter types to match TableHeader's expected signature
+  // Update function signature to match TableHeader's expected signature
   const handleToggleColumn = (columnId: string) => {
     const column = tableColumns.find(col => col.id === columnId);
     if (column) {
@@ -146,17 +167,16 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                {tableColumns.map(column => 
-                  column.visible && (
-                    <TableSortHeader
-                      key={column.id}
-                      column={column}
-                      sortField={sortField}
-                      sortDirection={sortDirection}
-                      onSort={handleSort}
-                    />
-                  )
-                )}
+                {tableColumns.filter(column => column.visible).map(column => (
+                  <TableCell 
+                    key={column.id} 
+                    className="cursor-pointer"
+                    onClick={() => handleSort(column.id)}
+                  >
+                    {column.name || column.label} 
+                    {sortField === column.id && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -173,9 +193,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                     transaction={transaction}
                     currency={currency}
                     tableColumns={tableColumns}
-                    uniqueVendors={uniqueVendors}
+                    uniqueVendors={allVendors}
                     onVendorChange={handleVendorChange}
                     getBankName={getBankName}
+                    renderConfidenceScore={(score) => (
+                      <ConfidenceScore score={score} />
+                    )}
                   />
                 ))
               )}

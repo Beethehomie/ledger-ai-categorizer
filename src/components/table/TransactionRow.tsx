@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import {
@@ -32,6 +33,10 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
   getBankName,
   renderConfidenceScore
 }) => {
+  // For debugging purposes
+  console.log('Unique vendors in TransactionRow:', uniqueVendors);
+  console.log('Current transaction vendor:', transaction.vendor);
+
   return (
     <TableRow className={cn(
       transaction.isVerified ? "" : "bg-muted/30",
