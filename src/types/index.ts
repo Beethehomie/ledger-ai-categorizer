@@ -1,4 +1,3 @@
-
 export type TransactionType = "income" | "expense" | "asset" | "liability" | "equity";
 export type StatementType = "profit_loss" | "balance_sheet"; // Removed "operating" as it's not used
 export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR";
@@ -103,5 +102,11 @@ export interface RefreshableComponentProps {
 // Add explicit interfaces for our components that use the RefreshableComponentProps
 export interface FinancialSummaryProps extends RefreshableComponentProps {}
 export interface ChartSectionProps extends RefreshableComponentProps {}
+
+export interface Column {
+  id: string;
+  label: string;
+  visible: boolean;
+}
 
 export default {}; // Added to make it a module
