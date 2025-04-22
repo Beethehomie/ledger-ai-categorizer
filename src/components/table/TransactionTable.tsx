@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Table,
@@ -21,33 +22,8 @@ import { useTransactionFilter } from '@/hooks/useTransactionFilter';
 import ReconcileDialog from '../ReconcileDialog';
 import VendorEditor from '../VendorEditor';
 import { exportToCSV } from '@/utils/csvParser';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import {
-  CheckCircle,
-  Sparkles,
-  Store,
-  Building,
-  Download,
-  RefreshCw,
-  Scale,
-  Edit,
-  CheckCircle2,
-  AlertCircle,
-  Plus
-} from "lucide-react";
-import { Category, Vendor, VendorItem, TableColumn, Column } from "@/types";
-import { useSettings } from "@/context/SettingsContext";
-import { cn } from '@/lib/utils';
-import { formatCurrency, formatDate } from '@/utils/currencyUtils';
-import ColumnSelector from './ColumnSelector';
-import ConfidenceScore from './table/ConfidenceScore';
+import ColumnSelector from '../ColumnSelector';
+import ConfidenceScore from './ConfidenceScore';
 
 interface TransactionTableProps {
   filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor' | 'review';
@@ -134,6 +110,22 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
 
   const uniqueVendors = Array.from(new Set(transactions.map(t => t.vendor).filter(Boolean) as string[])).sort();
 
+  const mapTableColumnsToColumnSelector = () => {
+    return tableColumns.map(col => ({
+      id: col.id,
+      label: col.label || col.name,
+      visible: col.visible
+    }));
+  };
+
+  // Update the parameter types to match TableHeader's expected signature
+  const handleToggleColumn = (columnId: string) => {
+    const column = tableColumns.find(col => col.id === columnId);
+    if (column) {
+      toggleColumn(columnId, !column.visible);
+    }
+  };
+
   return (
     <TooltipProvider>
       <div className="space-y-4 animate-fade-in">
@@ -146,8 +138,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           onUpload={() => setIsVendorEditorOpen(true)}
           onReconcile={() => setIsReconcileDialogOpen(true)}
           onAddVendor={() => setIsVendorEditorOpen(true)}
-          onToggleColumn={toggleColumn}
-          columns={tableColumns}
+          onToggleColumn={handleToggleColumn}
+          columns={mapTableColumnsToColumnSelector()}
         />
         
         <div className="w-full overflow-auto">
