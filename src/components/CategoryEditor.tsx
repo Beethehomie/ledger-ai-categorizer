@@ -14,7 +14,8 @@ import {
 import { toast } from '@/utils/toast';
 import { Category } from '@/types';
 import { Loader2 } from 'lucide-react';
-import { addCategory, updateCategory } from '@/services/categoryService';
+import { addCategory, updateCategory } from '@/utils/categoryAdapter';
+import { logError } from '@/utils/errorLogger';
 
 interface CategoryEditorProps {
   isOpen: boolean;
@@ -87,7 +88,7 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
       onClose();
       toast.success(`Category ${editCategory ? 'updated' : 'created'} successfully`);
     } catch (error) {
-      console.error('Error saving category:', error);
+      logError('CategoryEditor.handleSave', error);
       toast.error(error instanceof Error ? error.message : 'Failed to save category');
     } finally {
       setIsSubmitting(false);

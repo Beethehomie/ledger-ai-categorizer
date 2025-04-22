@@ -1,18 +1,18 @@
 
 import { Category } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/utils/toast';
+import { logError } from '@/utils/errorLogger';
 
 export async function addCategory(newCategory: Category) {
   try {
     // Check if the category already exists
     const { data: existingCategories, error: checkError } = await supabase
-      .from('categories')
-      .select('name')
-      .eq('name', newCategory.name);
+      .from('vendor_categorizations')
+      .select('vendor_name')
+      .eq('vendor_name', newCategory.name);
       
     if (checkError) {
-      console.error('Error checking for existing category:', checkError);
+      logError('categoryService.addCategory.check', checkError);
       return { 
         success: false, 
         error: checkError.message || 'Error checking for existing category' 
@@ -28,31 +28,25 @@ export async function addCategory(newCategory: Category) {
     
     // Insert the new category
     const { data, error } = await supabase
-      .from('categories')
+      .from('vendor_categorizations')
       .insert({
         id: newCategory.id,
-        name: newCategory.name,
+        vendor_name: newCategory.name,
         type: newCategory.type,
         statement_type: newCategory.statementType,
-        keywords: newCategory.keywords
+        category: newCategory.name, // Using the category name as its own category
+        verified: true,
+        confidence: 1.0
       });
     
     if (error) {
-      console.error('Supabase error adding category:', error);
-      // If the categories table doesn't exist yet, suggest creating it
-      if (error.code === '42P01') { // undefined_table error code
-        console.warn('Categories table may not exist yet');
-        return { 
-          success: false, 
-          error: 'Categories table does not exist. Please set up the database first.' 
-        };
-      }
+      logError('categoryService.addCategory.insert', error);
       return { success: false, error: error.message || 'Failed to add category' };
     }
     
     return { success: true, data };
   } catch (err) {
-    console.error('Error adding category:', err);
+    logError('categoryService.addCategory.exception', err);
     return { 
       success: false, 
       error: err instanceof Error ? err.message : 'Unknown error' 
@@ -63,26 +57,63 @@ export async function addCategory(newCategory: Category) {
 export async function updateCategory(category: Category) {
   try {
     const { data, error } = await supabase
-      .from('categories')
+      .from('vendor_categorizations')
       .update({
-        name: category.name,
+        vendor_name: category.name,
         type: category.type,
         statement_type: category.statementType,
-        keywords: category.keywords
+        category: category.name // Using the category name as its own category
       })
       .eq('id', category.id);
     
     if (error) {
-      console.error('Supabase error updating category:', error);
+      logError('categoryService.updateCategory', error);
       return { success: false, error: error.message || 'Failed to update category' };
     }
     
     return { success: true, data };
   } catch (err) {
-    console.error('Error updating category:', err);
+    logError('categoryService.updateCategory.exception', err);
     return { 
       success: false, 
       error: err instanceof Error ? err.message : 'Unknown error' 
+    };
+  }
+}
+
+// Helper function to convert from vendor_categorizations table to Category type
+export function mapVendorCategorizationToCategory(vendorCategorization: any): Category {
+  return {
+    id: vendorCategorization.id,
+    name: vendorCategorization.vendor_name,
+    type: vendorCategorization.type as any,
+    statementType: vendorCategorization.statement_type as any,
+    keywords: [] // Keywords aren't stored in vendor_categorizations
+  };
+}
+
+// Function to fetch all categories
+export async function fetchCategories(): Promise<{ success: boolean; data?: Category[]; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('vendor_categorizations')
+      .select('*')
+      .eq('verified', true);
+    
+    if (error) {
+      logError('categoryService.fetchCategories', error);
+      return { success: false, error: error.message || 'Failed to fetch categories' };
+    }
+    
+    // Map the vendor_categorizations to Category type
+    const categories = data.map(mapVendorCategorizationToCategory);
+    
+    return { success: true, data: categories };
+  } catch (err) {
+    logError('categoryService.fetchCategories.exception', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error'
     };
   }
 }

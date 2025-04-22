@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { mockCategories } from '@/data/mockData';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
 import { useFinancialSummary } from './bookkeeping/useFinancialSummary';
@@ -9,13 +8,33 @@ import { supabase } from '@/integrations/supabase/client';
 import { BankConnectionRow } from '@/types/supabase';
 import { Category, Transaction, Vendor } from '@/types';
 import { toast } from '@/utils/toast';
+import { getCategories } from '@/utils/categoryAdapter';
+import { logError } from '@/utils/errorLogger';
 
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 
 export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session } = useAuth();
-  const [categories, setCategories] = useState<Category[]>(mockCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [bankConnections, setBankConnections] = useState<BankConnectionRow[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const fetchedCategories = await getCategories();
+        setCategories(fetchedCategories);
+      } catch (err) {
+        logError('BookkeepingContext.loadCategories', err);
+        toast.error('Failed to load categories');
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    
+    loadCategories();
+  }, []);
   
   useEffect(() => {
     if (!session) return;
@@ -28,7 +47,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
           .order('bank_name', { ascending: true });
           
         if (error) {
-          console.error('Error fetching bank connections:', error);
+          logError('BookkeepingContext.fetchBankConnections', error);
           return;
         }
         
@@ -40,7 +59,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
           setBankConnections(transformedData);
         }
       } catch (err) {
-        console.error('Error in fetchBankConnections:', err);
+        logError('BookkeepingContext.fetchBankConnections', err);
       }
     };
     
@@ -79,7 +98,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     calculateFinancialSummary
   } = useFinancialSummary(transactions);
   
-  const loading = transactionsLoading || vendorsLoading;
+  const loading = transactionsLoading || vendorsLoading || loadingCategories;
   
   const fetchTransactions = async (): Promise<void> => {
     if (!session) {
@@ -164,7 +183,6 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     fetchTransactionsForBankAccount,
     batchVerifyVendorTransactions,
     fetchTransactions,
-    findSimilarTransactions,
   };
 
   return (

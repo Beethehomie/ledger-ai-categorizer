@@ -22,10 +22,19 @@ export function logError(context: string, error: any) {
       console.error('Response status:', error.response.status);
     }
     
+    // Extract Supabase specific error details
+    if (error?.code && error?.details) {
+      console.error('Supabase error code:', error.code);
+      console.error('Supabase error details:', error.details);
+      console.error('Supabase error hint:', error.hint);
+    }
+    
     // Log any additional context-specific data
     console.error('Error time:', new Date().toISOString());
     console.groupEnd();
   }
+  
+  return error;
 }
 
 export default {
