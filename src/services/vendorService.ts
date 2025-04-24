@@ -1,7 +1,7 @@
 
-// Add the new functions to your existing service file
-import { Transaction } from '@/types';
+import { Transaction, Vendor } from '@/types';
 import { extractVendorWithAI } from '@/utils/vendorExtractor';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FindSimilarTransactionsFunction {
   (vendorName: string, transactions: Transaction[]): Promise<Transaction[]>;
@@ -72,3 +72,35 @@ export const batchAnalyzeTransactions = async (
   
   return results;
 };
+
+/**
+ * Adds a new vendor to the database
+ * @param vendor The vendor object to add
+ * @returns An object with a success flag and optional error message
+ */
+export const addVendor = async (vendor: Vendor): Promise<{ success: boolean, error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('vendor_categorizations')
+      .insert({
+        vendor_name: vendor.name,
+        category: vendor.category || '',
+        type: vendor.type || 'expense',
+        statement_type: vendor.statementType || 'profit_loss',
+        occurrences: vendor.occurrences || 1,
+        verified: vendor.verified || false,
+        last_used: new Date().toISOString()
+      });
+
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (err) {
+    console.error('Error adding vendor:', err);
+    return { 
+      success: false, 
+      error: err instanceof Error ? err.message : 'Failed to add vendor to database' 
+    };
+  }
+};
+
