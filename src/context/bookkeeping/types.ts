@@ -32,4 +32,5 @@ export interface BookkeepingContextType {
   batchVerifyVendorTransactions: (vendorName: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => Promise<void>;
   fetchTransactions: () => Promise<void>;
   findSimilarTransactions: (vendorName: string, allTransactions: Transaction[]) => Promise<Transaction[]>;
+  deleteTransaction: (transactionId: string) => Promise<{ success: boolean, error?: string }>;
 }

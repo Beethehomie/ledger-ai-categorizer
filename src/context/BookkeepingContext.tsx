@@ -11,6 +11,7 @@ import { Category, Transaction, Vendor } from '@/types';
 import { toast } from '@/utils/toast';
 import { getCategories } from '@/utils/categoryAdapter';
 import { logError } from '@/utils/errorLogger';
+import { deleteTransaction } from '@/services/vendorService';
 
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 
@@ -184,7 +185,8 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     fetchTransactionsForBankAccount,
     batchVerifyVendorTransactions,
     fetchTransactions,
-    findSimilarTransactions,  // Added the missing property here
+    findSimilarTransactions,
+    deleteTransaction,  // Added the deleteTransaction function here
   };
 
   return (
