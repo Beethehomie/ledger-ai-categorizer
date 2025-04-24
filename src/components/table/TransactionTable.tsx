@@ -1,3 +1,5 @@
+
+// Update the import section at the top
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -27,7 +29,8 @@ import TransactionRow from './TransactionRow';
 import { useTableSort } from '@/hooks/useTableSort';
 import { useTransactionFilter } from '@/hooks/useTransactionFilter';
 import ReconcileDialog from '../ReconcileDialog';
-import VendorEditor from '../VendorEditor';
+import VendorNameEditor from '../vendor/VendorNameEditor';
+import BusinessContextQuestionnaire from '../business/BusinessContextQuestionnaire';
 import { exportToCSV } from '@/utils/csvParser';
 import ConfidenceScore from './ConfidenceScore';
 import { supabase } from '@/integrations/supabase/client';

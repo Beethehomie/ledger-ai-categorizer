@@ -182,19 +182,36 @@ export function calculateVendorSimilarity(vendor1: string, vendor2: string): num
  * Process a batch of transactions to identify common patterns
  * and improve vendor extraction accuracy
  */
-export function analyzeCommonPatterns(descriptions: string[]): string[] {
+export function analyzeCommonPatterns(descriptions: string[]): Record<string, number> {
   if (!descriptions || descriptions.length < 3) {
-    return [];
+    return {};
   }
   
   // Tokenize all descriptions to find common elements
   const words: Record<string, number> = {};
+  const commonPrefixes: Record<string, number> = {};
   
+  // First pass: identify common prefixes and terms
   descriptions.forEach(description => {
     if (!description) return;
     
     // Split into words and normalize
     const tokens = description.toUpperCase().split(/\s+/);
+    
+    // Track potential prefixes (first 1-3 words)
+    const potentialPrefixes = [];
+    for (let i = 0; i < Math.min(3, tokens.length); i++) {
+      const prefix = tokens.slice(0, i+1).join(' ');
+      potentialPrefixes.push(prefix);
+      
+      if (commonPrefixes[prefix]) {
+        commonPrefixes[prefix]++;
+      } else {
+        commonPrefixes[prefix] = 1;
+      }
+    }
+    
+    // Track all words
     tokens.forEach(token => {
       // Skip short tokens, numbers, and common words
       if (token.length < 3 || /^\d+$/.test(token) || WORDS_TO_REMOVE.includes(token)) {
@@ -209,12 +226,156 @@ export function analyzeCommonPatterns(descriptions: string[]): string[] {
     });
   });
   
-  // Find tokens that appear in more than 30% of descriptions
-  // but are not in our common words to remove list
-  const threshold = Math.max(3, Math.floor(descriptions.length * 0.3));
-  const commonPatterns = Object.entries(words)
-    .filter(([word, count]) => count >= threshold && !WORDS_TO_REMOVE.includes(word))
-    .map(([word]) => word);
-  
-  return commonPatterns;
+  // Find prefixes that appear in more than 30% of descriptions
+  const threshold = Math.max(2, Math.floor(descriptions.length * 0.3));
+  const commonTokens = Object.entries(words)
+    .filter(([word, count]) => count >= threshold)
+    .reduce((acc, [word, count]) => {
+      acc[word] = count;
+      return acc;
+    }, {} as Record<string, number>);
+    
+  const frequentPrefixes = Object.entries(commonPrefixes)
+    .filter(([prefix, count]) => count >= threshold)
+    .reduce((acc, [prefix, count]) => {
+      acc[prefix] = count;
+      return acc;
+    }, {} as Record<string, number>);
+    
+  return {...commonTokens, ...frequentPrefixes};
 }
+
+// New function to use pattern analysis for better vendor extraction
+export function extractVendorWithPatternAnalysis(
+  description: string, 
+  commonPatterns: Record<string, number>
+): string {
+  if (!description || typeof description !== 'string') return "Unknown";
+  
+  let vendor = description.trim().toUpperCase();
+  
+  // Remove common prefixes from patterns first
+  for (const pattern of Object.keys(commonPatterns).sort((a, b) => b.length - a.length)) {
+    if (vendor.startsWith(pattern)) {
+      vendor = vendor.substring(pattern.length).trim();
+      break;
+    }
+  }
+  
+  // Continue with regular extraction
+  for (const prefix of COMMON_PREFIXES) {
+    if (vendor.startsWith(prefix.toUpperCase())) {
+      vendor = vendor.substring(prefix.length).trim();
+      break;
+    }
+  }
+  
+  // Remove common suffixes using regex for more flexible matching
+  for (const suffix of COMMON_SUFFIXES) {
+    const regex = new RegExp(`${suffix.toUpperCase()}$`, 'i');
+    vendor = vendor.replace(regex, '');
+  }
+  
+  // Remove transaction IDs and numbers (common patterns)
+  vendor = vendor.replace(/\b\d{5,}\b/g, ""); // Remove long numbers
+  vendor = vendor.replace(/\b[A-Z0-9]{10,}\b/g, ""); // Remove long alphanumeric strings
+  vendor = vendor.replace(/REF:\s*\S+/gi, ""); // Remove reference numbers
+  vendor = vendor.replace(/\d{2}\/\d{2}\/\d{2,4}/g, ""); // Remove dates
+  vendor = vendor.replace(/\d+\.\d+/g, ""); // Remove decimal numbers
+  vendor = vendor.replace(/\(\d+\)/g, ""); // Remove numbers in parentheses
+  vendor = vendor.replace(/\d+\*+\d+/g, ""); // Remove patterns like 485442*7284
+  vendor = vendor.replace(/\d{1,2}\s+[A-Za-z]{3,}\s+\d{2,4}/g, ""); // Remove dates like "17 Feb 2023"
+  
+  // Handle special case formats
+  // Format: VENDOR*LOCATION or VENDOR*SERVICE
+  if (vendor.includes('*')) {
+    vendor = vendor.split('*')[0];
+  }
+  
+  // Format: VENDOR-DETAILS or VENDOR/DETAILS
+  if (vendor.includes('-') && !vendor.startsWith('-')) {
+    vendor = vendor.split('-')[0];
+  }
+  if (vendor.includes('/') && !vendor.startsWith('/')) {
+    vendor = vendor.split('/')[0];
+  }
+  
+  // Split into words and filter out words to remove
+  const words = vendor.split(/\s+/).filter(word => 
+    word.length > 1 && !WORDS_TO_REMOVE.includes(word) && !/^\d+$/.test(word)
+  );
+  
+  // Join words back and take the first 2 words max for conciseness
+  vendor = words.slice(0, 2).join(" ");
+  
+  // Title case the final vendor name
+  vendor = vendor.replace(/\w\S*/g, txt => 
+    txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
+  );
+  
+  // If vendor is empty after all processing, use "Unknown"
+  if (!vendor.trim()) {
+    return "Unknown";
+  }
+  
+  return vendor.trim();
+}
+
+// Update the batch analysis function to use pattern analysis
+export const batchAnalyzeTransactions = async (
+  transactions: Transaction[],
+  existingVendors: string[],
+  updateTransaction: (transaction: Transaction) => Promise<void>
+) => {
+  const results = {
+    processed: 0,
+    updated: 0,
+    errors: 0
+  };
+  
+  // First, analyze all descriptions to find common patterns
+  const descriptions = transactions
+    .filter(t => !t.vendor || t.vendor === 'Unknown')
+    .map(t => t.description);
+    
+  const commonPatterns = analyzeCommonPatterns(descriptions);
+  
+  // Process transactions 
+  for (const transaction of transactions) {
+    try {
+      results.processed++;
+      if (!transaction.vendor || transaction.vendor === 'Unknown') {
+        // Use AI-based extraction when available
+        try {
+          const updatedTransaction = await analyzeTransactionWithAI(transaction, existingVendors);
+          
+          if (updatedTransaction.vendor && updatedTransaction.vendor !== 'Unknown') {
+            await updateTransaction(updatedTransaction);
+            results.updated++;
+            continue;
+          }
+        } catch (err) {
+          console.warn("AI extraction failed, falling back to pattern analysis:", err);
+        }
+        
+        // Fall back to pattern-based extraction
+        const vendorName = extractVendorWithPatternAnalysis(transaction.description, commonPatterns);
+        if (vendorName && vendorName !== 'Unknown') {
+          const updatedTransaction = {
+            ...transaction,
+            vendor: vendorName,
+            confidenceScore: 0.6 // Pattern matching is less confident than AI
+          };
+          
+          await updateTransaction(updatedTransaction);
+          results.updated++;
+        }
+      }
+    } catch (err) {
+      console.error(`Error processing transaction ID ${transaction.id}`, err);
+      results.errors++;
+    }
+  }
+  
+  return results;
+};

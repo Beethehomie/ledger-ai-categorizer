@@ -225,8 +225,10 @@ export type BankTransactionRow = Database['public']['Tables']['bank_transactions
 export interface BusinessContext {
   country?: string;
   industry?: string;
-  companySize?: string;
-  [key: string]: any;
+  businessSize?: string;
+  paymentMethods?: string[];
+  currency?: string;
+  additionalInfo?: string;
 }
 
 // Define UserProfileRow with business_context already typed
