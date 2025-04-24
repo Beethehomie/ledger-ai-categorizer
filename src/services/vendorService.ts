@@ -2,6 +2,7 @@
 import { Transaction, Vendor } from '@/types';
 import { extractVendorWithAI } from '@/utils/vendorExtractor';
 import { supabase } from '@/integrations/supabase/client';
+import { logError } from '@/utils/errorLogger';
 
 interface FindSimilarTransactionsFunction {
   (vendorName: string, transactions: Transaction[]): Promise<Transaction[]>;
@@ -19,7 +20,7 @@ export const findSimilarVendorTransactions = async (
     // Then return the results
     return similarTransactions;
   } catch (err) {
-    console.error('Error in findSimilarVendorTransactions:', err);
+    logError('findSimilarVendorTransactions', err);
     return [];
   }
 };
@@ -37,7 +38,7 @@ export const analyzeTransactionWithAI = async (transaction: Transaction, existin
       confidenceScore: result.confidence || transaction.confidenceScore,
     };
   } catch (err) {
-    console.error('Error in analyzeTransactionWithAI:', err);
+    logError('analyzeTransactionWithAI', err);
     return transaction;
   }
 };
@@ -65,7 +66,7 @@ export const batchAnalyzeTransactions = async (
         }
       }
     } catch (err) {
-      console.error(`Error processing transaction ID ${transaction.id}:`, err);
+      logError(`Error processing transaction ID ${transaction.id}`, err);
       results.errors++;
     }
   }
@@ -92,11 +93,28 @@ export const addVendor = async (vendor: Vendor): Promise<{ success: boolean, err
         last_used: new Date().toISOString()
       });
 
-    if (error) throw error;
+    if (error) {
+      // Check if the error is due to duplicate vendor name
+      if (error.code === '23505') {
+        // Update the existing vendor with the new data
+        const { error: updateError } = await supabase
+          .from('vendor_categorizations')
+          .update({
+            last_used: new Date().toISOString(),
+            occurrences: vendor.occurrences || 1
+          })
+          .eq('vendor_name', vendor.name);
+          
+        if (updateError) throw updateError;
+        
+        return { success: true };
+      }
+      throw error;
+    }
     
     return { success: true };
   } catch (err) {
-    console.error('Error adding vendor:', err);
+    logError('Error adding vendor', err);
     return { 
       success: false, 
       error: err instanceof Error ? err.message : 'Failed to add vendor to database' 
@@ -104,3 +122,26 @@ export const addVendor = async (vendor: Vendor): Promise<{ success: boolean, err
   }
 };
 
+/**
+ * Deletes a transaction from the database
+ * @param transactionId The ID of the transaction to delete
+ * @returns An object with a success flag and optional error message
+ */
+export const deleteTransaction = async (transactionId: string): Promise<{ success: boolean, error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('bank_transactions')
+      .delete()
+      .match({ id: transactionId });
+
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (err) {
+    logError('Error deleting transaction', err);
+    return { 
+      success: false, 
+      error: err instanceof Error ? err.message : 'Failed to delete transaction from database' 
+    };
+  }
+};

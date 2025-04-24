@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -7,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Store, Building, AlertCircle, Edit, Loader2, Check } from 'lucide-react';
+import { Store, Building, AlertCircle, Edit, Loader2, Check, Trash2 } from 'lucide-react';
 import { Transaction } from '@/types';
 import { Currency } from '@/types';
 import { cn } from '@/lib/utils';
@@ -24,6 +26,8 @@ interface TransactionRowProps {
   onVendorChange: (transaction: Transaction, vendorName: string) => void;
   getBankName: (transaction: Transaction) => string;
   renderConfidenceScore?: (score?: number) => React.ReactNode;
+  isSelected?: boolean;
+  onSelectChange?: (transactionId: string, isSelected: boolean) => void;
 }
 
 const TransactionRow: React.FC<TransactionRowProps> = ({
@@ -33,7 +37,9 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
   uniqueVendors,
   onVendorChange,
   getBankName,
-  renderConfidenceScore
+  renderConfidenceScore,
+  isSelected = false,
+  onSelectChange
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
@@ -83,14 +89,31 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     }
   };
 
+  const handleSelectChange = (checked: boolean) => {
+    if (onSelectChange) {
+      onSelectChange(transaction.id, checked);
+    }
+  };
+
   return (
     <TableRow className={cn(
       transaction.isVerified ? "" : "bg-muted/30",
       transaction.type === 'income' || transaction.amount > 0 ? "border-l-2 border-l-finance-green" : "",
       transaction.type === 'expense' && transaction.amount < 0 ? "border-l-2 border-l-finance-red" : "",
       transaction.confidenceScore !== undefined && transaction.confidenceScore < 0.5 ? "border-l-2 border-l-amber-500" : "",
+      isSelected ? "bg-muted/50" : "",
       "transition-all hover:bg-muted/30"
     )}>
+      {onSelectChange && (
+        <TableCell className="w-10">
+          <Checkbox 
+            checked={isSelected} 
+            onCheckedChange={handleSelectChange} 
+            aria-label="Select transaction"
+          />
+        </TableCell>
+      )}
+      
       {tableColumns.find(col => col.id === 'date')?.visible && (
         <TableCell>{formatDate(transaction.date, currency)}</TableCell>
       )}
@@ -183,7 +206,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
         </TableCell>
       )}
       
-      {tableColumns.find(col => col.id === 'confidence')?.visible !== false && (
+      {tableColumns.find(col => col.id === 'confidence')?.visible && (
         <TableCell>
           {renderConfidenceScore && renderConfidenceScore(transaction.confidenceScore)}
         </TableCell>

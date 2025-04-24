@@ -43,6 +43,7 @@ export function logError(context: string, error: any) {
   return error;
 }
 
+// Export with a default object as well to support both syntax styles
 export default {
   logError
 };
