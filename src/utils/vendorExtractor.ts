@@ -1,4 +1,5 @@
 import { Vendor } from '../types';
+import { Transaction } from '../types';
 import { supabase } from '@/integrations/supabase/client';
 import { BusinessContext } from '@/types/supabase';
 
@@ -320,6 +321,25 @@ export function extractVendorWithPatternAnalysis(
   
   return vendor.trim();
 }
+
+// Add the missing function for AI transaction analysis
+export const analyzeTransactionWithAI = async (transaction: Transaction, existingVendors: string[] = []) => {
+  try {
+    const result = await extractVendorWithAI(transaction.description, existingVendors);
+    
+    return {
+      ...transaction,
+      vendor: result.vendor,
+      category: result.category || transaction.category,
+      type: result.type || transaction.type,
+      statementType: result.statementType || transaction.statementType,
+      confidenceScore: result.confidence || transaction.confidenceScore,
+    };
+  } catch (err) {
+    console.error("Error in analyzeTransactionWithAI:", err);
+    return transaction;
+  }
+};
 
 // Update the batch analysis function to use pattern analysis
 export const batchAnalyzeTransactions = async (

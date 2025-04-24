@@ -438,7 +438,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           onReconcile={handleReconcile}
         />
         
-        <VendorEditor
+        <VendorNameEditor
           isOpen={isVendorEditorOpen}
           onClose={() => setIsVendorEditorOpen(false)}
           onSave={(vendor) => {
