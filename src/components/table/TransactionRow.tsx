@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import {
@@ -15,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate } from '@/utils/currencyUtils';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
+import { logError } from '@/utils/errorLogger';
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -52,27 +52,29 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
           throw error;
         }
         
-        if (data) {
-          const vendorName = data.vendor;
-          const updatedTransaction = { ...transaction, vendor: vendorName };
-          
-          // If this is a new vendor and we have category suggestions
-          if (!data.isExisting && data.category) {
-            updatedTransaction.category = data.category;
-            updatedTransaction.confidenceScore = data.confidence;
-            updatedTransaction.type = data.type;
-            updatedTransaction.statementType = data.statementType;
-            
-            toast.success(`Vendor extracted: ${vendorName} (Category: ${data.category})`);
-          } else {
-            toast.success(`Vendor extracted: ${vendorName}`);
-          }
-          
-          onVendorChange(updatedTransaction, vendorName);
+        if (!data || !data.vendor) {
+          throw new Error('No vendor data returned from analysis');
         }
+        
+        const vendorName = data.vendor;
+        const updatedTransaction = { ...transaction, vendor: vendorName };
+        
+        // If this is a new vendor and we have category suggestions
+        if (!data.isExisting && data.category) {
+          updatedTransaction.category = data.category;
+          updatedTransaction.confidenceScore = data.confidence;
+          updatedTransaction.type = data.type;
+          updatedTransaction.statementType = data.statementType;
+          
+          toast.success(`Vendor extracted: ${vendorName} (Category: ${data.category})`);
+        } else {
+          toast.success(`Vendor extracted: ${vendorName}`);
+        }
+        
+        onVendorChange(updatedTransaction, vendorName);
       } catch (err) {
-        console.error("Error extracting vendor:", err);
-        toast.error("Failed to extract vendor from description");
+        logError("TransactionRow.extractVendor", err);
+        toast.error("Failed to extract vendor from description. Please try again or select a vendor manually.");
       } finally {
         setIsAnalyzing(false);
       }

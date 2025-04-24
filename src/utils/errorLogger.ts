@@ -1,4 +1,10 @@
 
+/**
+ * Logs errors in a standardized format with additional contextual information
+ * @param context The context where the error occurred
+ * @param error The error object
+ * @returns The original error for chaining
+ */
 export function logError(context: string, error: any) {
   console.error(
     `[ERROR][${context}]`,
