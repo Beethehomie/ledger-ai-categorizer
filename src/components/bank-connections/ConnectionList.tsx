@@ -29,7 +29,7 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
   return (
     <>
       {connections.map(connection => (
-        <div key={connection.id}>
+        <div key={connection.id} className="space-y-2">
           <div className="flex items-center justify-between p-3 border rounded-md bg-card hover:bg-accent/20 transition-colors">
             <div className="flex items-center gap-3">
               <div className="bg-primary/10 p-2 rounded-full">
@@ -59,7 +59,7 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
                 variant="outline" 
                 size="icon"
                 onClick={() => onEdit(connection.id)}
-                className="hover-scale"
+                className="hover:bg-accent/20"
               >
                 <Edit className="h-4 w-4" />
               </Button>
@@ -68,7 +68,6 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
                 size="sm"
                 onClick={() => onSync(connection)}
                 disabled={syncing === connection.id}
-                className="hover-scale"
               >
                 <RefreshCw className={`h-4 w-4 mr-1 ${syncing === connection.id ? 'animate-spin' : ''}`} />
                 {syncing === connection.id ? 'Syncing...' : 'Sync Now'}
@@ -77,7 +76,7 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
                 variant="outline" 
                 size="icon"
                 onClick={() => onDelete(connection.id)}
-                className="text-destructive hover:bg-destructive/10 hover-scale"
+                className="text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

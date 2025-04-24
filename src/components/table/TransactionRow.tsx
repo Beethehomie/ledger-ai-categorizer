@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -8,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Store, Building, AlertCircle, Edit, Loader2, Check, Trash2 } from 'lucide-react';
+import { Store, Building, AlertCircle, Edit, Loader2, Check } from 'lucide-react';
 import { Transaction } from '@/types';
 import { Currency } from '@/types';
 import { cn } from '@/lib/utils';
@@ -57,12 +58,11 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             .from('user_profiles')
             .select('business_context')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
             
-          if (!error && data && data.business_context) {
-            const contextData = data.business_context as BusinessContext;
-            businessContext = contextData;
-            country = contextData.country || "ZA";
+          if (!error && data?.business_context) {
+            businessContext = data.business_context as BusinessContext;
+            country = businessContext.country || "ZA";
           }
         }
         
