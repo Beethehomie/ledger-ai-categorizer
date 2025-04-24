@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Vendor, VendorItem } from '@/types';
 import {
   Select,
@@ -15,8 +15,10 @@ import {
   RefreshCw, 
   CheckCircle, 
   AlertTriangle,
-  BadgeCheck
+  BadgeCheck,
+  Edit
 } from "lucide-react";
+import VendorNameEditor from './VendorNameEditor';
 
 interface VendorSelectorProps {
   selectedVendor: string | null;
@@ -37,77 +39,96 @@ const VendorSelector: React.FC<VendorSelectorProps> = ({
   onVendorApproval,
   processingAction
 }) => {
+  const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
+  
   return (
-    <div className="flex flex-col md:flex-row gap-4 items-start">
-      <Select
-        value={selectedVendor || undefined}
-        onValueChange={setSelectedVendor}
-      >
-        <SelectTrigger className="w-full md:w-[300px]">
-          <SelectValue placeholder="Select a vendor" />
-        </SelectTrigger>
-        <SelectContent>
-          {vendorsList.map((vendor) => (
-            <SelectItem key={vendor.name} value={vendor.name}>
-              <div className="flex items-center gap-2">
-                <span>{vendor.name}</span>
-                <span className="text-xs text-muted-foreground">({vendor.count})</span>
-                {vendor.verified && (
-                  <BadgeCheck className="h-4 w-4 text-[hsl(var(--finance-soft-green))]" />
-                )}
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      
-      <div className="flex items-center gap-2 animate-fade-in">
-        <Button
-          size="sm"
-          variant="outline"
-          className="hover-scale"
-          onClick={onAddVendorClick}
+    <>
+      <div className="flex flex-col md:flex-row gap-4 items-start">
+        <Select
+          value={selectedVendor || undefined}
+          onValueChange={setSelectedVendor}
         >
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Vendor
-        </Button>
+          <SelectTrigger className="w-full md:w-[300px]">
+            <SelectValue placeholder="Select a vendor" />
+          </SelectTrigger>
+          <SelectContent>
+            {vendorsList.map((vendor) => (
+              <SelectItem key={vendor.name} value={vendor.name}>
+                <div className="flex items-center gap-2">
+                  <span>{vendor.name}</span>
+                  <span className="text-xs text-muted-foreground">({vendor.count})</span>
+                  {vendor.verified && (
+                    <BadgeCheck className="h-4 w-4 text-[hsl(var(--finance-soft-green))]" />
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={processingAction}
-          className="hover-scale"
-          onClick={onFindSimilarClick}
-        >
-          <Search className="h-4 w-4 mr-2" />
-          Find Similar Transactions
-          {processingAction && <RefreshCw className="ml-2 h-3 w-3 animate-spin" />}
-        </Button>
-      </div>
-      
-      {selectedVendor && (
-        <div className="flex items-center gap-2 ml-auto animate-fade-in">
+        <div className="flex items-center gap-2 animate-fade-in">
           <Button
             size="sm"
             variant="outline"
-            className="text-[hsl(var(--finance-soft-green))] border-[hsl(var(--finance-soft-green))] hover-scale"
-            onClick={() => onVendorApproval(selectedVendor, true)}
+            className="hover-scale"
+            onClick={onAddVendorClick}
           >
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Approve Vendor
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Vendor
           </Button>
+          
           <Button
             size="sm"
             variant="outline"
-            className="text-[hsl(var(--finance-soft-red))] border-[hsl(var(--finance-soft-red))] hover-scale"
-            onClick={() => onVendorApproval(selectedVendor, false)}
+            className="hover-scale"
+            onClick={() => setIsVendorEditorOpen(true)}
           >
-            <AlertTriangle className="h-4 w-4 mr-2" />
-            Reject Vendor
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Vendors
+          </Button>
+          
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={processingAction}
+            className="hover-scale"
+            onClick={onFindSimilarClick}
+          >
+            <Search className="h-4 w-4 mr-2" />
+            Find Similar Transactions
+            {processingAction && <RefreshCw className="ml-2 h-3 w-3 animate-spin" />}
           </Button>
         </div>
-      )}
-    </div>
+        
+        {selectedVendor && (
+          <div className="flex items-center gap-2 ml-auto animate-fade-in">
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-[hsl(var(--finance-soft-green))] border-[hsl(var(--finance-soft-green))] hover-scale"
+              onClick={() => onVendorApproval(selectedVendor, true)}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Approve Vendor
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-[hsl(var(--finance-soft-red))] border-[hsl(var(--finance-soft-red))] hover-scale"
+              onClick={() => onVendorApproval(selectedVendor, false)}
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Reject Vendor
+            </Button>
+          </div>
+        )}
+      </div>
+      
+      <VendorNameEditor 
+        isOpen={isVendorEditorOpen} 
+        onClose={() => setIsVendorEditorOpen(false)} 
+      />
+    </>
   );
 };
 

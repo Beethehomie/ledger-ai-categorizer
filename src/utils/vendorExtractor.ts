@@ -1,5 +1,5 @@
-
 import { Vendor } from '../types';
+import { supabase } from '@/integrations/supabase/client';
 
 // Common prefixes and suffixes to remove from transaction descriptions
 const COMMON_PREFIXES = [
@@ -53,6 +53,8 @@ export function extractVendorName(description: string): string {
   vendor = vendor.replace(/\d{2}\/\d{2}\/\d{2,4}/g, ""); // Remove dates
   vendor = vendor.replace(/\d+\.\d+/g, ""); // Remove decimal numbers
   vendor = vendor.replace(/\(\d+\)/g, ""); // Remove numbers in parentheses
+  vendor = vendor.replace(/\d+\*+\d+/g, ""); // Remove patterns like 485442*7284
+  vendor = vendor.replace(/\d{1,2}\s+[A-Za-z]{3,}\s+\d{2,4}/g, ""); // Remove dates like "17 Feb 2023"
   
   // Handle special case formats
   // Format: VENDOR*LOCATION or VENDOR*SERVICE
@@ -73,8 +75,8 @@ export function extractVendorName(description: string): string {
     word.length > 1 && !WORDS_TO_REMOVE.includes(word) && !/^\d+$/.test(word)
   );
   
-  // Join words back and take the first 3 words max for conciseness
-  vendor = words.slice(0, 3).join(" ");
+  // Join words back and take the first 2 words max for conciseness
+  vendor = words.slice(0, 2).join(" ");
   
   // Title case the final vendor name
   vendor = vendor.replace(/\w\S*/g, txt => 
@@ -92,12 +94,30 @@ export function extractVendorName(description: string): string {
 // Add a new function to extract vendors using the edge function
 export async function extractVendorWithAI(description: string, existingVendors: string[] = []) {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
+    // Get business context if available
+    let businessContext = {};
+    let country = "ZA";
+    
+    const { data: authData } = await supabase.auth.getSession();
+    if (authData?.session?.user) {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('business_context')
+        .eq('id', authData.session.user.id)
+        .single();
+        
+      if (data && data.business_context) {
+        businessContext = data.business_context;
+        country = data.business_context.country || "ZA";
+      }
+    }
     
     const { data, error } = await supabase.functions.invoke('analyze-transaction-vendor', {
       body: { 
         description,
-        existingVendors
+        existingVendors,
+        country,
+        context: businessContext
       }
     });
     
@@ -153,4 +173,45 @@ export function calculateVendorSimilarity(vendor1: string, vendor2: string): num
   const union = new Set([...words1, ...words2]);
   
   return intersection.size / union.size;
+}
+
+/**
+ * Process a batch of transactions to identify common patterns
+ * and improve vendor extraction accuracy
+ */
+export function analyzeCommonPatterns(descriptions: string[]): string[] {
+  if (!descriptions || descriptions.length < 3) {
+    return [];
+  }
+  
+  // Tokenize all descriptions to find common elements
+  const words: Record<string, number> = {};
+  
+  descriptions.forEach(description => {
+    if (!description) return;
+    
+    // Split into words and normalize
+    const tokens = description.toUpperCase().split(/\s+/);
+    tokens.forEach(token => {
+      // Skip short tokens, numbers, and common words
+      if (token.length < 3 || /^\d+$/.test(token) || WORDS_TO_REMOVE.includes(token)) {
+        return;
+      }
+      
+      if (words[token]) {
+        words[token]++;
+      } else {
+        words[token] = 1;
+      }
+    });
+  });
+  
+  // Find tokens that appear in more than 30% of descriptions
+  // but are not in our common words to remove list
+  const threshold = Math.max(3, Math.floor(descriptions.length * 0.3));
+  const commonPatterns = Object.entries(words)
+    .filter(([word, count]) => count >= threshold && !WORDS_TO_REMOVE.includes(word))
+    .map(([word]) => word);
+  
+  return commonPatterns;
 }

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,6 +16,7 @@ import { formatCurrency, formatDate } from '@/utils/currencyUtils';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorLogger';
+import { useAuth } from '@/hooks/auth';
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -42,15 +42,31 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
   onSelectChange
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { session } = useAuth();
   
   const handleVendorSelect = async (value: string) => {
     if (value === "extract") {
       setIsAnalyzing(true);
       try {
+        let businessContext = {};
+        if (session?.user) {
+          const { data } = await supabase
+            .from('user_profiles')
+            .select('business_context')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (data && data.business_context) {
+            businessContext = data.business_context;
+          }
+        }
+        
         const { data, error } = await supabase.functions.invoke('analyze-transaction-vendor', {
           body: { 
             description: transaction.description,
-            existingVendors: uniqueVendors
+            existingVendors: uniqueVendors,
+            country: businessContext?.country || "ZA",
+            context: businessContext || {}
           }
         });
         
@@ -65,7 +81,6 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
         const vendorName = data.vendor;
         const updatedTransaction = { ...transaction, vendor: vendorName };
         
-        // If this is a new vendor and we have category suggestions
         if (!data.isExisting && data.category) {
           updatedTransaction.category = data.category;
           updatedTransaction.confidenceScore = data.confidence;
