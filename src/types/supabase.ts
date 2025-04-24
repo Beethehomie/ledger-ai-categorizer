@@ -230,9 +230,9 @@ export interface BusinessContext {
 }
 
 // Define UserProfileRow with business_context already typed
-export interface UserProfileRow extends Database['public']['Tables']['user_profiles']['Row'] {
+export type UserProfileRow = Omit<Database['public']['Tables']['user_profiles']['Row'], 'business_context'> & {
   business_context?: BusinessContext | null;
-}
+};
 
 type DefaultSchema = Database[Extract<keyof Database, "public">]
 
