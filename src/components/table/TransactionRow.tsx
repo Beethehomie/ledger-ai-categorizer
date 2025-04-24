@@ -50,6 +50,8 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
       setIsAnalyzing(true);
       try {
         let businessContext: Record<string, any> = {};
+        let country = "ZA";
+        
         if (session?.user) {
           const { data, error } = await supabase
             .from('user_profiles')
@@ -59,6 +61,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             
           if (!error && data && data.business_context) {
             businessContext = data.business_context;
+            country = data.business_context.country || "ZA";
           }
         }
         
@@ -66,7 +69,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
           body: { 
             description: transaction.description,
             existingVendors: uniqueVendors,
-            country: businessContext?.country || "ZA",
+            country: country,
             context: businessContext || {}
           }
         });

@@ -16,10 +16,10 @@ export type Database = {
           bank_name: string
           connection_type: string
           created_at: string | null
+          display_name: string | null
           id: string
           last_sync: string | null
           user_id: string | null
-          display_name: string | null
         }
         Insert: {
           active?: boolean | null
@@ -38,10 +38,10 @@ export type Database = {
           bank_name?: string
           connection_type?: string
           created_at?: string | null
+          display_name?: string | null
           id?: string
           last_sync?: string | null
           user_id?: string | null
-          display_name?: string | null
         }
         Relationships: []
       }
@@ -130,24 +130,33 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          business_context: Json | null
           created_at: string | null
           email: string | null
           full_name: string | null
           id: string
+          is_admin: boolean | null
+          subscription_tier: string | null
           updated_at: string | null
         }
         Insert: {
+          business_context?: Json | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
           id: string
+          is_admin?: boolean | null
+          subscription_tier?: string | null
           updated_at?: string | null
         }
         Update: {
+          business_context?: Json | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
+          is_admin?: boolean | null
+          subscription_tier?: string | null
           updated_at?: string | null
         }
         Relationships: []
