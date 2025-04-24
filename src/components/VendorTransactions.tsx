@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { Transaction, Vendor } from '@/types';
@@ -20,7 +19,7 @@ import VendorTransactionsDisplay from './vendor/VendorTransactionsDisplay';
 import { findSimilarVendorTransactions } from '@/services/vendorService';
 import OnboardingQuestionnaire from './OnboardingQuestionnaire';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/auth';
 
 interface VendorTransactionsProps {
   transactions: Transaction[];
@@ -42,7 +41,6 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
   
   const vendorsList = getVendorsList();
   
-  // Fetch business context on component mount
   useEffect(() => {
     const fetchBusinessContext = async () => {
       if (session?.user) {
@@ -61,7 +59,6 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
           if (data && data.business_context) {
             setBusinessContext(data.business_context);
           } else {
-            // If no business context exists, show the questionnaire
             setTimeout(() => setIsQuestionnaireOpen(true), 1000);
           }
         } catch (err) {
@@ -87,13 +84,10 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
     setProcessingAction(true);
     
     try {
-      // The actual saving to database is now handled in the editor component
-      // This is just for local state updates and subsequent actions
       console.log('Setting selected vendor to:', newVendor.name);
       setIsVendorEditorOpen(false);
       setSelectedVendor(newVendor.name);
       
-      // Find similar transactions and assign vendor
       await findSimilarVendorTransactions(newVendor.name, transactions, findSimilarTransactions);
       
     } catch (err) {
