@@ -95,18 +95,18 @@ export function extractVendorName(description: string): string {
 export async function extractVendorWithAI(description: string, existingVendors: string[] = []) {
   try {
     // Get business context if available
-    let businessContext = {};
+    let businessContext: Record<string, any> = {};
     let country = "ZA";
     
     const { data: authData } = await supabase.auth.getSession();
     if (authData?.session?.user) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('business_context')
         .eq('id', authData.session.user.id)
         .single();
         
-      if (data && data.business_context) {
+      if (!error && data && data.business_context) {
         businessContext = data.business_context;
         country = data.business_context.country || "ZA";
       }

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -48,15 +49,15 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     if (value === "extract") {
       setIsAnalyzing(true);
       try {
-        let businessContext = {};
+        let businessContext: Record<string, any> = {};
         if (session?.user) {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('user_profiles')
             .select('business_context')
             .eq('id', session.user.id)
             .single();
             
-          if (data && data.business_context) {
+          if (!error && data && data.business_context) {
             businessContext = data.business_context;
           }
         }

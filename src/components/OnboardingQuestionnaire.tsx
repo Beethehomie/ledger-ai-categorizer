@@ -139,7 +139,7 @@ const OnboardingQuestionnaire: React.FC<OnboardingQuestionnaireProps> = ({
     
     try {
       if (session?.user) {
-        // Save to user profile or a dedicated table
+        // Save to user profile
         const { error } = await supabase
           .from('user_profiles')
           .update({

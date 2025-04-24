@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -324,3 +323,7 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+export interface UserProfileRow extends Database['public']['Tables']['user_profiles']['Row'] {
+  business_context?: any;
+}
