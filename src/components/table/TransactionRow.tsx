@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import {
   Select,
@@ -8,11 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Store, Building, AlertCircle, Edit } from 'lucide-react';
+import { Store, Building, AlertCircle, Edit, Loader2, Check } from 'lucide-react';
 import { Transaction } from '@/types';
 import { Currency } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate } from '@/utils/currencyUtils';
+import { toast } from '@/utils/toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -33,9 +35,51 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
   getBankName,
   renderConfidenceScore
 }) => {
-  // For debugging purposes
-  console.log('Unique vendors in TransactionRow:', uniqueVendors);
-  console.log('Current transaction vendor:', transaction.vendor);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  const handleVendorSelect = async (value: string) => {
+    if (value === "extract") {
+      setIsAnalyzing(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('analyze-transaction-vendor', {
+          body: { 
+            description: transaction.description,
+            existingVendors: uniqueVendors
+          }
+        });
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          const vendorName = data.vendor;
+          const updatedTransaction = { ...transaction, vendor: vendorName };
+          
+          // If this is a new vendor and we have category suggestions
+          if (!data.isExisting && data.category) {
+            updatedTransaction.category = data.category;
+            updatedTransaction.confidenceScore = data.confidence;
+            updatedTransaction.type = data.type;
+            updatedTransaction.statementType = data.statementType;
+            
+            toast.success(`Vendor extracted: ${vendorName} (Category: ${data.category})`);
+          } else {
+            toast.success(`Vendor extracted: ${vendorName}`);
+          }
+          
+          onVendorChange(updatedTransaction, vendorName);
+        }
+      } catch (err) {
+        console.error("Error extracting vendor:", err);
+        toast.error("Failed to extract vendor from description");
+      } finally {
+        setIsAnalyzing(false);
+      }
+    } else {
+      onVendorChange(transaction, value);
+    }
+  };
 
   return (
     <TableRow className={cn(
@@ -58,11 +102,16 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
           <div className="flex items-center gap-2">
             <Select
               value={transaction.vendor || "Unknown"}
-              onValueChange={(value) => onVendorChange(transaction, value)}
+              onValueChange={handleVendorSelect}
+              disabled={isAnalyzing}
             >
               <SelectTrigger className="h-8 w-full border-0 bg-transparent hover:bg-muted/50 focus:ring-0 pl-0 truncate">
                 <div className="flex items-center">
-                  <Store className="h-4 w-4 text-finance-gray shrink-0 mr-2" />
+                  {isAnalyzing ? (
+                    <Loader2 className="h-4 w-4 text-finance-gray shrink-0 mr-2 animate-spin" />
+                  ) : (
+                    <Store className="h-4 w-4 text-finance-gray shrink-0 mr-2" />
+                  )}
                   <span className="truncate">{transaction.vendor || "Unknown"}</span>
                 </div>
               </SelectTrigger>
@@ -73,6 +122,14 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
                     <span>Unknown</span>
                   </div>
                 </SelectItem>
+                
+                <SelectItem value="extract">
+                  <div className="flex items-center">
+                    <Check className="h-3.5 w-3.5 mr-1 text-emerald-500" />
+                    <span>Extract vendor from description</span>
+                  </div>
+                </SelectItem>
+                
                 {uniqueVendors
                   .filter(vendor => vendor !== "Unknown")
                   .sort()

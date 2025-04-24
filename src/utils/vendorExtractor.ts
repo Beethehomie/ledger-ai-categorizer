@@ -89,6 +89,35 @@ export function extractVendorName(description: string): string {
   return vendor.trim();
 }
 
+// Add a new function to extract vendors using the edge function
+export async function extractVendorWithAI(description: string, existingVendors: string[] = []) {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    
+    const { data, error } = await supabase.functions.invoke('analyze-transaction-vendor', {
+      body: { 
+        description,
+        existingVendors
+      }
+    });
+    
+    if (error) {
+      console.error("Error calling analyze-transaction-vendor:", error);
+      throw error;
+    }
+    
+    return data;
+  } catch (err) {
+    console.error("Error in extractVendorWithAI:", err);
+    // Fall back to local extraction
+    return { 
+      vendor: extractVendorName(description),
+      isExisting: false,
+      confidence: 0.5
+    };
+  }
+}
+
 /**
  * Checks if a vendor has been verified enough times to be considered reliable
  */

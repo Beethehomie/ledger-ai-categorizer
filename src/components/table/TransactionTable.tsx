@@ -61,25 +61,18 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
 
   // Get all vendors from the database and transactions
   useEffect(() => {
-    if (vendors) {
-      // Extract vendor names from vendors array
-      const vendorNames = vendors.map(v => v.name);
-      
-      // Extract unique vendor names from transactions
-      const transactionVendors = transactions
-        .map(t => t.vendor)
-        .filter((v): v is string => v !== undefined && v !== null && v !== "");
-      
-      // Combine both arrays and remove duplicates
-      const combinedVendors = Array.from(new Set([...vendorNames, ...transactionVendors]));
-      
-      // Debug
-      console.log('Vendor names from vendors array:', vendorNames);
-      console.log('Transaction vendors:', transactionVendors);
-      console.log('Combined vendors:', combinedVendors);
-      
-      setAllVendors(combinedVendors);
-    }
+    // Extract vendor names from vendors array
+    const vendorNames = vendors.map(v => v.name);
+    
+    // Extract unique vendor names from transactions
+    const transactionVendors = transactions
+      .map(t => t.vendor)
+      .filter((v): v is string => v !== undefined && v !== null && v !== "");
+    
+    // Combine both arrays and remove duplicates
+    const combinedVendors = Array.from(new Set([...vendorNames, ...transactionVendors]));
+    
+    setAllVendors(combinedVendors);
   }, [vendors, transactions]);
 
   const filteredTransactions = filterTransactions(transactions, filter, vendorName);
