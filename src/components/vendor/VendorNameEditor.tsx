@@ -13,16 +13,27 @@ import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
 import { Trash2, Check, Pencil, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Vendor, Transaction } from '@/types';
 
 interface VendorNameEditorProps {
   isOpen: boolean;
   onClose: () => void;
+  onSave?: (vendor: Vendor) => void;
+  isProcessing?: boolean;
+  transaction?: Transaction;
 }
 
-const VendorNameEditor: React.FC<VendorNameEditorProps> = ({ isOpen, onClose }) => {
+const VendorNameEditor: React.FC<VendorNameEditorProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSave,
+  isProcessing = false,
+  transaction
+}) => {
   const { getVendorsList, vendors } = useBookkeeping();
   const [vendorsList, setVendorsList] = useState<{ name: string; id?: string; count: number; isEditing: boolean; newName: string; verified: boolean }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [newVendorName, setNewVendorName] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -32,8 +43,13 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({ isOpen, onClose }) 
         newName: vendor.name
       }));
       setVendorsList(list.sort((a, b) => a.name.localeCompare(b.name)));
+      
+      // If a transaction is provided, pre-populate the new vendor field
+      if (transaction && !transaction.vendor) {
+        setNewVendorName('');
+      }
     }
-  }, [isOpen, getVendorsList, vendors]);
+  }, [isOpen, getVendorsList, vendors, transaction]);
 
   const handleEditClick = (index: number) => {
     const updatedVendors = [...vendorsList];
@@ -79,6 +95,19 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({ isOpen, onClose }) 
       setVendorsList(updatedVendors);
 
       toast.success(`Vendor "${vendor.name}" renamed to "${vendor.newName}"`);
+      
+      // If onSave callback is provided, call it with the updated vendor
+      if (onSave) {
+        const vendorData: Vendor = {
+          name: vendor.newName,
+          category: '',
+          type: 'expense',
+          statementType: 'profit_loss',
+          occurrences: vendor.count,
+          verified: vendor.verified
+        };
+        onSave(vendorData);
+      }
     } catch (err) {
       console.error("Error updating vendor name:", err);
       toast.error("Failed to update vendor name");
@@ -130,6 +159,75 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({ isOpen, onClose }) 
     updatedVendors[index].newName = updatedVendors[index].name;
     setVendorsList(updatedVendors);
   };
+  
+  const handleAddNewVendor = async () => {
+    if (!newVendorName.trim()) {
+      toast.error("Vendor name cannot be empty");
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      // Check if vendor already exists
+      const existingVendorIndex = vendorsList.findIndex(v => v.name.toLowerCase() === newVendorName.toLowerCase());
+      if (existingVendorIndex >= 0) {
+        toast.error("This vendor already exists");
+        setIsLoading(false);
+        return;
+      }
+      
+      // Create new vendor data
+      const newVendor: Vendor = {
+        name: newVendorName.trim(),
+        category: transaction?.category || '',
+        type: transaction?.type || 'expense',
+        statementType: transaction?.statementType || 'profit_loss',
+        occurrences: 1,
+        verified: false
+      };
+      
+      // Add to vendor_categorizations table
+      const { error } = await supabase
+        .from('vendor_categorizations')
+        .insert({
+          vendor_name: newVendor.name,
+          category: newVendor.category,
+          type: newVendor.type,
+          statement_type: newVendor.statementType,
+          occurrences: 1,
+          verified: false
+        });
+        
+      if (error) throw error;
+      
+      // Call onSave if provided
+      if (onSave) {
+        onSave(newVendor);
+      }
+      
+      toast.success(`New vendor "${newVendor.name}" added`);
+      setNewVendorName('');
+      
+      // Add to the local vendors list
+      const updatedVendors = [
+        ...vendorsList,
+        {
+          name: newVendor.name,
+          count: 1,
+          isEditing: false,
+          newName: newVendor.name,
+          verified: false
+        }
+      ].sort((a, b) => a.name.localeCompare(b.name));
+      
+      setVendorsList(updatedVendors);
+    } catch (err) {
+      console.error("Error adding new vendor:", err);
+      toast.error("Failed to add new vendor");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -137,6 +235,27 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({ isOpen, onClose }) 
         <DialogHeader>
           <DialogTitle>Manage Vendors</DialogTitle>
         </DialogHeader>
+        
+        {/* Add new vendor section */}
+        {transaction || onSave ? (
+          <div className="mb-4 border-b pb-4">
+            <h3 className="text-sm font-medium mb-2">Add New Vendor</h3>
+            <div className="flex gap-2">
+              <Input
+                value={newVendorName}
+                onChange={(e) => setNewVendorName(e.target.value)}
+                placeholder="Enter new vendor name"
+                disabled={isLoading || isProcessing}
+              />
+              <Button 
+                onClick={handleAddNewVendor}
+                disabled={isLoading || isProcessing || !newVendorName.trim()}
+              >
+                {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Add"}
+              </Button>
+            </div>
+          </div>
+        ) : null}
         
         <div className="py-4">
           <div className="grid grid-cols-1 gap-2 max-h-[60vh] overflow-auto">
@@ -219,7 +338,12 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({ isOpen, onClose }) 
         </div>
         
         <DialogFooter>
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={onClose} disabled={isLoading || isProcessing}>
+            {isLoading || isProcessing ? (
+              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+            ) : null}
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
