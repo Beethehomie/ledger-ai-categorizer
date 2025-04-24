@@ -220,7 +220,19 @@ export type Database = {
 export type VendorCategorizationRow = Database['public']['Tables']['vendor_categorizations']['Row'];
 export type BankConnectionRow = Database['public']['Tables']['bank_connections']['Row'];
 export type BankTransactionRow = Database['public']['Tables']['bank_transactions']['Row'];
-export type UserProfileRow = Database['public']['Tables']['user_profiles']['Row'];
+
+// Define a BusinessContext interface to help with type safety
+export interface BusinessContext {
+  country?: string;
+  industry?: string;
+  companySize?: string;
+  [key: string]: any;
+}
+
+// Define UserProfileRow with business_context already typed
+export interface UserProfileRow extends Database['public']['Tables']['user_profiles']['Row'] {
+  business_context?: BusinessContext | null;
+}
 
 type DefaultSchema = Database[Extract<keyof Database, "public">]
 
@@ -332,20 +344,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-export interface UserProfileRow extends Database['public']['Tables']['user_profiles']['Row'] {
-  business_context?: any;
-}
-
-// Define a BusinessContext interface to help with type safety
-export interface BusinessContext {
-  country?: string;
-  industry?: string;
-  companySize?: string;
-  [key: string]: any;
-}
-
-// Helper type to ensure business_context is properly typed
-export type ExtendedUserProfileRow = UserProfileRow & {
-  business_context?: BusinessContext | null;
-}
