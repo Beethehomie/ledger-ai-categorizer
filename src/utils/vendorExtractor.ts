@@ -1,5 +1,6 @@
 import { Vendor } from '../types';
 import { supabase } from '@/integrations/supabase/client';
+import { BusinessContext } from '@/types/supabase';
 
 // Common prefixes and suffixes to remove from transaction descriptions
 const COMMON_PREFIXES = [
@@ -95,7 +96,7 @@ export function extractVendorName(description: string): string {
 export async function extractVendorWithAI(description: string, existingVendors: string[] = []) {
   try {
     // Get business context if available
-    let businessContext: Record<string, any> = {};
+    let businessContext: BusinessContext = {};
     let country = "ZA";
     
     const { data: authData } = await supabase.auth.getSession();
@@ -107,8 +108,10 @@ export async function extractVendorWithAI(description: string, existingVendors: 
         .single();
         
       if (!error && data && data.business_context) {
-        businessContext = data.business_context;
-        country = data.business_context.country || "ZA";
+        // Type assertion to ensure correct typing
+        const contextData = data.business_context as BusinessContext;
+        businessContext = contextData;
+        country = contextData.country || "ZA";
       }
     }
     

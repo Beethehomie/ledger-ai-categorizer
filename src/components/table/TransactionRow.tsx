@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,6 +17,7 @@ import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorLogger';
 import { useAuth } from '@/hooks/auth';
+import { BusinessContext } from '@/types/supabase';
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -49,7 +49,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
     if (value === "extract") {
       setIsAnalyzing(true);
       try {
-        let businessContext: Record<string, any> = {};
+        let businessContext: BusinessContext = {};
         let country = "ZA";
         
         if (session?.user) {
@@ -60,8 +60,9 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             .single();
             
           if (!error && data && data.business_context) {
-            businessContext = data.business_context;
-            country = data.business_context.country || "ZA";
+            const contextData = data.business_context as BusinessContext;
+            businessContext = contextData;
+            country = contextData.country || "ZA";
           }
         }
         
@@ -70,7 +71,7 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
             description: transaction.description,
             existingVendors: uniqueVendors,
             country: country,
-            context: businessContext || {}
+            context: businessContext
           }
         });
         

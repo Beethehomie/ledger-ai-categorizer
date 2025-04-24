@@ -336,3 +336,16 @@ export const Constants = {
 export interface UserProfileRow extends Database['public']['Tables']['user_profiles']['Row'] {
   business_context?: any;
 }
+
+// Define a BusinessContext interface to help with type safety
+export interface BusinessContext {
+  country?: string;
+  industry?: string;
+  companySize?: string;
+  [key: string]: any;
+}
+
+// Helper type to ensure business_context is properly typed
+export type ExtendedUserProfileRow = UserProfileRow & {
+  business_context?: BusinessContext | null;
+}
