@@ -133,7 +133,7 @@ export async function extractVendorWithAI(description: string, existingVendors: 
     return data;
   } catch (err) {
     console.error("Error in extractVendorWithAI:", err);
-    // Fall back to local extraction
+    console.warn("Falling back to local vendor extraction due to edge function failure");
     return { 
       vendor: extractVendorName(description),
       isExisting: false,
@@ -337,11 +337,16 @@ export const analyzeTransactionWithAI = async (transaction: Transaction, existin
     };
   } catch (err) {
     console.error("Error in analyzeTransactionWithAI:", err);
-    return transaction;
+    const vendorName = extractVendorName(transaction.description);
+    return {
+      ...transaction,
+      vendor: vendorName,
+      confidenceScore: 0.4 // Lower confidence for fallback method
+    };
   }
 };
 
-// Update the batch analysis function to use pattern analysis
+// Update the batch analysis function to use pattern analysis with improved error handling
 export const batchAnalyzeTransactions = async (
   transactions: Transaction[],
   existingVendors: string[],
@@ -350,7 +355,9 @@ export const batchAnalyzeTransactions = async (
   const results = {
     processed: 0,
     updated: 0,
-    errors: 0
+    errors: 0,
+    aiUsed: 0,
+    fallbackUsed: 0
   };
   
   // First, analyze all descriptions to find common patterns
@@ -372,10 +379,12 @@ export const batchAnalyzeTransactions = async (
           if (updatedTransaction.vendor && updatedTransaction.vendor !== 'Unknown') {
             await updateTransaction(updatedTransaction);
             results.updated++;
+            results.aiUsed++;
             continue;
           }
         } catch (err) {
           console.warn("AI extraction failed, falling back to pattern analysis:", err);
+          results.fallbackUsed++;
         }
         
         // Fall back to pattern-based extraction
@@ -397,5 +406,6 @@ export const batchAnalyzeTransactions = async (
     }
   }
   
+  console.log("Batch analysis results:", results);
   return results;
 };

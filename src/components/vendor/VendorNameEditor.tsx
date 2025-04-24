@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
-import { Trash2, Check, Pencil, RefreshCw } from 'lucide-react';
+import { Trash2, Check, Pencil, RefreshCw, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Vendor, Transaction } from '@/types';
 
@@ -34,19 +34,28 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({
   const [vendorsList, setVendorsList] = useState<{ name: string; id?: string; count: number; isEditing: boolean; newName: string; verified: boolean }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [newVendorName, setNewVendorName] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      const list = getVendorsList().map(vendor => ({
-        ...vendor,
-        isEditing: false,
-        newName: vendor.name
-      }));
-      setVendorsList(list.sort((a, b) => a.name.localeCompare(b.name)));
-      
-      // If a transaction is provided, pre-populate the new vendor field
-      if (transaction && !transaction.vendor) {
-        setNewVendorName('');
+      try {
+        const list = getVendorsList().map(vendor => ({
+          ...vendor,
+          isEditing: false,
+          newName: vendor.name
+        }));
+        setVendorsList(list.sort((a, b) => a.name.localeCompare(b.name)));
+        
+        // If a transaction is provided, pre-populate the new vendor field
+        if (transaction && !transaction.vendor) {
+          setNewVendorName('');
+        }
+        
+        setError(null);
+      } catch (err) {
+        console.error("Error loading vendors:", err);
+        setError("Failed to load vendor list");
+        toast.error("Failed to load vendor list");
       }
     }
   }, [isOpen, getVendorsList, vendors, transaction]);
@@ -71,6 +80,7 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({
     }
 
     setIsLoading(true);
+    setError(null);
     try {
       // First, update the vendor name in the vendor_categorizations table
       const { error: vendorError } = await supabase
@@ -110,6 +120,7 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({
       }
     } catch (err) {
       console.error("Error updating vendor name:", err);
+      setError("Failed to update vendor name");
       toast.error("Failed to update vendor name");
     } finally {
       setIsLoading(false);
@@ -123,6 +134,7 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({
     }
 
     setIsLoading(true);
+    setError(null);
     try {
       // First, update all transactions referencing this vendor to "Unknown"
       const { error: transactionError } = await supabase
@@ -147,6 +159,7 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({
       toast.success(`Vendor "${vendor.name}" deleted`);
     } catch (err) {
       console.error("Error deleting vendor:", err);
+      setError("Failed to delete vendor");
       toast.error("Failed to delete vendor");
     } finally {
       setIsLoading(false);
@@ -167,6 +180,7 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({
     }
     
     setIsLoading(true);
+    setError(null);
     try {
       // Check if vendor already exists
       const existingVendorIndex = vendorsList.findIndex(v => v.name.toLowerCase() === newVendorName.toLowerCase());
@@ -223,6 +237,7 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({
       setVendorsList(updatedVendors);
     } catch (err) {
       console.error("Error adding new vendor:", err);
+      setError("Failed to add new vendor");
       toast.error("Failed to add new vendor");
     } finally {
       setIsLoading(false);
@@ -235,6 +250,13 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({
         <DialogHeader>
           <DialogTitle>Manage Vendors</DialogTitle>
         </DialogHeader>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-800 rounded-md flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <span>{error}</span>
+          </div>
+        )}
         
         {/* Add new vendor section */}
         {transaction || onSave ? (
@@ -259,80 +281,80 @@ const VendorNameEditor: React.FC<VendorNameEditorProps> = ({
         
         <div className="py-4">
           <div className="grid grid-cols-1 gap-2 max-h-[60vh] overflow-auto">
-            {vendorsList.map((vendor, index) => (
-              <div 
-                key={vendor.name} 
-                className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/20 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  {vendor.isEditing ? (
-                    <Input
-                      value={vendor.newName}
-                      onChange={(e) => handleNameChange(index, e.target.value)}
-                      className="w-[200px]"
-                      autoFocus
-                    />
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{vendor.name}</span>
-                      {vendor.verified && (
-                        <Check className="h-4 w-4 text-[hsl(var(--finance-soft-green))]" />
-                      )}
-                      <span className="text-xs text-muted-foreground">({vendor.count} transactions)</span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {vendor.isEditing ? (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleCancelEdit(index)}
-                        disabled={isLoading}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSaveVendor(index)}
-                        disabled={isLoading || vendor.newName === vendor.name || !vendor.newName.trim()}
-                        className="text-[hsl(var(--finance-soft-green))]"
-                      >
-                        {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Save"}
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditClick(index)}
-                        disabled={isLoading}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteVendor(index)}
-                        disabled={isLoading}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-            
-            {vendorsList.length === 0 && (
+            {vendorsList.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No vendors found
+                {isLoading ? 'Loading vendors...' : 'No vendors found'}
               </div>
+            ) : (
+              vendorsList.map((vendor, index) => (
+                <div 
+                  key={vendor.name} 
+                  className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/20 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    {vendor.isEditing ? (
+                      <Input
+                        value={vendor.newName}
+                        onChange={(e) => handleNameChange(index, e.target.value)}
+                        className="w-[200px]"
+                        autoFocus
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{vendor.name}</span>
+                        {vendor.verified && (
+                          <Check className="h-4 w-4 text-[hsl(var(--finance-soft-green))]" />
+                        )}
+                        <span className="text-xs text-muted-foreground">({vendor.count} transactions)</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {vendor.isEditing ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancelEdit(index)}
+                          disabled={isLoading}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSaveVendor(index)}
+                          disabled={isLoading || vendor.newName === vendor.name || !vendor.newName.trim()}
+                          className="text-[hsl(var(--finance-soft-green))]"
+                        >
+                          {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Save"}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditClick(index)}
+                          disabled={isLoading}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteVendor(index)}
+                          disabled={isLoading}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>

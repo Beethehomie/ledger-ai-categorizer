@@ -1,6 +1,6 @@
 
 import { Transaction, Vendor } from '@/types';
-import { extractVendorWithAI } from '@/utils/vendorExtractor';
+import { extractVendorName, extractVendorWithAI } from '@/utils/vendorExtractor';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorLogger';
 
@@ -39,7 +39,13 @@ export const analyzeTransactionWithAI = async (transaction: Transaction, existin
     };
   } catch (err) {
     logError('analyzeTransactionWithAI', err);
-    return transaction;
+    // Use local extraction as fallback when AI fails
+    const vendorName = extractVendorName(transaction.description);
+    return {
+      ...transaction,
+      vendor: vendorName,
+      confidenceScore: 0.4 // Lower confidence for local extraction
+    };
   }
 };
 
@@ -51,14 +57,34 @@ export const batchAnalyzeTransactions = async (
   const results = {
     processed: 0,
     updated: 0,
-    errors: 0
+    errors: 0,
+    aiProcessed: 0,
+    fallbackProcessed: 0
   };
   
   for (const transaction of transactions) {
     try {
       results.processed++;
       if (!transaction.vendor || transaction.vendor === 'Unknown') {
-        const updatedTransaction = await analyzeTransactionWithAI(transaction, existingVendors);
+        let updatedTransaction;
+        
+        try {
+          // Try AI analysis first
+          updatedTransaction = await analyzeTransactionWithAI(transaction, existingVendors);
+          results.aiProcessed++;
+        } catch (err) {
+          // Log the error but continue with fallback
+          logError(`AI analysis failed for transaction ID ${transaction.id}`, err);
+          
+          // Use simple extraction as fallback
+          const vendorName = extractVendorName(transaction.description);
+          updatedTransaction = {
+            ...transaction,
+            vendor: vendorName,
+            confidenceScore: 0.4 // Lower confidence for fallback method
+          };
+          results.fallbackProcessed++;
+        }
         
         if (updatedTransaction.vendor && updatedTransaction.vendor !== 'Unknown') {
           await updateTransaction(updatedTransaction);
@@ -71,6 +97,7 @@ export const batchAnalyzeTransactions = async (
     }
   }
   
+  console.log("Batch analysis results:", results);
   return results;
 };
 
