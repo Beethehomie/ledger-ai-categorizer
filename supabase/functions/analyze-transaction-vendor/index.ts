@@ -9,8 +9,80 @@ const corsHeaders = {
 
 const openAIKey = Deno.env.get('OPENAI_API_KEY');
 
+// Common prefixes and suffixes to remove
+const COMMON_PREFIXES = [
+  "POS PURCHASE", "PURCHASE", "FNB PAYMENT", "PAYMENT", "CARD PURCHASE", 
+  "DEBIT ORDER", "EFT PAYMENT", "DIRECT DEBIT", "TRANSFER", "ATM WITHDRAWAL",
+  "CREDIT", "DEBIT", "POS", "TFR", "TRANSACTION", "PAYMENT TO",
+  "PYMT TO", "DEP", "WDL", "ONLINE", "ACH", "DEPOSIT", "WITHDRAWAL",
+  "CHQ", "CHEQUE", "CHECK", "CASH", "PMT", "STMT", "STATEMENT"
+];
+
+const COMMON_SUFFIXES = [
+  "ACCOUNT", "CARD", "PAYMENT", "DEBIT", "CREDIT", "TRANSFER", "TXN", "TRANSACTION",
+  "WITHDRAW", "DEPOSIT", "FEE", "CHARGE", "SERVICE", "LLC", "INC", "LTD", "LIMITED",
+  "PTY", "(PTY)", "(PTY) LTD", "TECHNOLOGIES", "TECHNOLOGY", "SOLUTIONS", "CC",
+  "#\\d+", "\\d+/\\d+", "\\d+-\\d+", "\\(\\d+\\)", "REF\\d+", "ID:\\d+",
+  "\\*+\\d+\\*+", "\\d{6}\\*+\\d{4}", "VISA", "MASTERCARD", "\\d{2}/\\d{2}/\\d{2,4}"
+];
+
+// Words to remove entirely
+const WORDS_TO_REMOVE = [
+  "THE", "A", "AN", "AND", "OR", "AT", "ON", "IN", "TO", "FOR", "BY", "WITH", "FROM",
+  "OF", "LTD", "LLC", "INC", "CO", "CORP", "CORPORATION", "PTY", "LIMITED",
+  "PAYMENT", "TRANSFER", "TRANSACTION", "FEE", "CHARGE", "SERVICE",
+  "REF", "REFERENCE", "ID", "NUM", "NUMBER", "DATE", "TIME", "AMOUNT"
+];
+
+// Clean up a vendor name by removing unnecessary parts
+function cleanVendorName(text: string): string {
+  if (!text) return "Unknown";
+  
+  let vendor = text.trim().toUpperCase();
+  
+  // Remove all occurrences of common prefixes
+  for (const prefix of COMMON_PREFIXES) {
+    const regex = new RegExp(`^${prefix}\\s+`, 'i');
+    vendor = vendor.replace(regex, '');
+  }
+  
+  // Remove all occurrences of common suffixes
+  for (const suffix of COMMON_SUFFIXES) {
+    const regex = new RegExp(`\\s+${suffix}$`, 'i');
+    vendor = vendor.replace(regex, '');
+  }
+  
+  // Remove transaction IDs, reference numbers, and dates
+  vendor = vendor
+    .replace(/\b\d{5,}\b/g, '') // Remove long numbers
+    .replace(/\b[A-Z0-9]{10,}\b/g, '') // Remove long alphanumeric strings
+    .replace(/REF:\s*\S+/gi, '') // Remove reference numbers
+    .replace(/\d{2}\/\d{2}\/\d{2,4}/g, '') // Remove dates
+    .replace(/\d+\.\d+/g, '') // Remove decimal numbers
+    .replace(/\(\d+\)/g, '') // Remove numbers in parentheses
+    .replace(/[\\\/\-\*\:\#]+/g, ' ') // Replace special characters with spaces
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim();
+  
+  // Split into words and filter out common words and short strings
+  const words = vendor.split(/\s+/).filter(word => 
+    word.length > 1 && 
+    !WORDS_TO_REMOVE.includes(word) && 
+    !/^\d+$/.test(word)
+  );
+  
+  // Join words back together and take first 3 words max
+  vendor = words.slice(0, 3).join(" ");
+  
+  // Title case the final vendor name
+  vendor = vendor.replace(/\w\S*/g, txt => 
+    txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase()
+  );
+  
+  return vendor.trim() || "Unknown";
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -25,218 +97,79 @@ serve(async (req) => {
       );
     }
 
-    if (!openAIKey) {
-      console.error('OpenAI API key is not configured');
-      // Fallback to local extraction if no API key
-      return new Response(
-        JSON.stringify({ 
-          vendor: localExtractVendorName(description), 
-          isExisting: false,
-          confidence: 0.4
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // First try local extraction
+    const localVendor = cleanVendorName(description);
+    console.log("Local vendor extraction result:", localVendor);
 
-    // Extract vendor name from the description
-    try {
-      const vendorName = await extractVendorName(description);
-      console.log("Extracted vendor:", vendorName);
+    // If OpenAI key is available, try AI extraction
+    if (openAIKey && localVendor === "Unknown") {
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAIKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 
+                  'Extract a clean, standardized vendor name from transaction descriptions. ' +
+                  'Remove transaction IDs, dates, reference numbers, and other non-vendor information. ' +
+                  'For example, "AMAZON MKTPLACE 09/15 #28492" should return just "Amazon". ' +
+                  'Respond with ONLY the vendor name, nothing else.'
+              },
+              {
+                role: 'user',
+                content: `Extract the vendor name from this transaction description: "${description}"`
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 50,
+          }),
+        });
 
-      // Check if vendor exists in the provided list
-      const vendorExists = existingVendors.some(v => 
-        v.toLowerCase() === vendorName.toLowerCase()
-      );
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+        }
 
-      let categoryInfo = null;
-      
-      // If this is a new vendor, suggest a category
-      if (!vendorExists) {
-        categoryInfo = await suggestCategory(vendorName);
-        console.log("Category suggestion:", categoryInfo);
+        const data = await response.json();
+        const aiVendor = cleanVendorName(data.choices[0].message.content.trim());
+        console.log("AI vendor extraction result:", aiVendor);
+
+        if (aiVendor && aiVendor !== "Unknown") {
+          return new Response(
+            JSON.stringify({ 
+              vendor: aiVendor,
+              isExisting: existingVendors.includes(aiVendor),
+              confidence: 0.85
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch (err) {
+        console.error('Error in AI vendor extraction:', err);
+        // Fall through to use local extraction result
       }
-
-      return new Response(
-        JSON.stringify({ 
-          vendor: vendorName, 
-          isExisting: vendorExists,
-          category: categoryInfo?.category || null,
-          confidence: categoryInfo?.confidence || null,
-          type: categoryInfo?.type || null,
-          statementType: categoryInfo?.statementType || null
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } catch (err) {
-      console.error('Error in AI vendor extraction:', err);
-      // Fallback to local extraction on AI error
-      return new Response(
-        JSON.stringify({ 
-          vendor: localExtractVendorName(description), 
-          isExisting: false,
-          confidence: 0.4,
-          error: 'AI extraction failed, using fallback'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
+
+    // Return local extraction result if AI failed or wasn't available
+    return new Response(
+      JSON.stringify({ 
+        vendor: localVendor,
+        isExisting: existingVendors.includes(localVendor),
+        confidence: 0.7
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
   } catch (error) {
     console.error('Error in analyze-transaction-vendor:', error);
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        vendor: 'Unknown'
-      }),
+      JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
-
-// Simple regex-based vendor name extraction as fallback
-function localExtractVendorName(description: string): string {
-  if (!description) return "Unknown";
-  
-  // Remove common prefixes
-  const cleanedText = description
-    .replace(/^(POS PURCHASE|PURCHASE|FNB PAYMENT|PAYMENT|CARD PURCHASE|DEBIT ORDER|EFT PAYMENT|DIRECT DEBIT|TRANSFER|ATM WITHDRAWAL|CREDIT|DEBIT|POS|TFR|TRANSACTION|PAYMENT TO|PYMT TO|DEP|WDL|ONLINE|ACH|DEPOSIT|WITHDRAWAL)\s+/i, '')
-    // Remove numbers, dates, and references
-    .replace(/\b\d{5,}\b/g, '')
-    .replace(/\b[A-Z0-9]{10,}\b/g, '')
-    .replace(/REF:\s*\S+/gi, '')
-    .replace(/\d{2}\/\d{2}\/\d{2,4}/g, '')
-    .replace(/\d+\.\d+/g, '')
-    .trim();
-    
-  // Take first 2-3 words as vendor
-  const words = cleanedText.split(/\s+/).filter(w => w.length > 1);
-  const vendorName = words.slice(0, Math.min(3, words.length)).join(' ');
-  
-  return vendorName || "Unknown";
-}
-
-async function extractVendorName(description: string): Promise<string> {
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 
-              'You are a financial assistant tasked with extracting vendor names from transaction descriptions. ' +
-              'Your goal is to provide a concise, standardized vendor name. ' +
-              'Remove transaction IDs, dates, reference numbers, and other non-vendor information. ' +
-              'For example, "AMAZON MKTPLACE 09/15 #28492" should return just "Amazon". ' +
-              'Respond with ONLY the vendor name, nothing else.'
-          },
-          {
-            role: 'user',
-            content: `Extract the vendor name from this transaction description: "${description}"`
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 50,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('Invalid response format from OpenAI API');
-    }
-    
-    return data.choices[0].message.content.trim() || 'Unknown';
-  } catch (err) {
-    console.error('Error calling OpenAI API:', err);
-    throw err;
-  }
-}
-
-async function suggestCategory(vendorName: string) {
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 
-              'You are a financial accounting expert specialized in categorizing vendors according to IFRS ' +
-              '(International Financial Reporting Standards). ' +
-              'Based on vendor names, you classify them into appropriate accounting categories.\n\n' +
-              'For each vendor, you need to determine:\n' +
-              '1. The appropriate category name\n' +
-              '2. The transaction type (income, expense, asset, liability, equity)\n' +
-              '3. The financial statement it belongs to (profit_loss or balance_sheet)\n' +
-              '4. A confidence score from 0 to 1 indicating how certain you are of this classification\n\n' +
-              'For types:\n' +
-              '- income: Money coming in (revenue, sales)\n' +
-              '- expense: Money going out (costs, purchases)\n' +
-              '- asset: Resources owned (cash, equipment)\n' +
-              '- liability: Obligations (loans, payables)\n' +
-              '- equity: Ownership interest\n\n' +
-              'For statement types:\n' +
-              '- profit_loss: Income and expense transactions\n' +
-              '- balance_sheet: Asset, liability, and equity transactions\n\n' +
-              'Your response should be in JSON format with category, type, statementType, and confidence.'
-          },
-          {
-            role: 'user',
-            content: 
-              `Categorize this vendor: "${vendorName}"\n\n` +
-              'Respond with JSON only in this exact format: {"category": "Category Name", "type": "income|expense|asset|liability|equity", "statementType": "profit_loss|balance_sheet", "confidence": 0.XX}'
-          }
-        ],
-        temperature: 0.2,
-        max_tokens: 150,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const responseText = data.choices[0].message.content.trim();
-    
-    try {
-      // Extract JSON from the response
-      const jsonMatch = responseText.match(/\{.*\}/s);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No valid JSON found in response');
-      }
-    } catch (error) {
-      console.error('Error parsing AI response:', error, 'Response was:', responseText);
-      return {
-        category: 'Uncategorized',
-        type: 'expense',
-        statementType: 'profit_loss',
-        confidence: 0.1
-      };
-    }
-  } catch (err) {
-    console.error('Error in suggestCategory:', err);
-    return {
-      category: 'Uncategorized',
-      type: 'expense',
-      statementType: 'profit_loss',
-      confidence: 0.1
-    };
-  }
-}
