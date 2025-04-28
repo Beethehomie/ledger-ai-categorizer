@@ -46,6 +46,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
             required
+            autoComplete="email"
           />
         </div>
       </div>
@@ -62,6 +63,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             onChange={(e) => onPasswordChange(e.target.value)}
             required
             minLength={6}
+            autoComplete={isSignUp ? "new-password" : "current-password"}
           />
           <button 
             type="button"
@@ -90,6 +92,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               onChange={(e) => onConfirmPasswordChange(e.target.value)}
               required
               minLength={6}
+              autoComplete="new-password"
             />
           </div>
         </div>

@@ -24,6 +24,16 @@ const Auth = () => {
         throw new Error('Passwords do not match');
       }
 
+      // First, check if user already exists to provide better error message
+      const { data: existingUser } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password: 'check-only' // We're just checking if the email exists
+      });
+      
+      if (existingUser?.user) {
+        throw new Error('An account with this email already exists');
+      }
+
       const { data, error } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -36,6 +46,30 @@ const Auth = () => {
       });
       
       if (error) throw error;
+      
+      // Create the user profile directly if needed
+      try {
+        const userId = data.user?.id;
+        if (userId) {
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .upsert({
+              id: userId,
+              email: email,
+              subscription_tier: 'free',
+              is_admin: false
+            }, {
+              onConflict: 'id'
+            });
+            
+          if (profileError) {
+            console.error('Error creating user profile:', profileError);
+          }
+        }
+      } catch (profileError) {
+        console.error('Error in profile creation:', profileError);
+        // Continue with the flow even if profile creation fails
+      }
       
       toast.success('Account created! Please check your email for verification.');
       navigate('/');
