@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
@@ -14,9 +14,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState('Free');
   
   const navigate = useNavigate();
 
@@ -25,10 +27,17 @@ const Auth = () => {
     setLoading(true);
     
     try {
+      if (password !== confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+
       const { data, error } = await supabase.auth.signUp({ 
         email, 
         password,
         options: {
+          data: {
+            subscription_tier: subscriptionTier
+          },
           emailRedirectTo: window.location.origin
         }
       });
@@ -171,6 +180,7 @@ const Auth = () => {
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>
                   <div className="relative">
@@ -196,6 +206,36 @@ const Auth = () => {
                       )}
                     </button>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                    <Input 
+                      id="confirm-password" 
+                      type={showPassword ? "text" : "password"} 
+                      className="pl-10 pr-10"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      minLength={6}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subscription-tier">Subscription Tier</Label>
+                  <Select value={subscriptionTier} onValueChange={setSubscriptionTier}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a subscription tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Free">Free</SelectItem>
+                      <SelectItem value="Pro">Pro</SelectItem>
+                      <SelectItem value="Ultra">Ultra</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="flex items-center space-x-2">

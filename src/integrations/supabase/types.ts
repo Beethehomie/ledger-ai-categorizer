@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bank_accounts: {
+        Row: {
+          account_id: string
+          account_name: string
+          created_at: string
+          current_balance: number
+          starting_balance: number
+          starting_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string
+          account_name: string
+          created_at?: string
+          current_balance?: number
+          starting_balance?: number
+          starting_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          account_name?: string
+          created_at?: string
+          current_balance?: number
+          starting_balance?: number
+          starting_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bank_connections: {
         Row: {
           active: boolean | null
@@ -47,6 +80,7 @@ export type Database = {
       }
       bank_transactions: {
         Row: {
+          account_id: string | null
           amount: number
           balance: number | null
           bank_connection_id: string | null
@@ -65,6 +99,7 @@ export type Database = {
           vendor_verified: boolean | null
         }
         Insert: {
+          account_id?: string | null
           amount: number
           balance?: number | null
           bank_connection_id?: string | null
@@ -83,6 +118,7 @@ export type Database = {
           vendor_verified?: boolean | null
         }
         Update: {
+          account_id?: string | null
           amount?: number
           balance?: number | null
           bank_connection_id?: string | null
@@ -102,6 +138,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "bank_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["account_id"]
+          },
+          {
             foreignKeyName: "bank_transactions_bank_connection_id_fkey"
             columns: ["bank_connection_id"]
             isOneToOne: false
@@ -109,24 +152,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      transactions: {
-        Row: {
-          "Account Category": string | null
-          "Client Type": string | null
-          Vendor: string | null
-        }
-        Insert: {
-          "Account Category"?: string | null
-          "Client Type"?: string | null
-          Vendor?: string | null
-        }
-        Update: {
-          "Account Category"?: string | null
-          "Client Type"?: string | null
-          Vendor?: string | null
-        }
-        Relationships: []
       }
       user_profiles: {
         Row: {
@@ -205,7 +230,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_profile: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
