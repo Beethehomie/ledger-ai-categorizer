@@ -29,7 +29,7 @@ const Auth = () => {
         password,
         options: {
           data: {
-            subscription_tier: 'free'  // Default to free tier
+            subscription_tier: 'free'  // Always set to 'free' for new users
           },
           emailRedirectTo: window.location.origin
         }
@@ -40,7 +40,10 @@ const Auth = () => {
       toast.success('Account created! Please check your email for verification.');
       navigate('/');
     } catch (error: any) {
-      toast.error(error.message || 'Error creating account');
+      const errorMsg = error.message || 'Error creating account';
+      toast.error(errorMsg);
+      console.error('Signup error:', error);
+      logError('Auth-SignUp', error);
     } finally {
       setLoading(false);
     }
@@ -67,10 +70,21 @@ const Auth = () => {
         navigate('/');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Error signing in');
+      const errorMsg = error.message || 'Error signing in';
+      toast.error(errorMsg);
+      console.error('Signin error:', error);
+      logError('Auth-SignIn', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to log errors with more context
+  const logError = (context: string, error: any) => {
+    // Import from errorLogger utility
+    import('@/utils/errorLogger').then(({ logError }) => {
+      logError(context, error);
+    });
   };
 
   return (
