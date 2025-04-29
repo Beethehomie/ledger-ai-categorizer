@@ -49,7 +49,8 @@ export const updateVendorInSupabase = async (
         type,
         statement_type: statementType,
         occurrences: 1,
-        verified: false
+        verified: false,
+        sample_description: '' // We don't have a sample description yet, will be updated later
       });
       
     if (error) {
@@ -67,6 +68,44 @@ export const updateVendorInSupabase = async (
     }];
     
     return { updatedVendors: newVendorsList, success: true };
+  }
+};
+
+export const updateVendorWithSampleDescription = async (
+  vendor: string, 
+  description: string
+): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('vendor_categorizations')
+      .select('sample_description')
+      .eq('vendor_name', vendor)
+      .single();
+
+    if (error) {
+      console.error('Error checking vendor sample description:', error);
+      return false;
+    }
+
+    // Only update if we don't have a sample description yet
+    if (!data.sample_description) {
+      const { error: updateError } = await supabase
+        .from('vendor_categorizations')
+        .update({ sample_description: description })
+        .eq('vendor_name', vendor);
+
+      if (updateError) {
+        console.error('Error updating vendor sample description:', updateError);
+        return false;
+      }
+      
+      return true;
+    }
+    
+    return false;
+  } catch (err) {
+    console.error('Error in updateVendorWithSampleDescription:', err);
+    return false;
   }
 };
 
@@ -121,6 +160,10 @@ export const removeDuplicateVendorsFromSupabase = async (): Promise<{ success: b
         if (a.verified && !b.verified) return -1;
         if (!a.verified && b.verified) return 1;
         
+        // Prefer records with sample descriptions
+        if (a.sample_description && !b.sample_description) return -1;
+        if (!a.sample_description && b.sample_description) return 1;
+        
         return (b.occurrences || 0) - (a.occurrences || 0);
       });
       
@@ -170,5 +213,53 @@ export const removeDuplicateVendorsFromSupabase = async (): Promise<{ success: b
     console.error('Error removing duplicate vendors:', err);
     toast.error('Failed to remove duplicate vendors');
     return { success: false };
+  }
+};
+
+// Function to get all vendor categorizations with their sample descriptions
+export const getVendorCategorizations = async (): Promise<{
+  vendors: Vendor[],
+  samples: Record<string, string>
+}> => {
+  try {
+    const { data, error } = await supabase
+      .from('vendor_categorizations')
+      .select('vendor_name, category, type, statement_type, occurrences, verified, sample_description');
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return { vendors: [], samples: {} };
+    }
+
+    // Build the samples dictionary for RAG features
+    const samples: Record<string, string> = {};
+    data.forEach(v => {
+      if (v.sample_description) {
+        samples[v.vendor_name] = v.sample_description;
+      }
+    });
+
+    // Convert to Vendor objects
+    const vendors: Vendor[] = data.map(v => {
+      let statementType: StatementType = 'profit_loss';
+      if (v.statement_type === 'balance_sheet') {
+        statementType = 'balance_sheet';
+      }
+
+      return {
+        name: v.vendor_name || '',
+        category: v.category || '',
+        type: (v.type as Transaction['type']) || 'expense',
+        statementType: statementType,
+        occurrences: v.occurrences || 1,
+        verified: v.verified || false
+      };
+    });
+
+    return { vendors, samples };
+  } catch (err) {
+    console.error('Error getting vendor categorizations:', err);
+    return { vendors: [], samples: {} };
   }
 };

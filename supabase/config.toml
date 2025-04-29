@@ -44,3 +44,6 @@ name = "analyze-transaction"
 
 [[edge_functions]]
 name = "analyze-transaction-vendor"
+
+[[edge_functions]]
+name = "import-vendor-categories"

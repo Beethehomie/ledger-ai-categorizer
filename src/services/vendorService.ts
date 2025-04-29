@@ -3,6 +3,7 @@ import { Transaction, Vendor } from '@/types';
 import { extractVendorName, extractVendorWithAI } from '@/utils/vendorExtractor';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorLogger';
+import { updateVendorWithSampleDescription } from '@/context/bookkeeping/vendorUtils';
 
 interface FindSimilarTransactionsFunction {
   (vendorName: string, transactions: Transaction[]): Promise<Transaction[]>;
@@ -28,6 +29,12 @@ export const findSimilarVendorTransactions = async (
 export const analyzeTransactionWithAI = async (transaction: Transaction, existingVendors: string[]) => {
   try {
     const result = await extractVendorWithAI(transaction.description, existingVendors);
+    
+    // Store the transaction description as a sample for this vendor in the database
+    if (result.vendor && result.vendor !== "Unknown") {
+      updateVendorWithSampleDescription(result.vendor, transaction.description)
+        .catch(err => console.error('Error updating sample description:', err));
+    }
     
     return {
       ...transaction,
@@ -117,7 +124,8 @@ export const addVendor = async (vendor: Vendor): Promise<{ success: boolean, err
         statement_type: vendor.statementType || 'profit_loss',
         occurrences: vendor.occurrences || 1,
         verified: vendor.verified || false,
-        last_used: new Date().toISOString()
+        last_used: new Date().toISOString(),
+        sample_description: '' // We don't have a sample yet
       });
 
     if (error) {

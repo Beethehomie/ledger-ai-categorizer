@@ -1,14 +1,17 @@
+
 import { Vendor } from '../types';
 import { Transaction } from '../types';
 import { supabase } from '@/integrations/supabase/client';
 import { BusinessContext } from '@/types/supabase';
+import { updateVendorWithSampleDescription } from '@/context/bookkeeping/vendorUtils';
 
 // Common prefixes and suffixes to remove from transaction descriptions
 const COMMON_PREFIXES = [
   "POS PURCHASE ", "PURCHASE ", "FNB PAYMENT ", "PAYMENT ", "CARD PURCHASE ", 
   "DEBIT ORDER ", "EFT PAYMENT ", "DIRECT DEBIT ", "TRANSFER ", "ATM WITHDRAWAL ",
   "CREDIT ", "DEBIT ", "POS ", "TFR ", "TRANSACTION ", "PAYMENT TO ",
-  "PYMT TO ", "DEP ", "WDL ", "ONLINE ", "ACH ", "DEPOSIT ", "WITHDRAWAL "
+  "PYMT TO ", "DEP ", "WDL ", "ONLINE ", "ACH ", "DEPOSIT ", "WITHDRAWAL ",
+  "VISA DDA PUR AP - ", "INTL DDA PUR AP - ", "DDA PURCHASE AP - "
 ];
 
 const COMMON_SUFFIXES = [
@@ -128,6 +131,13 @@ export async function extractVendorWithAI(description: string, existingVendors: 
     if (error) {
       console.error("Error calling analyze-transaction-vendor:", error);
       throw error;
+    }
+    
+    // If we have a vendor, update the sample description in the database
+    if (data?.vendor && data.vendor !== 'Unknown') {
+      // This is async, but we don't need to await it
+      updateVendorWithSampleDescription(data.vendor, description)
+        .catch(err => console.error('Error updating sample description:', err));
     }
     
     return data;
@@ -380,6 +390,13 @@ export const batchAnalyzeTransactions = async (
             await updateTransaction(updatedTransaction);
             results.updated++;
             results.aiUsed++;
+
+            // Update the sample description in the database
+            if (updatedTransaction.vendor !== 'Unknown') {
+              updateVendorWithSampleDescription(updatedTransaction.vendor, transaction.description)
+                .catch(err => console.error('Error updating sample description:', err));
+            }
+            
             continue;
           }
         } catch (err) {
