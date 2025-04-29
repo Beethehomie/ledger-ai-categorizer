@@ -1,4 +1,3 @@
-
 // Add to existing types
 export type BusinessContext = {
   country: string;
@@ -19,4 +18,19 @@ export type BankConnectionRow = {
   last_sync?: string;
   active?: boolean;
   created_at?: string;
+};
+
+// Add a type for vendor categorization row
+export type VendorCategorizationRow = {
+  id: string;
+  vendor_name: string;
+  category: string;
+  type: string;
+  statement_type: string;
+  occurrences: number;
+  verified: boolean;
+  last_used?: string;
+  created_at?: string;
+  confidence?: number;
+  sample_description?: string;
 };

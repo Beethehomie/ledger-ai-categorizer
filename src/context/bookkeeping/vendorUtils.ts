@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { Vendor, StatementType } from '@/types';
 import { Transaction } from '@/types';
+import { VendorCategorizationRow } from '@/types/supabase';
 
 export const updateVendorInSupabase = async (
   vendor: string,
@@ -50,7 +51,7 @@ export const updateVendorInSupabase = async (
         statement_type: statementType,
         occurrences: 1,
         verified: false,
-        sample_description: '' // We don't have a sample description yet, will be updated later
+        sample_description: '' // Initialize with empty sample
       });
       
     if (error) {
@@ -78,7 +79,7 @@ export const updateVendorWithSampleDescription = async (
   try {
     const { data, error } = await supabase
       .from('vendor_categorizations')
-      .select('sample_description')
+      .select('*')
       .eq('vendor_name', vendor)
       .single();
 
@@ -113,7 +114,7 @@ export const removeDuplicateVendorsFromSupabase = async (): Promise<{ success: b
   try {
     const { data, error } = await supabase
       .from('vendor_categorizations')
-      .select('vendor_name, category');
+      .select('*');
       
     if (error) throw error;
     
@@ -187,7 +188,7 @@ export const removeDuplicateVendorsFromSupabase = async (): Promise<{ success: b
       .select('*');
       
     if (updatedVendors) {
-      const vendorsFromDB: Vendor[] = updatedVendors.map((v) => {
+      const vendorsFromDB: Vendor[] = updatedVendors.map((v: VendorCategorizationRow) => {
         // Convert any 'operating' statementType to 'profit_loss' for backward compatibility
         let statementType: StatementType = 'profit_loss';
         if (v.statement_type === 'balance_sheet') {
@@ -224,7 +225,7 @@ export const getVendorCategorizations = async (): Promise<{
   try {
     const { data, error } = await supabase
       .from('vendor_categorizations')
-      .select('vendor_name, category, type, statement_type, occurrences, verified, sample_description');
+      .select('*');
 
     if (error) throw error;
 
@@ -234,14 +235,14 @@ export const getVendorCategorizations = async (): Promise<{
 
     // Build the samples dictionary for RAG features
     const samples: Record<string, string> = {};
-    data.forEach(v => {
+    data.forEach((v: VendorCategorizationRow) => {
       if (v.sample_description) {
         samples[v.vendor_name] = v.sample_description;
       }
     });
 
     // Convert to Vendor objects
-    const vendors: Vendor[] = data.map(v => {
+    const vendors: Vendor[] = data.map((v: VendorCategorizationRow) => {
       let statementType: StatementType = 'profit_loss';
       if (v.statement_type === 'balance_sheet') {
         statementType = 'balance_sheet';
@@ -261,5 +262,44 @@ export const getVendorCategorizations = async (): Promise<{
   } catch (err) {
     console.error('Error getting vendor categorizations:', err);
     return { vendors: [], samples: {} };
+  }
+};
+
+// Function to import vendor data with sample descriptions in batch
+export const importVendorCategorizations = async (
+  vendors: Array<{
+    name: string;
+    category: string;
+    type?: Transaction['type'];
+    statementType?: Transaction['statementType'];
+    sampleDescription?: string;
+  }>
+): Promise<{ success: boolean; message: string }> => {
+  if (!vendors || vendors.length === 0) {
+    return { success: false, message: 'No vendors provided for import' };
+  }
+
+  try {
+    // Use the Supabase Edge Function for bulk import
+    const { data, error } = await supabase.functions.invoke('import-vendor-categories', {
+      body: { vendors }
+    });
+
+    if (error) {
+      console.error('Error importing vendor categorizations:', error);
+      return { success: false, message: `Import failed: ${error.message}` };
+    }
+
+    if (data) {
+      return { 
+        success: true, 
+        message: `Successfully imported: ${data.inserted} inserted, ${data.updated} updated` 
+      };
+    }
+
+    return { success: true, message: 'Vendors imported successfully' };
+  } catch (err: any) {
+    console.error('Error in importVendorCategorizations:', err);
+    return { success: false, message: err.message || 'Unknown error during import' };
   }
 };

@@ -194,6 +194,7 @@ export type Database = {
           id: string
           last_used: string | null
           occurrences: number | null
+          sample_description: string | null
           statement_type: string
           type: string
           vendor_name: string
@@ -206,6 +207,7 @@ export type Database = {
           id?: string
           last_used?: string | null
           occurrences?: number | null
+          sample_description?: string | null
           statement_type: string
           type: string
           vendor_name: string
@@ -218,6 +220,7 @@ export type Database = {
           id?: string
           last_used?: string | null
           occurrences?: number | null
+          sample_description?: string | null
           statement_type?: string
           type?: string
           vendor_name?: string
