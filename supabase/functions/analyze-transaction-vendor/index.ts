@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
@@ -6,8 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const openAIKey = Deno.env.get('OPENAI_API_KEY');
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -17,165 +14,118 @@ serve(async (req) => {
 
   try {
     const { description, existingVendors = [], country = "ZA", context = {} } = await req.json();
-
-    if (!description) {
-      return new Response(
-        JSON.stringify({ error: 'Transaction description is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      throw new Error("OpenAI API key not available");
     }
 
-    // Extract vendor name from the description with enhanced context
-    const extractionResult = await extractVendorWithContext(description, existingVendors, country, context);
+    // Build a prompt that includes business context
+    let systemPrompt = `You are an AI assistant specializing in financial transaction processing for businesses. 
+Your task is to analyze a bank transaction description and extract the actual vendor name.
+
+For a business transaction description like "${description}", identify the actual merchant or vendor name that
+would represent this transaction in accounting records. Remove generic words like "POS PURCHASE", "PMT", "Debit", "ATM" etc.
+
+If found in the list of existing vendors, use the exact same name to ensure consistency. Otherwise, extract a concise vendor name.
+
+Return a JSON object with:
+- vendor: The extracted vendor name
+- isExisting: Boolean indicating if the vendor was found in the existing vendors list
+- confidence: A score from 0.0 to 1.0 indicating confidence in the extraction
+- category: A suitable accounting category (if not an existing vendor)
+- type: The transaction type (income, expense, asset, liability) (if not an existing vendor)
+- statementType: The statement type (profit_loss, balance_sheet) (if not an existing vendor)`;
+
+    // Add business context to the prompt if available
+    if (context && Object.keys(context).length > 0) {
+      systemPrompt += `\n\nBusiness Context:
+- Country: ${context.country || country || 'Unknown'}
+- Industry: ${context.industry || 'Unknown'}
+- Business Size: ${context.businessSize || 'Unknown'}
+- Payment Methods: ${context.paymentMethods?.join(', ') || 'Unknown'}
+- Currency: ${context.currency || 'Unknown'}`;
+      
+      if (context.additionalInfo) {
+        systemPrompt += `\n- Additional Context: ${context.additionalInfo}`;
+      }
+    }
+
+    // Add examples from the provided dataset
+    systemPrompt += `\n\nHere are some examples of previously correctly identified vendors:
+- "STRIPE TRANSFER" → Stripe
+- "CHECK 995785" → Dale Business Center
+- "WAVE SV9T XXXXXX4751" → Wave
+- "ACH BATCH - TWO FRIENDLY NER" → Two Friendly Nerds
+- "TDBANK BILL PAY CHECK - THAO HAU" → Thao Hau
+- "VISA DDA PUR AP - 479338 US IP ATTORNEYS PC SAN DIEGO * CA" → US IP Attorneys
+- "VISA DDA PUR AP - 469216 STARBUCKS STORE 00853 WEST HARTFORD * CT" → Starbucks`;
+
+    // Add existing vendors to the prompt for context
+    if (existingVendors && existingVendors.length > 0) {
+      // Take only the first 20 to keep the prompt size manageable
+      const vendorsToShow = existingVendors.slice(0, 20);
+      systemPrompt += `\n\nExisting vendors in the system (use exact names if applicable): ${vendorsToShow.join(', ')}`;
+    }
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openAIApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: `Please extract the vendor from this transaction description: "${description}"`
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.choices || data.choices.length === 0) {
+      throw new Error("Invalid response from OpenAI");
+    }
+
+    // Parse the response content
+    const responseContent = JSON.parse(data.choices[0].message.content);
+    
+    // Check if the vendor is in the existing vendors list
+    const isExisting = existingVendors.some(
+      v => v.toLowerCase() === responseContent.vendor.toLowerCase()
+    );
 
     return new Response(
-      JSON.stringify(extractionResult),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        vendor: responseContent.vendor,
+        isExisting: isExisting || responseContent.isExisting || false,
+        confidence: responseContent.confidence || 0.7,
+        category: !isExisting ? responseContent.category : undefined,
+        type: !isExisting ? responseContent.type : undefined,
+        statementType: !isExisting ? responseContent.statementType : undefined
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
   } catch (error) {
-    console.error('Error in analyze-transaction-vendor:', error);
+    console.error("Error in analyze-transaction-vendor function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: error.message || "Unknown error occurred" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
   }
 });
-
-interface BusinessContext {
-  country?: string;
-  industry?: string;
-  businessSize?: string;
-  paymentMethods?: string[];
-  currency?: string;
-  additionalInfo?: string;
-}
-
-async function extractVendorWithContext(
-  description: string, 
-  existingVendors: string[] = [], 
-  country = "ZA", 
-  context: BusinessContext = {}
-): Promise<{
-  vendor: string;
-  isExisting: boolean;
-  confidence: number;
-  category?: string;
-  type?: string;
-  statementType?: string;
-}> {
-  if (!openAIKey) {
-    throw new Error('OpenAI API key is not configured');
-  }
-
-  // Format business context for the prompt
-  const businessContextPrompt = formatBusinessContext(context);
-  
-  // Construct country-specific patterns to ignore
-  const countryPatterns = getCountrySpecificPatterns(country);
-  
-  // Format existing vendors for the prompt
-  const existingVendorsText = existingVendors.length > 0 
-    ? `Existing vendors in the system: ${existingVendors.join(', ')}` 
-    : 'There are no existing vendors in the system yet.';
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 
-            'You are a financial assistant tasked with extracting the most accurate vendor name from transaction descriptions. ' +
-            'Your goal is to provide a concise, standardized vendor name that represents the actual business entity. ' +
-            'Specific rules:\n\n' +
-            '1. Remove transaction IDs, dates, reference numbers, and card numbers\n' +
-            '2. Do not include banking terms like "POS", "PURCHASE", "PMT", "DEBIT", "CREDIT", etc.\n' +
-            '3. Identify the actual business entity, not transaction types or descriptions\n' +
-            '4. If multiple words appear to be part of the vendor name, use proper capitalization (e.g., "Pick N Pay" not "PICK N PAY")\n' +
-            '5. For chain stores or franchises, extract just the main brand name when appropriate\n' +
-            '6. When multiple possible vendors appear, use web searchability to determine which is most likely the actual vendor\n\n' +
-            `${countryPatterns}\n\n` +
-            `${businessContextPrompt}\n\n` +
-            `${existingVendorsText}\n\n` +
-            'Respond with JSON only. Include:\n' +
-            '- vendor: The extracted vendor name\n' +
-            '- confidence: A score from 0 to 1 indicating your confidence in the extraction\n' +
-            '- isExisting: Whether this matches (or is very similar to) an existing vendor\n' +
-            '- category: If this appears to be a new vendor, suggest an accounting category\n' +
-            '- type: Suggest "income", "expense", "transfer", "asset", or "liability"\n' +
-            '- statementType: Suggest "profit_loss" or "balance_sheet"\n\n'
-        },
-        {
-          role: 'user',
-          content: `Transaction description: "${description}"`
-        }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.3,
-      max_tokens: 500,
-    }),
-  });
-
-  if (!response.ok) {
-    console.error('OpenAI API error response:', await response.text());
-    throw new Error(`OpenAI API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  const content = data.choices[0].message.content;
-  
-  try {
-    const result = JSON.parse(content);
-    return {
-      vendor: result.vendor,
-      isExisting: result.isExisting || false,
-      confidence: result.confidence || 0.7,
-      category: result.category,
-      type: result.type,
-      statementType: result.statementType
-    };
-  } catch (error) {
-    console.error('Error parsing AI response:', error);
-    throw new Error('Failed to parse AI response');
-  }
-}
-
-function formatBusinessContext(context: BusinessContext): string {
-  if (Object.keys(context).length === 0) {
-    return 'No specific business context provided.';
-  }
-
-  let contextPrompt = 'Business context:\n';
-  
-  if (context.country) contextPrompt += `- Country: ${context.country}\n`;
-  if (context.industry) contextPrompt += `- Industry: ${context.industry}\n`;
-  if (context.businessSize) contextPrompt += `- Business size: ${context.businessSize}\n`;
-  if (context.currency) contextPrompt += `- Primary currency: ${context.currency}\n`;
-  
-  if (context.paymentMethods && context.paymentMethods.length > 0) {
-    contextPrompt += `- Payment methods: ${context.paymentMethods.join(', ')}\n`;
-  }
-  
-  if (context.additionalInfo) {
-    contextPrompt += `- Additional info: ${context.additionalInfo}\n`;
-  }
-  
-  return contextPrompt;
-}
-
-function getCountrySpecificPatterns(country: string): string {
-  const patterns: Record<string, string> = {
-    'ZA': 'South African patterns to ignore: "EFT", "POS PURCHASE", "INTERNET TFR", "NATREFNO", "CASHSEND", "PAYMENT RECEIVED", "CHEQUE CARD", "TRANSFER", "FNB APP", "FNB CONNECT", "ABSA", "NETBANK", "ATM", "STANDARD BANK", "CAPITEC", "NEDBANK", "CASHSEND", "INSTANT PAYMENT", "PAYMENT FROM", "EWALLET", "DEBIT ORDER", "CREDIT", "DEBIT", "CC PAYMENT"',
-    'US': 'US patterns to ignore: "ACH", "ZELLE", "VENMO", "XFER", "DDA", "POS", "VISA", "MASTERCARD", "AMEX", "CHASE", "CITI", "BOFA", "WELLS FARGO", "CAPITAL ONE", "PAYPAL", "DEBIT CARD", "CREDIT CARD", "AUTOPAY", "DIRECT DEPOSIT", "ONLINE PAYMENT", "CHECK #"',
-    'UK': 'UK patterns to ignore: "FASTER PAYMENT", "DIRECT DEBIT", "STANDING ORDER", "BACS", "CHAPS", "LINK", "HSBC", "BARCLAYS", "LLOYDS", "NatWest", "SANTANDER", "HALIFAX", "TSB", "VISA", "MASTERCARD", "AMEX", "CASHPOINT", "ATM", "PAYMENT", "PURCHASE"',
-    'CA': 'Canadian patterns to ignore: "INTERAC", "E-TRANSFER", "ETRANSFER", "PAYMENT", "DEBIT", "CREDIT", "BMO", "RBC", "CIBC", "SCOTIABANK", "TD", "ATM", "ABM", "TRANSACTION", "VISA", "MASTERCARD", "AMEX", "TFR", "TRANSFER", "PAY", "BILLS"',
-    'AU': 'Australian patterns to ignore: "BPAY", "OSKO", "PAYID", "NPP", "EFTPOS", "COMMONWEALTH", "NAB", "ANZ", "WESTPAC", "BENDIGO", "ING", "ST GEORGE", "MACQUARIE", "PAYMENT", "TRANSFER", "ATM", "CARD", "DIRECT DEBIT", "DEBIT", "CREDIT"'
-  };
-  
-  return patterns[country] || 'Common patterns to ignore: "PAYMENT", "TRANSFER", "DEBIT", "CREDIT", "POS", "ATM", "CARD", "PURCHASE", "REFERENCE", "REF", "TXN", "TFR", "DIRECT DEBIT"';
-}
