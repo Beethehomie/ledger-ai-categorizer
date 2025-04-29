@@ -173,6 +173,7 @@ export type Database = {
           type: string
           vendor_name: string
           verified: boolean | null
+          sample_description: string | null
         }
         Insert: {
           category: string
@@ -185,6 +186,7 @@ export type Database = {
           type: string
           vendor_name: string
           verified?: boolean | null
+          sample_description?: string | null
         }
         Update: {
           category?: string
@@ -197,6 +199,7 @@ export type Database = {
           type?: string
           vendor_name?: string
           verified?: boolean | null
+          sample_description?: string | null
         }
         Relationships: []
       }
