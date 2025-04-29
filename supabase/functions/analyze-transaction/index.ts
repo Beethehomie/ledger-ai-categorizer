@@ -7,8 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const openAIKey = Deno.env.get('OPENAI_API_KEY');
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -16,164 +14,88 @@ serve(async (req) => {
   }
 
   try {
-    const { description, amount, existingCategories } = await req.json();
-
-    if (!description) {
-      return new Response(
-        JSON.stringify({ error: 'Transaction description is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const { description, amount, existingCategories, businessContext } = await req.json();
+    
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      throw new Error("OpenAI API key not available");
     }
 
-    // Extract vendor name from the description
-    const vendorName = await extractVendorName(description);
+    // Build a prompt that includes business context if available
+    let systemPrompt = `You are an AI assistant specializing in financial transaction categorization. Analyze the transaction description and suggest the most appropriate category, transaction type (income/expense/asset/liability), and statement type (profit_loss/balance_sheet).`;
+    
+    // Add business context to the prompt if available
+    if (businessContext) {
+      systemPrompt += `\n\nBusiness Context:
+- Country: ${businessContext.country || 'Unknown'}
+- Industry: ${businessContext.industry || 'Unknown'}
+- Business Size: ${businessContext.businessSize || 'Unknown'}
+- Payment Methods: ${businessContext.paymentMethods?.join(', ') || 'Unknown'}
+- Currency: ${businessContext.currency || 'Unknown'}`;
+      
+      if (businessContext.additionalInfo) {
+        systemPrompt += `\n- Additional Context: ${businessContext.additionalInfo}`;
+      }
+    }
 
-    // Generate category suggestion based on description and vendor
-    const categorySuggestion = await suggestCategory(
-      description, 
-      vendorName, 
-      amount, 
-      existingCategories || []
-    );
+    // Build a list of existing categories
+    let categoriesPrompt = "";
+    if (existingCategories && existingCategories.length > 0) {
+      categoriesPrompt = `\n\nConsider using one of these existing categories if appropriate: ${existingCategories.join(', ')}`;
+    }
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openAIApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt + categoriesPrompt
+          },
+          {
+            role: "user",
+            content: `Transaction: "${description}", Amount: ${amount}`
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.choices || data.choices.length === 0) {
+      throw new Error("Invalid response from OpenAI");
+    }
+
+    // Parse the response content
+    const responseContent = JSON.parse(data.choices[0].message.content);
 
     return new Response(
-      JSON.stringify(categorySuggestion),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        category: responseContent.category || "Unknown",
+        type: responseContent.type || "expense",
+        statementType: responseContent.statementType || "profit_loss",
+        confidence: responseContent.confidence || 0.7,
+        vendor: responseContent.vendor || null
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
   } catch (error) {
-    console.error('Error in analyze-transaction:', error);
+    console.error("Error in analyze-transaction function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: error.message || "Unknown error occurred" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
   }
 });
-
-async function extractVendorName(description: string): Promise<string> {
-  if (!openAIKey) {
-    throw new Error('OpenAI API key is not configured');
-  }
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 
-            'You are a financial assistant tasked with extracting vendor names from transaction descriptions. ' +
-            'Your goal is to provide a concise, standardized vendor name. ' +
-            'Remove transaction IDs, dates, reference numbers, and other non-vendor information. ' +
-            'For example, "AMAZON MKTPLACE 09/15 #28492" should return just "Amazon". ' +
-            'Respond with ONLY the vendor name, nothing else.'
-        },
-        {
-          role: 'user',
-          content: `Extract the vendor name from this transaction description: "${description}"`
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 50,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0].message.content.trim();
-}
-
-async function suggestCategory(
-  description: string,
-  vendorName: string,
-  amount: number,
-  existingCategories: string[]
-) {
-  if (!openAIKey) {
-    throw new Error('OpenAI API key is not configured');
-  }
-
-  const existingCategoriesText = existingCategories.length > 0 
-    ? `Available categories: ${existingCategories.join(', ')}.` 
-    : 'There are no pre-defined categories, so suggest an appropriate one based on IFRS standards.';
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 
-            'You are a financial accounting expert specialized in categorizing transactions according to IFRS ' +
-            '(International Financial Reporting Standards). ' +
-            'Based on transaction descriptions and vendors, you classify them into appropriate accounting categories.\n\n' +
-            'For each transaction, you need to determine:\n' +
-            '1. The appropriate category name\n' +
-            '2. The transaction type (income, expense, asset, liability, equity)\n' +
-            '3. The financial statement it belongs to (profit_loss or balance_sheet)\n' +
-            '4. A confidence score from 0 to 1 indicating how certain you are of this classification\n\n' +
-            'For types:\n' +
-            '- income: Money coming in (revenue, sales)\n' +
-            '- expense: Money going out (costs, purchases)\n' +
-            '- asset: Resources owned (cash, equipment)\n' +
-            '- liability: Obligations (loans, payables)\n' +
-            '- equity: Ownership interest\n\n' +
-            'For statement types:\n' +
-            '- profit_loss: Income and expense transactions\n' +
-            '- balance_sheet: Asset, liability, and equity transactions\n\n' +
-            'Your response should be in JSON format with category, type, statementType, and confidence.'
-        },
-        {
-          role: 'user',
-          content: 
-            `Categorize this transaction:\n` +
-            `- Description: "${description}"\n` +
-            `- Vendor: "${vendorName}"\n` +
-            `- Amount: ${amount}\n\n` +
-            existingCategoriesText + '\n\n' +
-            'Respond with JSON only in this exact format: {"category": "Category Name", "type": "income|expense|asset|liability|equity", "statementType": "profit_loss|balance_sheet", "confidence": 0.XX}'
-        }
-      ],
-      temperature: 0.2,
-      max_tokens: 150,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  const responseText = data.choices[0].message.content.trim();
-  
-  try {
-    // Extract JSON from the response
-    const jsonMatch = responseText.match(/\{.*\}/s);
-    if (jsonMatch) {
-      const jsonResponse = JSON.parse(jsonMatch[0]);
-      return jsonResponse;
-    } else {
-      throw new Error('No valid JSON found in response');
-    }
-  } catch (error) {
-    console.error('Error parsing AI response:', error, 'Response was:', responseText);
-    return {
-      category: amount > 0 ? 'Uncategorized Income' : 'Uncategorized Expense',
-      type: amount > 0 ? 'income' : 'expense',
-      statementType: 'profit_loss',
-      confidence: 0.1
-    };
-  }
-}

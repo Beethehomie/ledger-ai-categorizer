@@ -148,17 +148,26 @@ export const useTransactions = (
     try {
       const categoryNames = []; // This will be passed in from the context
       
+      // Get business context from user profile
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('business_context')
+        .eq('id', session.user.id)
+        .single();
+      
       console.log('Analyzing transaction:', {
         description: transaction.description,
         amount: transaction.amount,
-        existingCategories: categoryNames
+        existingCategories: categoryNames,
+        businessContext: userProfile?.business_context
       });
       
       const { data, error } = await supabase.functions.invoke('analyze-transaction', {
         body: { 
           description: transaction.description,
           amount: transaction.amount,
-          existingCategories: categoryNames
+          existingCategories: categoryNames,
+          businessContext: userProfile?.business_context || null
         }
       });
       
@@ -178,7 +187,8 @@ export const useTransactions = (
                 aiSuggestion: data.category,
                 confidenceScore: data.confidence,
                 type: data.confidence > 0.85 ? data.type : t.type,
-                statementType: data.confidence > 0.85 ? data.statementType : t.statementType
+                statementType: data.confidence > 0.85 ? data.statementType : t.statementType,
+                vendor: data.vendor || t.vendor
               };
             }
             return t;

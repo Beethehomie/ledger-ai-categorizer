@@ -5,12 +5,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { SubscriptionTier } from '@/types/subscription';
 import { logError } from '@/utils/errorLogger';
+import { BusinessContext } from '@/types/supabase';
 
 interface UserProfile {
   id: string;
   email: string;
   subscription_tier: SubscriptionTier;
   is_admin: boolean;
+  business_context?: BusinessContext;
 }
 
 interface AuthContextType {
@@ -20,6 +22,7 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  hasBusinessContext: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [hasBusinessContext, setHasBusinessContext] = useState<boolean>(false);
 
   useEffect(() => {
     // Set up the auth state listener
@@ -48,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setUserProfile(null);
           setIsAdmin(false);
+          setHasBusinessContext(false);
         }
       }
     );
@@ -103,12 +108,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const adminStatus = user?.email === 'terramultaacc@gmail.com';
       setIsAdmin(adminStatus || !!data.is_admin);
       
+      // Check if the user has completed the business context questionnaire
+      setHasBusinessContext(!!data.business_context && Object.keys(data.business_context).length > 0);
+      
       // Create the UserProfile object with proper type handling
       const profile: UserProfile = {
         id: data.id,
         email: data.email || user?.email || '',
         subscription_tier: (data.subscription_tier as SubscriptionTier) || 'free',
-        is_admin: data.is_admin || adminStatus
+        is_admin: data.is_admin || adminStatus,
+        business_context: data.business_context
       };
       
       setUserProfile(profile);
@@ -129,7 +138,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: userId,
           email: user?.email,
           subscription_tier: 'free', // Always default to free
-          is_admin: isUserAdmin
+          is_admin: isUserAdmin,
+          business_context: {}
         });
 
       if (error) {
@@ -152,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.success('Signed out successfully');
       setUserProfile(null);
       setIsAdmin(false);
+      setHasBusinessContext(false);
     } catch (error) {
       logError('AuthContext-signOut', error);
       toast.error('Error signing out');
@@ -165,7 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       userProfile, 
       loading, 
       signOut,
-      isAdmin
+      isAdmin,
+      hasBusinessContext
     }}>
       {children}
     </AuthContext.Provider>

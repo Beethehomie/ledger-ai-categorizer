@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -33,7 +33,6 @@ import { CheckSquare } from 'lucide-react';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/auth';
-import { BusinessContext } from '@/types/supabase';
 
 const businessContextSchema = z.object({
   country: z.string().min(1, 'Please select a country'),

@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { AuthForm } from '@/components/auth/AuthForm';
+import BusinessContextQuestionnaire from '@/components/business/BusinessContextQuestionnaire';
+import { BusinessContextFormValues } from '@/components/business/BusinessContextQuestionnaire';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -13,6 +15,7 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const navigate = useNavigate();
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -71,14 +74,13 @@ const Auth = () => {
         // Continue with the flow even if profile creation fails
       }
       
-      toast.success('Account created! Please check your email for verification.');
-      navigate('/');
+      // Show questionnaire before redirecting
+      setShowQuestionnaire(true);
     } catch (error: any) {
       const errorMsg = error.message || 'Error creating account';
       toast.error(errorMsg);
       console.error('Signup error:', error);
       logError('Auth-SignUp', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -101,7 +103,19 @@ const Auth = () => {
         }
       } else {
         toast.success('Signed in successfully');
-        navigate('/');
+        
+        // Check if user has completed business context questionnaire
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('business_context')
+          .eq('id', data.user.id)
+          .single();
+          
+        if (profile && (!profile.business_context || Object.keys(profile.business_context).length === 0)) {
+          setShowQuestionnaire(true);
+        } else {
+          navigate('/');
+        }
       }
     } catch (error: any) {
       const errorMsg = error.message || 'Error signing in';
@@ -113,6 +127,11 @@ const Auth = () => {
     }
   };
 
+  const handleQuestionnaireComplete = async (data: BusinessContextFormValues) => {
+    toast.success('Thanks for providing your business context!');
+    navigate('/');
+  };
+
   // Helper function to log errors with more context
   const logError = (context: string, error: any) => {
     // Import from errorLogger utility
@@ -122,53 +141,65 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <Card className="w-full max-w-md animate-fade-in">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-3xl font-bold text-primary">Ledger AI</CardTitle>
-          <CardDescription>Enter your email to sign in or create an account</CardDescription>
-        </CardHeader>
-        <Tabs defaultValue="signin" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="signin">Sign In</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="signin">
-            <CardContent>
-              <AuthForm
-                email={email}
-                password={password}
-                showPassword={showPassword}
-                loading={loading}
-                onEmailChange={setEmail}
-                onPasswordChange={setPassword}
-                onShowPasswordToggle={() => setShowPassword(!showPassword)}
-                onSubmit={handleSignIn}
-              />
-            </CardContent>
-          </TabsContent>
+    <>
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <Card className="w-full max-w-md animate-fade-in">
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="text-3xl font-bold text-primary">Ledger AI</CardTitle>
+            <CardDescription>Enter your email to sign in or create an account</CardDescription>
+          </CardHeader>
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="signin">
+              <CardContent>
+                <AuthForm
+                  email={email}
+                  password={password}
+                  showPassword={showPassword}
+                  loading={loading}
+                  onEmailChange={setEmail}
+                  onPasswordChange={setPassword}
+                  onShowPasswordToggle={() => setShowPassword(!showPassword)}
+                  onSubmit={handleSignIn}
+                />
+              </CardContent>
+            </TabsContent>
 
-          <TabsContent value="signup">
-            <CardContent>
-              <AuthForm
-                email={email}
-                password={password}
-                confirmPassword={confirmPassword}
-                showPassword={showPassword}
-                loading={loading}
-                isSignUp={true}
-                onEmailChange={setEmail}
-                onPasswordChange={setPassword}
-                onConfirmPasswordChange={setConfirmPassword}
-                onShowPasswordToggle={() => setShowPassword(!showPassword)}
-                onSubmit={handleSignUp}
-              />
-            </CardContent>
-          </TabsContent>
-        </Tabs>
-      </Card>
-    </div>
+            <TabsContent value="signup">
+              <CardContent>
+                <AuthForm
+                  email={email}
+                  password={password}
+                  confirmPassword={confirmPassword}
+                  showPassword={showPassword}
+                  loading={loading}
+                  isSignUp={true}
+                  onEmailChange={setEmail}
+                  onPasswordChange={setPassword}
+                  onConfirmPasswordChange={setConfirmPassword}
+                  onShowPasswordToggle={() => setShowPassword(!showPassword)}
+                  onSubmit={handleSignUp}
+                />
+              </CardContent>
+            </TabsContent>
+          </Tabs>
+        </Card>
+      </div>
+
+      {/* Business Context Questionnaire Dialog */}
+      <BusinessContextQuestionnaire
+        isOpen={showQuestionnaire}
+        onClose={() => {
+          setShowQuestionnaire(false);
+          navigate('/');
+        }}
+        onComplete={handleQuestionnaireComplete}
+      />
+    </>
   );
 };
 
