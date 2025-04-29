@@ -33,5 +33,5 @@ export type VendorCategorizationRow = {
   last_used?: string;
   created_at?: string;
   confidence?: number;
-  sample_description?: string;
+  sample_description?: string; // Added this property to fix the type errors
 };
