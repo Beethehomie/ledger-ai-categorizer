@@ -109,7 +109,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAdmin(adminStatus || !!data.is_admin);
       
       // Check if the user has completed the business context questionnaire
-      setHasBusinessContext(!!data.business_context && Object.keys(data.business_context).length > 0);
+      // Type-check and safely convert from Json to BusinessContext
+      const businessContext = data.business_context ? 
+        (typeof data.business_context === 'object' ? data.business_context as BusinessContext : undefined) : 
+        undefined;
+      
+      setHasBusinessContext(!!businessContext && Object.keys(businessContext).length > 0);
       
       // Create the UserProfile object with proper type handling
       const profile: UserProfile = {
@@ -117,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: data.email || user?.email || '',
         subscription_tier: (data.subscription_tier as SubscriptionTier) || 'free',
         is_admin: data.is_admin || adminStatus,
-        business_context: data.business_context
+        business_context: businessContext
       };
       
       setUserProfile(profile);
