@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -131,7 +130,8 @@ const VendorKeywordsList: React.FC = () => {
         verified: vendor.verified || false,
         created_at: vendor.created_at,
         last_used: vendor.last_used || vendor.created_at,
-        confidence: vendor.confidence || 0.7
+        confidence: vendor.confidence || 0.7,
+        sample_description: vendor.sample_description || '' // Add the sample_description property
       }));
       
       setVendors(formattedVendors);
