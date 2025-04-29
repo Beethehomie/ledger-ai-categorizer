@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CheckSquare, Settings, LogOut, User } from 'lucide-react';
 import BusinessContextQuestionnaire from '../business/BusinessContextQuestionnaire';
+import { BusinessContextFormValues } from '../business/BusinessContextQuestionnaire';
 
 export const UserNavigation = () => {
   const { session } = useAuth();
@@ -36,6 +37,11 @@ export const UserNavigation = () => {
       console.error('Error logging out:', error);
       toast.error('Failed to log out');
     }
+  };
+  
+  const handleQuestionnaireComplete = (data: BusinessContextFormValues) => {
+    toast.success('Business context updated successfully');
+    setIsQuestionnaireOpen(false);
   };
   
   return (
@@ -88,6 +94,7 @@ export const UserNavigation = () => {
       <BusinessContextQuestionnaire 
         isOpen={isQuestionnaireOpen}
         onClose={() => setIsQuestionnaireOpen(false)}
+        onComplete={handleQuestionnaireComplete}
       />
     </>
   );
