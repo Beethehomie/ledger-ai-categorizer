@@ -1,245 +1,210 @@
 
 import React, { useState } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { 
-  Cpu, 
-  RefreshCw, 
-  AlertCircle, 
-  CheckCircle2,
-  Database
-} from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, AlertCircle, Check } from 'lucide-react';
 import { toast } from '@/utils/toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import {
-  HoverCard,
-  HoverCardTrigger,
-  HoverCardContent
-} from '@/components/ui/hover-card';
+import { generateVendorEmbeddings, findSimilarVendorsByDescription } from '@/utils/embeddingUtils';
 
-interface EmbeddingStats {
-  total: number;
-  withEmbeddings: number;
-  withoutEmbeddings: number;
-  percentComplete: number;
+interface VendorMatch {
+  vendor_name: string;
+  category: string;
+  confidence: number;
+  type: string;
+  statement_type: string;
+  sample_description?: string;
 }
 
-const VendorEmbeddings: React.FC = () => {
-  const { session } = useAuth();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [stats, setStats] = useState<EmbeddingStats | null>(null);
-  const [results, setResults] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const VendorEmbeddings = () => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState<{
+    success?: boolean;
+    processed?: number;
+    totalProcessed?: number;
+    error?: string;
+  } | null>(null);
+  const [searchResults, setSearchResults] = useState<VendorMatch[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  React.useEffect(() => {
-    fetchEmbeddingStats();
-  }, []);
-
-  const fetchEmbeddingStats = async () => {
-    setIsLoading(true);
+  const handleGenerateEmbeddings = async () => {
+    setIsGenerating(true);
+    setResults(null);
+    
     try {
-      // Count total vendors
-      const { count: total, error: totalError } = await supabase
-        .from('vendor_categorizations')
-        .select('*', { count: 'exact', head: true });
-
-      // Count vendors with embeddings
-      const { count: withEmbeddings, error: withError } = await supabase
-        .from('vendor_categorizations')
-        .select('*', { count: 'exact', head: true })
-        .not('embedding', 'is', null);
-
-      if (totalError || withError) throw new Error('Error fetching stats');
-
-      const withoutEmbeddings = (total || 0) - (withEmbeddings || 0);
-      const percentComplete = total ? Math.round((withEmbeddings || 0) / total * 100) : 0;
-
-      setStats({
-        total: total || 0,
-        withEmbeddings: withEmbeddings || 0,
-        withoutEmbeddings: withoutEmbeddings,
-        percentComplete
-      });
-
-    } catch (err) {
-      console.error('Error fetching embedding stats:', err);
-      toast.error('Failed to fetch embedding statistics');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const generateEmbeddings = async () => {
-    if (!session) {
-      toast.error('You must be logged in to generate embeddings');
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-vendor-embeddings', {
-        body: { batchSize: 50 }
-      });
-
-      if (error) throw error;
-
-      setResults(data);
-      fetchEmbeddingStats();
+      const result = await generateVendorEmbeddings(50);
+      setResults(result);
       
-      if (data.results.success > 0) {
-        toast.success(`Generated ${data.results.success} embeddings successfully`);
-      } else if (data.results.failed > 0) {
-        toast.error(`Failed to generate ${data.results.failed} embeddings`);
+      if (result.success) {
+        toast.success(`Generated embeddings for ${result.results?.success || 0} vendors`);
       } else {
-        toast.info(data.message);
+        toast.error('Failed to generate embeddings');
       }
     } catch (err) {
       console.error('Error generating embeddings:', err);
+      setResults({
+        success: false,
+        error: err instanceof Error ? err.message : 'Unknown error occurred'
+      });
       toast.error('Failed to generate embeddings');
     } finally {
-      setIsProcessing(false);
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSearchSimilarVendors = async () => {
+    if (!searchQuery.trim()) {
+      toast.error('Please enter a description to search');
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchResults([]);
+    
+    try {
+      const result = await findSimilarVendorsByDescription(searchQuery);
+      
+      if (result.success && result.results) {
+        setSearchResults(result.results);
+        if (result.results.length === 0) {
+          toast.info('No similar vendors found');
+        } else {
+          toast.success(`Found ${result.results.length} similar vendors`);
+        }
+      } else {
+        toast.error('Failed to find similar vendors');
+      }
+    } catch (err) {
+      console.error('Error searching similar vendors:', err);
+      toast.error('Failed to search for similar vendors');
+    } finally {
+      setIsSearching(false);
     }
   };
 
   return (
-    <Card className="border-[hsl(var(--border))] hover:shadow-md transition-all">
-      <CardHeader>
-        <CardTitle className="text-[hsl(var(--primary))] flex items-center gap-2">
-          <Cpu className="h-5 w-5" />
-          Vendor Embeddings
-        </CardTitle>
-        <CardDescription>
-          Generate and manage AI embeddings for your vendor data
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center items-center py-8">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {stats && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-sm">
-                  <span>
-                    Embedding completion: <span className="font-medium">{stats.percentComplete}%</span>
-                  </span>
-                  <span className="text-muted-foreground">
-                    {stats.withEmbeddings} / {stats.total} vendors
-                  </span>
-                </div>
-                <Progress value={stats.percentComplete} />
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div className="bg-muted rounded-md p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">With embeddings</span>
-                      <CheckCircle2 className="h-4 w-4 text-green-500" /> 
-                    </div>
-                    <div className="text-2xl font-bold mt-1">{stats.withEmbeddings}</div>
-                  </div>
-                  <div className="bg-muted rounded-md p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Without embeddings</span>
-                      {stats.withoutEmbeddings > 0 ? (
-                        <AlertCircle className="h-4 w-4 text-amber-500" />
-                      ) : (
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      )}
-                    </div>
-                    <div className="text-2xl font-bold mt-1">{stats.withoutEmbeddings}</div>
-                  </div>
-                </div>
-                
-                <HoverCard>
-                  <HoverCardTrigger asChild>
-                    <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground cursor-help">
-                      <Database className="h-3 w-3" />
-                      <span>What are vendor embeddings?</span>
-                    </div>
-                  </HoverCardTrigger>
-                  <HoverCardContent className="w-80">
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Vendor Embeddings</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Embeddings are numerical representations of text that capture semantic meaning. 
-                        They enable AI-powered features like semantic search and similar vendor detection.
-                      </p>
-                    </div>
-                  </HoverCardContent>
-                </HoverCard>
-              </div>
-            )}
-            
-            {results && (
-              <div className="mt-4 pt-4 border-t">
-                <h3 className="text-sm font-medium mb-2">Last Processing Results</h3>
-                <div className="bg-muted rounded-md p-3 text-sm">
-                  <div className="flex justify-between">
-                    <span>Successfully processed:</span>
-                    <span className="font-medium">{results.results.success}</span>
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span>Failed:</span>
-                    <span className="font-medium">{results.results.failed}</span>
-                  </div>
-                  {results.results.errors.length > 0 && (
-                    <div className="mt-2">
-                      <Separator className="my-2" />
-                      <p className="text-xs text-muted-foreground mb-1">Errors:</p>
-                      <div className="max-h-24 overflow-y-auto text-xs">
-                        {results.results.errors.map((error: string, idx: number) => (
-                          <div key={idx} className="text-red-500">{error}</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={fetchEmbeddingStats}
-                disabled={isLoading}
-                className="flex items-center gap-1"
-              >
-                <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh Stats
-              </Button>
-              <Button
-                onClick={generateEmbeddings}
-                disabled={isProcessing || (stats && stats.withoutEmbeddings === 0)}
-                className="flex items-center gap-1"
-              >
-                {isProcessing ? (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Vendor Embedding Generation</CardTitle>
+          <CardDescription>
+            Generate embeddings for vendors using OpenAI's text-embedding-3-small model
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            This will process vendors in the database that don't have embeddings yet and generate embedding vectors for them.
+          </p>
+          {results && (
+            <Alert className={results.success ? "bg-green-50" : "bg-red-50"}>
+              {results.success ? (
+                <Check className="h-4 w-4 text-green-600" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              )}
+              <AlertTitle>
+                {results.success ? "Embeddings generated" : "Failed to generate embeddings"}
+              </AlertTitle>
+              <AlertDescription>
+                {results.success ? (
                   <>
-                    <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                    Processing...
+                    Successfully processed {results.totalProcessed} vendors.
+                    <br />
+                    {results.results?.success} succeeded, {results.results?.failed} failed.
                   </>
                 ) : (
+                  <>Error: {results.error || "Unknown error"}</>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+        <CardFooter>
+          <Button 
+            onClick={handleGenerateEmbeddings} 
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              "Generate Embeddings"
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Search Similar Vendors</CardTitle>
+          <CardDescription>
+            Find vendors similar to a transaction description using semantic similarity
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex space-x-2">
+              <Input 
+                placeholder="Enter a transaction description" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleSearchSimilarVendors} 
+                disabled={isSearching || !searchQuery.trim()}
+              >
+                {isSearching ? (
                   <>
-                    <Cpu className="h-4 w-4 mr-1" />
-                    Generate Embeddings
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Searching...
                   </>
+                ) : (
+                  "Search"
                 )}
               </Button>
             </div>
+
+            {searchResults.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">Results:</h3>
+                {searchResults.map((result, index) => (
+                  <div key={index} className="border rounded-md p-3 bg-muted/40">
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-medium">{result.vendor_name}</h4>
+                      <Badge 
+                        className={
+                          result.confidence > 80 ? "bg-green-500" : 
+                          result.confidence > 50 ? "bg-amber-500" : 
+                          "bg-red-500"
+                        }
+                      >
+                        {result.confidence}% match
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">Category: {result.category}</p>
+                    <div className="flex gap-2 mt-1">
+                      <Badge variant="outline">{result.type}</Badge>
+                      <Badge variant="outline">{result.statement_type}</Badge>
+                    </div>
+                    {result.sample_description && (
+                      <p className="text-xs text-muted-foreground mt-2 italic">
+                        "{result.sample_description.substring(0, 100)}{result.sample_description.length > 100 ? '...' : ''}"
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
