@@ -7,6 +7,7 @@ import { Check, X, Search, BadgeCheck, Database, Download, Filter } from "lucide
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { VendorCategorizationRow } from '@/types/supabase';
+import VendorEmbeddings from './vendor/VendorEmbeddings';
 import { 
   Select,
   SelectContent,
@@ -272,193 +273,197 @@ const VendorKeywordsList: React.FC = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center">
-          <Database className="h-4 w-4 mr-2 text-primary" />
-          Vendor Keywords Database
-        </CardTitle>
-        <CardDescription>
-          All vendor keywords and their category mappings for transaction auto-categorization
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search vendors..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center">
+            <Database className="h-4 w-4 mr-2 text-primary" />
+            Vendor Keywords Database
+          </CardTitle>
+          <CardDescription>
+            All vendor keywords and their category mappings for transaction auto-categorization
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search vendors..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select
+                  value={filterOption}
+                  onValueChange={(value) => setFilterOption(value as 'all' | 'verified' | 'pending')}
+                >
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Keywords</SelectItem>
+                    <SelectItem value="verified">Verified Only</SelectItem>
+                    <SelectItem value="pending">Pending Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select
-                value={filterOption}
-                onValueChange={(value) => setFilterOption(value as 'all' | 'verified' | 'pending')}
-              >
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Keywords</SelectItem>
-                  <SelectItem value="verified">Verified Only</SelectItem>
-                  <SelectItem value="pending">Pending Only</SelectItem>
-                </SelectContent>
-              </Select>
+              <ColumnSelector columns={columns} onToggleColumn={handleToggleColumn} />
+              <Button variant="outline" onClick={exportVendorsToCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                Export Keywords
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <ColumnSelector columns={columns} onToggleColumn={handleToggleColumn} />
-            <Button variant="outline" onClick={exportVendorsToCSV}>
-              <Download className="h-4 w-4 mr-2" />
-              Export Keywords
-            </Button>
-          </div>
-        </div>
-        
-        {loading ? (
-          <div className="flex justify-center items-center p-8">
-            <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-primary rounded-full" />
-          </div>
-        ) : filteredVendors.length > 0 ? (
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {isColumnVisible('vendor_name') && <TableHead>Vendor Name</TableHead>}
-                  {isColumnVisible('category') && <TableHead>Category</TableHead>}
-                  {isColumnVisible('type') && <TableHead>Type</TableHead>}
-                  {isColumnVisible('occurrences') && <TableHead>Usage</TableHead>}
-                  {isColumnVisible('status') && <TableHead className="text-center">Status</TableHead>}
-                  {isColumnVisible('actions') && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {getCurrentPageItems().map((vendor) => (
-                  <TableRow key={vendor.id}>
-                    {isColumnVisible('vendor_name') && <TableCell className="font-medium">{vendor.vendor_name}</TableCell>}
-                    {isColumnVisible('category') && <TableCell>{vendor.category}</TableCell>}
-                    {isColumnVisible('type') && <TableCell>{vendor.type}</TableCell>}
-                    {isColumnVisible('occurrences') && <TableCell>{vendor.occurrences || 0}</TableCell>}
-                    {isColumnVisible('status') && (
-                      <TableCell className="text-center">
-                        {vendor.verified ? (
-                          <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <BadgeCheck className="h-3 w-3 mr-1" />
-                            Verified
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                            Pending
-                          </div>
-                        )}
-                      </TableCell>
-                    )}
-                    {isColumnVisible('actions') && (
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleVerifyVendor(vendor.id, true)}
-                            className={`h-8 px-2 ${vendor.verified ? 'text-muted-foreground' : 'text-green-600'}`}
-                            disabled={vendor.verified}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleVerifyVendor(vendor.id, false)}
-                            className="h-8 px-2 text-red-600"
-                            disabled={!vendor.verified}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
+          
+          {loading ? (
+            <div className="flex justify-center items-center p-8">
+              <div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-primary rounded-full" />
+            </div>
+          ) : filteredVendors.length > 0 ? (
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {isColumnVisible('vendor_name') && <TableHead>Vendor Name</TableHead>}
+                    {isColumnVisible('category') && <TableHead>Category</TableHead>}
+                    {isColumnVisible('type') && <TableHead>Type</TableHead>}
+                    {isColumnVisible('occurrences') && <TableHead>Usage</TableHead>}
+                    {isColumnVisible('status') && <TableHead className="text-center">Status</TableHead>}
+                    {isColumnVisible('actions') && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            
-            {totalItems > ITEMS_PER_PAGE && (
-              <div className="flex flex-col sm:flex-row justify-between items-center py-4 px-2 gap-4">
-                <div className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of {totalItems} entries
+                </TableHeader>
+                <TableBody>
+                  {getCurrentPageItems().map((vendor) => (
+                    <TableRow key={vendor.id}>
+                      {isColumnVisible('vendor_name') && <TableCell className="font-medium">{vendor.vendor_name}</TableCell>}
+                      {isColumnVisible('category') && <TableCell>{vendor.category}</TableCell>}
+                      {isColumnVisible('type') && <TableCell>{vendor.type}</TableCell>}
+                      {isColumnVisible('occurrences') && <TableCell>{vendor.occurrences || 0}</TableCell>}
+                      {isColumnVisible('status') && (
+                        <TableCell className="text-center">
+                          {vendor.verified ? (
+                            <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <BadgeCheck className="h-3 w-3 mr-1" />
+                              Verified
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                              Pending
+                            </div>
+                          )}
+                        </TableCell>
+                      )}
+                      {isColumnVisible('actions') && (
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleVerifyVendor(vendor.id, true)}
+                              className={`h-8 px-2 ${vendor.verified ? 'text-muted-foreground' : 'text-green-600'}`}
+                              disabled={vendor.verified}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleVerifyVendor(vendor.id, false)}
+                              className="h-8 px-2 text-red-600"
+                              disabled={!vendor.verified}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {totalItems > ITEMS_PER_PAGE && (
+                <div className="flex flex-col sm:flex-row justify-between items-center py-4 px-2 gap-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of {totalItems} entries
+                  </div>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          aria-disabled={currentPage === 1}
+                        />
+                      </PaginationItem>
+                      
+                      {generatePaginationItems().map((page, index) => 
+                        page === 'ellipsis' ? (
+                          <PaginationItem key={`ellipsis-${index}`}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        ) : (
+                          <PaginationItem key={page}>
+                            <PaginationLink 
+                              isActive={currentPage === page}
+                              onClick={() => setCurrentPage(page as number)}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      )}
+                      
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          aria-disabled={currentPage === totalPages}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
                 </div>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        aria-disabled={currentPage === 1}
-                      />
-                    </PaginationItem>
-                    
-                    {generatePaginationItems().map((page, index) => 
-                      page === 'ellipsis' ? (
-                        <PaginationItem key={`ellipsis-${index}`}>
-                          <PaginationEllipsis />
-                        </PaginationItem>
-                      ) : (
-                        <PaginationItem key={page}>
-                          <PaginationLink 
-                            isActive={currentPage === page}
-                            onClick={() => setCurrentPage(page as number)}
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      )
-                    )}
-                    
-                    <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        aria-disabled={currentPage === totalPages}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-            <p>No vendor keywords found matching your search criteria</p>
-          </div>
-        )}
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+              <p>No vendor keywords found matching your search criteria</p>
+            </div>
+          )}
 
-        <div className="mt-4 pt-4 border-t">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-md font-medium">Verified Vendor Statistics</h3>
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-md font-medium">Verified Vendor Statistics</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-muted rounded-md p-4">
+                <div className="text-sm text-muted-foreground">Total Keywords</div>
+                <div className="text-2xl font-bold">{vendors.length}</div>
+              </div>
+              <div className="bg-muted rounded-md p-4">
+                <div className="text-sm text-muted-foreground">Verified Keywords</div>
+                <div className="text-2xl font-bold">{vendors.filter(v => v.verified).length}</div>
+              </div>
+              <div className="bg-muted rounded-md p-4">
+                <div className="text-sm text-muted-foreground">Pending Keywords</div>
+                <div className="text-2xl font-bold">{vendors.filter(v => !v.verified).length}</div>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-muted rounded-md p-4">
-              <div className="text-sm text-muted-foreground">Total Keywords</div>
-              <div className="text-2xl font-bold">{vendors.length}</div>
-            </div>
-            <div className="bg-muted rounded-md p-4">
-              <div className="text-sm text-muted-foreground">Verified Keywords</div>
-              <div className="text-2xl font-bold">{vendors.filter(v => v.verified).length}</div>
-            </div>
-            <div className="bg-muted rounded-md p-4">
-              <div className="text-sm text-muted-foreground">Pending Keywords</div>
-              <div className="text-2xl font-bold">{vendors.filter(v => !v.verified).length}</div>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      
+      <VendorEmbeddings />
+    </>
   );
 };
 

@@ -191,6 +191,7 @@ export type Database = {
           category: string
           confidence: number | null
           created_at: string | null
+          embedding: string | null
           id: string
           last_used: string | null
           occurrences: number | null
@@ -204,6 +205,7 @@ export type Database = {
           category: string
           confidence?: number | null
           created_at?: string | null
+          embedding?: string | null
           id?: string
           last_used?: string | null
           occurrences?: number | null
@@ -217,6 +219,7 @@ export type Database = {
           category?: string
           confidence?: number | null
           created_at?: string | null
+          embedding?: string | null
           id?: string
           last_used?: string | null
           occurrences?: number | null
@@ -228,18 +231,147 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_embeddings: {
+        Row: {
+          description: string
+          embedding: string | null
+          id: string
+          vendor_name: string
+        }
+        Insert: {
+          description: string
+          embedding?: string | null
+          id?: string
+          vendor_name: string
+        }
+        Update: {
+          description?: string
+          embedding?: string | null
+          id?: string
+          vendor_name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
       get_user_profile: {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: string
+      }
+      match_vendors_by_embedding: {
+        Args: {
+          query_embedding: string
+          match_threshold: number
+          match_count: number
+        }
+        Returns: {
+          id: string
+          vendor_name: string
+          category: string
+          type: string
+          sample_description: string
+          statement_type: string
+          similarity: number
+        }[]
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
       }
     }
     Enums: {
