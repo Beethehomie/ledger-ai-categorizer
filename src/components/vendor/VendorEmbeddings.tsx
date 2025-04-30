@@ -18,15 +18,23 @@ interface VendorMatch {
   sample_description?: string;
 }
 
+// Define a more accurate type for the results returned by the generateVendorEmbeddings function
+interface EmbeddingGenerationResults {
+  success: boolean;
+  message?: string;
+  totalProcessed?: number;
+  error?: string;
+  results?: {
+    success: number;
+    failed: number;
+    errors: string[];
+  };
+}
+
 const VendorEmbeddings = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [results, setResults] = useState<{
-    success?: boolean;
-    processed?: number;
-    totalProcessed?: number;
-    error?: string;
-  } | null>(null);
+  const [results, setResults] = useState<EmbeddingGenerationResults | null>(null);
   const [searchResults, setSearchResults] = useState<VendorMatch[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -36,10 +44,11 @@ const VendorEmbeddings = () => {
     
     try {
       const result = await generateVendorEmbeddings(50);
-      setResults(result);
+      setResults(result as EmbeddingGenerationResults);
       
       if (result.success) {
-        toast.success(`Generated embeddings for ${result.results?.success || 0} vendors`);
+        const successCount = (result as EmbeddingGenerationResults).results?.success || 0;
+        toast.success(`Generated embeddings for ${successCount} vendors`);
       } else {
         toast.error('Failed to generate embeddings');
       }
@@ -113,7 +122,7 @@ const VendorEmbeddings = () => {
                   <>
                     Successfully processed {results.totalProcessed} vendors.
                     <br />
-                    {results.results?.success} succeeded, {results.results?.failed} failed.
+                    {results.results?.success || 0} succeeded, {results.results?.failed || 0} failed.
                   </>
                 ) : (
                   <>Error: {results.error || "Unknown error"}</>
