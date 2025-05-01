@@ -329,12 +329,12 @@ export async function reconcileAccountBalance(
       return false;
     }
     
-    // Create a new api_details object without using spread on potentially undefined values
+    // Ensure api_details is an object before spreading
     const currentApiDetails = connectionData?.api_details || {};
     
-    // Fixed: Create updated API details object properly without potentially spreading undefined
+    // Create the updated API details object without spreading potentially undefined values
     const updatedApiDetails = {
-      ...currentApiDetails,
+      ...(typeof currentApiDetails === 'object' ? currentApiDetails : {}),
       reconciled: isReconciled,
       expectedBalance: endingBalance,
       actualBalance: lastBalance
