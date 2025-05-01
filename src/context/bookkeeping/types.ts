@@ -18,7 +18,7 @@ export interface BookkeepingContextType {
   bankConnections: BankConnectionRow[];
   addTransactions: (transactions: Transaction[]) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
-  verifyTransaction: (transaction: Transaction, isVerified: boolean) => Promise<void>;
+  verifyTransaction: (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => Promise<void>;
   verifyVendor: (vendorName: string, approved: boolean) => Promise<void>;
   uploadCSV: (preparedTransactions: Transaction[], bankConnectionId?: string, initialBalance?: number, balanceDate?: Date, endBalance?: number) => Promise<void>;
   getFilteredTransactions: (statementType?: Transaction['statementType'], verified?: boolean, vendor?: string) => Transaction[];
@@ -29,8 +29,8 @@ export interface BookkeepingContextType {
   getBankConnectionById: (id: string) => BankConnectionRow | undefined;
   removeDuplicateVendors: () => Promise<void>;
   fetchTransactionsForBankAccount: (bankAccountId: string) => Promise<Transaction[]>;
-  batchVerifyVendorTransactions: (vendorName: string, isVerified: boolean) => Promise<void>;
+  batchVerifyVendorTransactions: (vendorName: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => Promise<void>;
   fetchTransactions: () => Promise<void>;
-  findSimilarTransactions: (description: string) => Promise<Transaction[]>;
-  deleteTransaction: (id: string) => Promise<boolean>;
+  findSimilarTransactions: (vendorName: string, allTransactions: Transaction[]) => Promise<Transaction[]>;
+  deleteTransaction: (id: string) => Promise<{ success: boolean; error?: string }>;
 }

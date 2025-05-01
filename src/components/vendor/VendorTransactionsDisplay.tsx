@@ -2,7 +2,7 @@
 import React from 'react';
 import { Transaction } from '@/types';
 import { Store } from "lucide-react";
-import TransactionTable from '../TransactionTable';
+import TransactionTable from '../table/TransactionTable';  // Updated import path
 import { 
   Card, 
   CardContent, 

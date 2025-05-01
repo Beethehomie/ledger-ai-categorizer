@@ -81,7 +81,12 @@ export const useVendors = (
     }
   };
 
-  const verifyTransaction = async (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => {
+  const verifyTransaction = async (
+    id: string, 
+    category: string, 
+    type: Transaction['type'], 
+    statementType: Transaction['statementType']
+  ) => {
     if (!session) {
       toast.error('You must be logged in to verify transactions');
       return;
@@ -269,7 +274,7 @@ export const useVendors = (
 
   const findSimilarTransactions = async (
     vendorName: string,
-    allTransactions: Transaction[]
+    allTransactions: Transaction[] = transactions
   ): Promise<Transaction[]> => {
     if (!session) {
       toast.error('You must be logged in to find similar transactions');

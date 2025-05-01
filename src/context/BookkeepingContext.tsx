@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
@@ -11,7 +10,7 @@ import { Category, Transaction, Vendor } from '@/types';
 import { toast } from '@/utils/toast';
 import { getCategories } from '@/utils/categoryAdapter';
 import { logError } from '@/utils/errorLogger';
-import { deleteTransaction } from '@/services/vendorService';
+import { deleteTransaction as deleteTransactionService } from '@/services/vendorService';
 
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 
@@ -120,45 +119,56 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return;
       }
       
-      if (data) {
-        const fetchedTransactions: Transaction[] = data.map((t) => ({
-          id: t.id,
-          date: t.date,
-          description: t.description,
-          amount: Number(t.amount),
-          category: t.category || undefined,
-          type: t.type as Transaction['type'] || undefined,
-          statementType: t.statement_type as Transaction['statementType'] || undefined,
-          isVerified: t.is_verified || false,
-          aiSuggestion: undefined,
-          vendor: t.vendor || undefined,
-          vendorVerified: t.vendor_verified || false,
-          confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
-          bankAccountId: t.bank_connection_id || undefined,
-          bankAccountName: undefined,
-          balance: t.balance || undefined,
-        }));
-        
-        if (fetchedTransactions.length > 0) {
-          for (const transaction of fetchedTransactions) {
-            if (transaction.bankAccountId) {
-              const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
-              if (bankConnection) {
-                transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
-              }
+      const fetchedTransactions: Transaction[] = data.map((t) => ({
+        id: t.id,
+        date: t.date,
+        description: t.description,
+        amount: Number(t.amount),
+        category: t.category || undefined,
+        type: t.type as Transaction['type'] || undefined,
+        statementType: t.statement_type as Transaction['statementType'] || undefined,
+        isVerified: t.is_verified || false,
+        aiSuggestion: undefined,
+        vendor: t.vendor || undefined,
+        vendorVerified: t.vendor_verified || false,
+        confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
+        bankAccountId: t.bank_connection_id || undefined,
+        bankAccountName: undefined,
+        balance: t.balance || undefined,
+      }));
+      
+      if (fetchedTransactions.length > 0) {
+        for (const transaction of fetchedTransactions) {
+          if (transaction.bankAccountId) {
+            const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
+            if (bankConnection) {
+              transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
             }
           }
         }
-        
-        setTransactions(fetchedTransactions);
-        
-        setTimeout(() => calculateFinancialSummary(), 100);
-        
-        toast.success('Transactions refreshed successfully');
       }
+      
+      setTransactions(fetchedTransactions);
+      
+      setTimeout(() => calculateFinancialSummary(), 100);
+      
+      toast.success('Transactions refreshed successfully');
     } catch (err) {
       console.error('Error fetching transactions:', err);
       toast.error('Failed to refresh transactions');
+    }
+  };
+
+  // Add a wrapper for deleteTransaction to match the signature in the interface
+  const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const success = await deleteTransactionService(id);
+      if (success) {
+        return { success: true };
+      }
+      return { success: false, error: 'Failed to delete transaction' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   };
   

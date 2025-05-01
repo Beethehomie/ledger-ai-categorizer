@@ -328,17 +328,21 @@ export async function reconcileAccountBalance(
       return false;
     }
     
+    // Create a new api_details object without using spread on potentially undefined values
+    const currentApiDetails = connectionData?.api_details || {};
+    const updatedApiDetails = {
+      ...currentApiDetails,
+      reconciled: isReconciled,
+      expectedBalance: endingBalance,
+      actualBalance: lastBalance
+    };
+    
     // Update the bank connection with reconciliation status
     const { error: updateError } = await supabase
       .from('bank_connections')
       .update({
         last_sync: new Date().toISOString(),
-        api_details: {
-          ...(connectionData?.api_details || {}),
-          reconciled: isReconciled,
-          expectedBalance: endingBalance,
-          actualBalance: lastBalance
-        }
+        api_details: updatedApiDetails
       })
       .eq('id', bankAccountId);
       
