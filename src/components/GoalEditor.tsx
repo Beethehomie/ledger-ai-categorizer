@@ -38,7 +38,7 @@ const GoalEditor: React.FC<GoalEditorProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md rounded-2xl">
         <DialogHeader>
           <DialogTitle>Edit Financial Goal</DialogTitle>
           <DialogDescription>
@@ -54,7 +54,8 @@ const GoalEditor: React.FC<GoalEditorProps> = ({
               id="name"
               value={editedGoal.name}
               onChange={(e) => setEditedGoal({ ...editedGoal, name: e.target.value })}
-              className="col-span-3"
+              className="col-span-3 rounded-xl"
+              placeholder="My Financial Goal"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -66,7 +67,7 @@ const GoalEditor: React.FC<GoalEditorProps> = ({
               type="number"
               value={editedGoal.targetAmount}
               onChange={(e) => setEditedGoal({ ...editedGoal, targetAmount: parseFloat(e.target.value) || 0 })}
-              className="col-span-3"
+              className="col-span-3 rounded-xl"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -78,7 +79,7 @@ const GoalEditor: React.FC<GoalEditorProps> = ({
               type="number"
               value={editedGoal.currentAmount}
               onChange={(e) => setEditedGoal({ ...editedGoal, currentAmount: parseFloat(e.target.value) || 0 })}
-              className="col-span-3"
+              className="col-span-3 rounded-xl"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -90,15 +91,15 @@ const GoalEditor: React.FC<GoalEditorProps> = ({
               type="date"
               value={editedGoal.deadline || ''}
               onChange={(e) => setEditedGoal({ ...editedGoal, deadline: e.target.value })}
-              className="col-span-3"
+              className="col-span-3 rounded-xl"
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="rounded-xl">
             Cancel
           </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleSave} className="rounded-xl hover-scale">Save Changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

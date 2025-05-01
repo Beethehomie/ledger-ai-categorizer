@@ -47,13 +47,15 @@ const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
         throw error;
       }
 
-      // For now, simulate a successful payment
-      toast.success(`Successfully subscribed to ${plan.name} plan!`);
-      setProcessing(false);
-      onSuccess?.();
-      
-      // In a real implementation, redirect to the payment provider's checkout page
-      // window.location.href = data.url;
+      if (data.url) {
+        // Redirect to the Stripe checkout page
+        window.location.href = data.url;
+      } else {
+        // Handle success for free tier or direct updates
+        toast.success(`Successfully subscribed to ${plan.name} plan!`);
+        setProcessing(false);
+        onSuccess?.();
+      }
     } catch (error) {
       console.error('Payment error:', error);
       toast.error('Payment processing failed. Please try again.');
@@ -64,7 +66,7 @@ const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
 
   return (
     <Button
-      className={`w-full ${
+      className={`w-full rounded-xl hover-scale ${
         currentTier === plan.tier
           ? 'bg-gray-400 hover:bg-gray-500 cursor-not-allowed'
           : plan.tier === 'free'

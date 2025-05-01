@@ -92,6 +92,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   useEffect(() => {
     localStorage.setItem('darkMode', String(darkMode));
+    
+    // Apply dark mode to the document
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [darkMode]);
 
   useEffect(() => {
