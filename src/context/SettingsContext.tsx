@@ -6,6 +6,8 @@ import { currencySettings } from '@/utils/currencyUtils';
 interface SettingsContextType {
   currency: Currency;
   setCurrency: (currency: Currency) => void;
+  darkMode: boolean;
+  toggleDarkMode: () => void;
   dateRange: {
     startDate: Date | undefined;
     endDate: Date | undefined;
@@ -41,6 +43,7 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currency, setCurrency] = useState<Currency>('USD');
+  const [darkMode, setDarkMode] = useState<boolean>(false);
   const [dateRange, setDateRange] = useState<{
     startDate: Date | undefined;
     endDate: Date | undefined;
@@ -56,6 +59,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const savedCurrency = localStorage.getItem('currency');
     if (savedCurrency && Object.keys(currencySettings).includes(savedCurrency)) {
       setCurrency(savedCurrency as Currency);
+    }
+
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode) {
+      setDarkMode(savedDarkMode === 'true');
     }
 
     const savedGoal = localStorage.getItem('financialGoal');
@@ -83,12 +91,20 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, [currency]);
 
   useEffect(() => {
+    localStorage.setItem('darkMode', String(darkMode));
+  }, [darkMode]);
+
+  useEffect(() => {
     localStorage.setItem('financialGoal', JSON.stringify(financialGoal));
   }, [financialGoal]);
 
   useEffect(() => {
     localStorage.setItem('tableColumns', JSON.stringify(tableColumns));
   }, [tableColumns]);
+
+  const toggleDarkMode = () => {
+    setDarkMode(prev => !prev);
+  };
 
   const updateFinancialGoal = (goal: FinancialGoal) => {
     setFinancialGoal(goal);
@@ -111,6 +127,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   const value = {
     currency,
     setCurrency,
+    darkMode,
+    toggleDarkMode,
     dateRange,
     setDateRange: handleSetDateRange,
     financialGoal,

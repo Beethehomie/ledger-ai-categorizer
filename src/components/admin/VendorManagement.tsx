@@ -398,7 +398,7 @@ export const VendorManagement: React.FC = () => {
                 <DialogTitle>Import Vendor Data</DialogTitle>
               </DialogHeader>
               <div className="pt-4">
-                <VendorImporter onSuccess={() => {
+                <VendorImporter onImportSuccess={() => {
                   setIsImportDialogOpen(false);
                   fetchVendors();
                 }} />
@@ -612,8 +612,14 @@ export const VendorManagement: React.FC = () => {
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious 
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (currentPage > 1) {
+                    setCurrentPage(prev => prev - 1);
+                  }
+                }}
+                aria-disabled={currentPage === 1}
               />
             </PaginationItem>
             
@@ -621,8 +627,14 @@ export const VendorManagement: React.FC = () => {
             
             <PaginationItem>
               <PaginationNext 
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (currentPage < totalPages) {
+                    setCurrentPage(prev => prev + 1);
+                  }
+                }}
+                aria-disabled={currentPage === totalPages}
               />
             </PaginationItem>
           </PaginationContent>

@@ -14,7 +14,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/auth";
 import { Settings, LogOut, Upload, User } from "lucide-react";
 import UploadDialog from "@/components/UploadDialog";
-import { useBookkeeping } from "@/context/BookkeepingContext";
+import { useBookkeeping } from '@/context/BookkeepingContext';
 
 export const UserNavigation = () => {
   const { user, signOut } = useAuth();

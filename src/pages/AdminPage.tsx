@@ -5,7 +5,7 @@ import { Home, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/hooks/auth';
-import { BookkeepingProvider } from '@/context/BookkeepingContext';
+import { BookkeepingProvider, useBookkeeping } from '@/context/BookkeepingContext';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { VendorManagement } from '@/components/admin/VendorManagement';
 import { ClientsManagement } from '@/components/admin/ClientsManagement';
@@ -13,10 +13,11 @@ import { AdminTodoList } from '@/components/admin/AdminTodoList';
 import { SystemStats } from '@/components/admin/SystemStats';
 import UploadDialog from '@/components/UploadDialog';
 
-const AdminPage: React.FC = () => {
+const AdminPageContent: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const { bankConnections } = useBookkeeping();
   
   // Check if user is admin (email is terramultaacc@gmail.com)
   const isAdmin = user?.email === 'terramultaacc@gmail.com';
@@ -38,57 +39,64 @@ const AdminPage: React.FC = () => {
   }
   
   return (
-    <BookkeepingProvider>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-primary">Admin Dashboard</h1>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/')} className="flex items-center gap-2">
-              <Home className="h-4 w-4" />
-              Return to Dashboard
-            </Button>
-            <Button onClick={() => setIsUploadDialogOpen(true)} variant="outline" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Upload CSV
-            </Button>
-          </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-primary">Admin Dashboard</h1>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/')} className="flex items-center gap-2">
+            <Home className="h-4 w-4" />
+            Return to Dashboard
+          </Button>
+          <Button onClick={() => setIsUploadDialogOpen(true)} variant="outline" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            Upload CSV
+          </Button>
         </div>
-        
-        <Tabs defaultValue="dashboard" className="mb-8">
-          <TabsList className="mb-4">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="clients">Clients Management</TabsTrigger>
-            <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
-            <TabsTrigger value="todo">To-Do List</TabsTrigger>
-            <TabsTrigger value="stats">System Stats</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="dashboard">
-            <AdminDashboard />
-          </TabsContent>
-          
-          <TabsContent value="clients">
-            <ClientsManagement />
-          </TabsContent>
-          
-          <TabsContent value="vendors">
-            <VendorManagement />
-          </TabsContent>
-          
-          <TabsContent value="todo">
-            <AdminTodoList />
-          </TabsContent>
-          
-          <TabsContent value="stats">
-            <SystemStats />
-          </TabsContent>
-        </Tabs>
-        
-        <UploadDialog 
-          isOpen={isUploadDialogOpen} 
-          onClose={() => setIsUploadDialogOpen(false)} 
-        />
       </div>
+      
+      <Tabs defaultValue="dashboard" className="mb-8">
+        <TabsList className="mb-4">
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="clients">Clients Management</TabsTrigger>
+          <TabsTrigger value="vendors">Vendor Management</TabsTrigger>
+          <TabsTrigger value="todo">To-Do List</TabsTrigger>
+          <TabsTrigger value="stats">System Stats</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="dashboard">
+          <AdminDashboard />
+        </TabsContent>
+        
+        <TabsContent value="clients">
+          <ClientsManagement />
+        </TabsContent>
+        
+        <TabsContent value="vendors">
+          <VendorManagement />
+        </TabsContent>
+        
+        <TabsContent value="todo">
+          <AdminTodoList />
+        </TabsContent>
+        
+        <TabsContent value="stats">
+          <SystemStats />
+        </TabsContent>
+      </Tabs>
+      
+      <UploadDialog 
+        isOpen={isUploadDialogOpen} 
+        onClose={() => setIsUploadDialogOpen(false)} 
+        bankConnections={bankConnections}
+      />
+    </div>
+  );
+};
+
+const AdminPage: React.FC = () => {
+  return (
+    <BookkeepingProvider>
+      <AdminPageContent />
     </BookkeepingProvider>
   );
 };

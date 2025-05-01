@@ -17,7 +17,7 @@ import {
   AccordionTrigger
 } from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, FileDown, User, BankIcon, CheckCircle, XCircle } from "lucide-react";
+import { Search, FileDown, User, CircleDollarSign, CheckCircle, XCircle } from "lucide-react";
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -65,8 +65,9 @@ export const ClientsManagement: React.FC = () => {
       // Count transactions per user
       const { data: transactionCounts, error: transactionError } = await supabase
         .from('bank_transactions')
+        .select('user_id, count')
         .select('user_id, count(*)')
-        .group('user_id');
+        .groupBy('user_id');
         
       if (transactionError) throw transactionError;
       
@@ -242,7 +243,7 @@ export const ClientsManagement: React.FC = () => {
                             {user.bankAccounts.map(account => (
                               <TableRow key={account.id}>
                                 <TableCell className="flex items-center gap-2">
-                                  <BankIcon className="h-4 w-4" />
+                                  <CircleDollarSign className="h-4 w-4" />
                                   {account.name}
                                 </TableCell>
                                 <TableCell>{account.connectionType}</TableCell>
