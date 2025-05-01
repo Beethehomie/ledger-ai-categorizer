@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { Category, Transaction, Vendor, FinancialSummary } from '@/types';
@@ -330,6 +331,8 @@ export async function reconcileAccountBalance(
     
     // Create a new api_details object without using spread on potentially undefined values
     const currentApiDetails = connectionData?.api_details || {};
+    
+    // Fixed: Create updated API details object properly without potentially spreading undefined
     const updatedApiDetails = {
       ...currentApiDetails,
       reconciled: isReconciled,
