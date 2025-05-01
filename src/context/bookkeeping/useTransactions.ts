@@ -1,16 +1,17 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import { Transaction } from '@/types';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
-import { parseCSV, CSVParseResult } from '@/utils/csvParser';
+import { parseCSV, CSVParseResult, calculateRunningBalance, isBalanceReconciled } from '@/utils/csvParser';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
   saveTransactionsToSupabase, 
-  calculateRunningBalance, 
   processTransactions 
 } from './transactionUtils';
 import { BankConnectionRow } from '@/types/supabase';
+import { findDuplicatesInDatabase, reconcileAccountBalance, updateTransactionBalances } from '@/services/bookkeepingService';
 
 export const useTransactions = (
   bankConnections: BankConnectionRow[]
@@ -206,11 +207,11 @@ export const useTransactions = (
     }
   };
 
+  // Enhanced uploadCSV function that now takes directly prepared transactions
   const uploadCSV = async (
-    csvString: string, 
+    preparedTransactions: Transaction[],
     bankConnectionId?: string, 
-    initialBalance: number =
-    0,
+    initialBalance: number = 0,
     balanceDate: Date = new Date(),
     endBalance?: number
   ) => {
@@ -221,8 +222,6 @@ export const useTransactions = (
     
     setLoading(true);
     try {
-      const parseResult = parseCSV(csvString);
-      
       let bankConnection: BankConnectionRow | undefined;
       if (bankConnectionId) {
         bankConnection = bankConnections.find(conn => conn.id === bankConnectionId);
@@ -231,7 +230,7 @@ export const useTransactions = (
       const processCSVTransactions = async () => {
         const processedTransactions: Transaction[] = [];
         
-        for (const transaction of parseResult.transactions) {
+        for (const transaction of preparedTransactions) {
           if (bankConnectionId && bankConnection) {
             transaction.bankAccountId = bankConnectionId;
             transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
@@ -240,38 +239,90 @@ export const useTransactions = (
           processedTransactions.push(transaction);
         }
         
-        const transactionsWithBalance = calculateRunningBalance(processedTransactions, initialBalance, balanceDate);
-        
-        if (endBalance !== undefined && transactionsWithBalance.length > 0) {
-          const lastTransaction = transactionsWithBalance[transactionsWithBalance.length - 1];
-          const lastBalance = lastTransaction.balance || 0;
-          const difference = Math.abs(lastBalance - endBalance);
-          
-          if (difference < 0.02) {
-            toast.success('Bank statement successfully reconciled!');
-          } else {
-            toast.warning(
-              `Ending balance (${endBalance.toFixed(2)}) doesn't match calculated balance (${lastBalance.toFixed(2)}). Difference: ${difference.toFixed(2)}`,
-              {
-                duration: 6000,
-              }
-            );
-          }
-        }
-        
-        try {
-          const { transactions: savedTransactions } = await saveTransactionsToSupabase(
-            transactionsWithBalance,
-            session.user.id
+        // Check for duplicates before saving
+        const duplicates = await findDuplicatesInDatabase(processedTransactions);
+        if (duplicates.length > 0) {
+          toast.warning(`Found ${duplicates.length} duplicate transactions. These will be skipped.`);
+          // Filter out duplicates
+          const uniqueTransactions = processedTransactions.filter(
+            transaction => !duplicates.some(d => d.id === transaction.id)
           );
           
-          setTransactions(prevTransactions => [...prevTransactions, ...savedTransactions]);
-          toast.success(`Successfully processed ${savedTransactions.length} transactions`);
-          queryClient.invalidateQueries({ queryKey: ['transactions'] });
+          if (uniqueTransactions.length === 0) {
+            toast.error('No unique transactions to import');
+            setLoading(false);
+            return;
+          }
           
-        } catch (err: any) {
-          console.error('Error saving transactions to Supabase:', err);
-          toast.error('Failed to save transactions to database');
+          // Continue with unique transactions only
+          const transactionsWithBalance = calculateRunningBalance(uniqueTransactions, initialBalance, balanceDate);
+          
+          try {
+            const { transactions: savedTransactions } = await saveTransactionsToSupabase(
+              transactionsWithBalance,
+              session.user.id
+            );
+            
+            setTransactions(prevTransactions => [...prevTransactions, ...savedTransactions]);
+            
+            // Check reconciliation if endBalance is provided
+            if (endBalance !== undefined && bankConnectionId && savedTransactions.length > 0) {
+              const isReconciled = await reconcileAccountBalance(bankConnectionId, endBalance);
+              
+              if (isReconciled) {
+                toast.success('Bank statement successfully reconciled!');
+              } else {
+                const lastTransactionBalance = savedTransactions[savedTransactions.length - 1].balance || 0;
+                const difference = Math.abs((lastTransactionBalance - endBalance));
+                toast.warning(
+                  `Ending balance (${endBalance.toFixed(2)}) doesn't match calculated balance (${lastTransactionBalance.toFixed(2)}). Difference: ${difference.toFixed(2)}`,
+                  { duration: 6000 }
+                );
+              }
+            }
+            
+            toast.success(`Successfully processed ${savedTransactions.length} transactions`);
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            
+          } catch (err: any) {
+            console.error('Error saving transactions to Supabase:', err);
+            toast.error('Failed to save transactions to database');
+          }
+        } else {
+          // No duplicates, proceed normally
+          const transactionsWithBalance = calculateRunningBalance(processedTransactions, initialBalance, balanceDate);
+          
+          try {
+            const { transactions: savedTransactions } = await saveTransactionsToSupabase(
+              transactionsWithBalance,
+              session.user.id
+            );
+            
+            setTransactions(prevTransactions => [...prevTransactions, ...savedTransactions]);
+            
+            // Check reconciliation if endBalance is provided
+            if (endBalance !== undefined && bankConnectionId && savedTransactions.length > 0) {
+              const isReconciled = await reconcileAccountBalance(bankConnectionId, endBalance);
+              
+              if (isReconciled) {
+                toast.success('Bank statement successfully reconciled!');
+              } else {
+                const lastTransactionBalance = savedTransactions[savedTransactions.length - 1].balance || 0;
+                const difference = Math.abs((lastTransactionBalance - endBalance));
+                toast.warning(
+                  `Ending balance (${endBalance.toFixed(2)}) doesn't match calculated balance (${lastTransactionBalance.toFixed(2)}). Difference: ${difference.toFixed(2)}`,
+                  { duration: 6000 }
+                );
+              }
+            }
+            
+            toast.success(`Successfully processed ${savedTransactions.length} transactions`);
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            
+          } catch (err: any) {
+            console.error('Error saving transactions to Supabase:', err);
+            toast.error('Failed to save transactions to database');
+          }
         }
       };
       
@@ -335,6 +386,31 @@ export const useTransactions = (
       console.error('Error fetching transactions for bank account:', err);
       toast.error('Failed to fetch transactions for this account');
       return [];
+    }
+  };
+
+  const deleteTransaction = async (id: string): Promise<boolean> => {
+    if (!session) {
+      toast.error('You must be logged in to delete transactions');
+      return false;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('bank_transactions')
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      setTransactions(prev => prev.filter(transaction => transaction.id !== id));
+      return true;
+    } catch (err: any) {
+      console.error('Error deleting transaction:', err);
+      toast.error('Failed to delete transaction');
+      return false;
     }
   };
 
@@ -453,6 +529,73 @@ export const useTransactions = (
     }
   };
 
+  // New function to recalculate running balances for a bank account
+  const recalculateRunningBalances = async (
+    bankAccountId: string,
+    initialBalance: number = 0
+  ): Promise<boolean> => {
+    if (!session) {
+      toast.error('You must be logged in to recalculate balances');
+      return false;
+    }
+    
+    try {
+      // Fetch all transactions for this account
+      const accountTransactions = await fetchTransactionsForBankAccount(bankAccountId);
+      
+      if (accountTransactions.length === 0) {
+        toast.warning('No transactions found for this account');
+        return false;
+      }
+      
+      // Sort by date
+      const sortedTransactions = [...accountTransactions].sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateA - dateB;
+      });
+      
+      // Calculate running balance
+      let runningBalance = initialBalance;
+      const updatedTransactions: Transaction[] = [];
+      
+      for (const transaction of sortedTransactions) {
+        runningBalance += transaction.amount;
+        updatedTransactions.push({
+          ...transaction,
+          balance: Number(runningBalance.toFixed(2))
+        });
+      }
+      
+      // Update transactions in database
+      for (const transaction of updatedTransactions) {
+        const { error } = await supabase
+          .from('bank_transactions')
+          .update({ balance: transaction.balance })
+          .eq('id', transaction.id);
+          
+        if (error) {
+          console.error('Error updating balance:', error);
+          toast.error('Failed to update balances');
+          return false;
+        }
+      }
+      
+      // Update local state
+      setTransactions(prev => prev.map(t => {
+        const updatedTransaction = updatedTransactions.find(ut => ut.id === t.id);
+        return updatedTransaction || t;
+      }));
+      
+      toast.success('Running balances recalculated successfully');
+      return true;
+    } catch (err) {
+      console.error('Error in recalculateRunningBalances:', err);
+      toast.error('Failed to recalculate balances');
+      return false;
+    }
+  };
+
   return {
     transactions,
     loading,
@@ -466,6 +609,8 @@ export const useTransactions = (
     fetchTransactionsForBankAccount,
     getBankConnectionById,
     setTransactions,
-    fetchTransactions
+    fetchTransactions,
+    deleteTransaction,
+    recalculateRunningBalances
   };
 };

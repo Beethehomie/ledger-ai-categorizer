@@ -1,219 +1,269 @@
 
 import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Transaction } from '@/types';
-import { useBookkeeping } from '@/context/BookkeepingContext';
-import { toast } from '@/utils/toast';
-import { Check, X, ChevronRight, ChevronLeft } from 'lucide-react';
-import ReviewFormFields from './review/ReviewFormFields';
-import VendorEditor from './VendorEditor';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Transaction } from "@/types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, Edit2, Save, X } from "lucide-react";
+import { format } from 'date-fns';
 
 interface TransactionReviewDialogProps {
-  transaction?: Transaction;
-  transactions?: Transaction[];
   isOpen: boolean;
   onClose: () => void;
-  onConfirm?: (editedTransactions: Transaction[]) => void; 
+  transactions: Transaction[];
+  onConfirm: (selectedTransactions: Transaction[]) => void;
   warnings?: string[];
+  existingTransactions?: Transaction[];
 }
 
 const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
-  transaction,
-  transactions,
   isOpen,
   onClose,
+  transactions,
   onConfirm,
   warnings = [],
+  existingTransactions = []
 }) => {
-  const { categories, verifyTransaction, updateTransaction, getVendorsList } = useBookkeeping();
-  
-  const allTransactions = transactions || (transaction ? [transaction] : []);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const currentTransaction = allTransactions[currentIndex];
-  
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<Transaction['type']>('expense');
-  const [selectedStatementType, setSelectedStatementType] = useState<Transaction['statementType']>('profit_loss');
-  const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
-  const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
-  const [editedTransactions, setEditedTransactions] = useState<Transaction[]>([]);
-  
-  const vendorsList = getVendorsList();
-  
-  // Update state when current transaction changes
+  const [selectedTransactions, setSelectedTransactions] = useState<Transaction[]>([]);
+  const [editableTransactions, setEditableTransactions] = useState<Transaction[]>([]);
+  const [editingRow, setEditingRow] = useState<string | null>(null);
+  const [duplicates, setDuplicates] = useState<Transaction[]>([]);
+
+  // Initialize when transactions change
   useEffect(() => {
-    if (currentTransaction) {
-      setSelectedCategory(currentTransaction.category || null);
-      setSelectedType(currentTransaction.type || 'expense');
-      setSelectedStatementType(currentTransaction.statementType || 'profit_loss');
-      setSelectedVendor(currentTransaction.vendor || null);
-    }
-  }, [currentTransaction]);
-  
-  const handleApprove = async () => {
-    if (!currentTransaction) return;
+    setEditableTransactions(transactions);
+    setSelectedTransactions(transactions);
     
-    if (!selectedCategory) {
-      toast.error('Please select a category');
-      return;
-    }
+    // Find potential duplicates
+    const potentialDuplicates = transactions.filter(newTx => 
+      existingTransactions.some(existingTx => 
+        existingTx.date === newTx.date && 
+        Math.abs(existingTx.amount - newTx.amount) < 0.01 &&
+        existingTx.description === newTx.description
+      )
+    );
     
-    if (!selectedVendor) {
-      toast.error('Please select a vendor');
-      return;
-    }
-    
-    try {
-      const updatedTransaction: Transaction = {
-        ...currentTransaction,
-        category: selectedCategory,
-        type: selectedType,
-        statementType: selectedStatementType,
-        vendor: selectedVendor,
-        vendorVerified: true,
-        isVerified: true
-      };
+    setDuplicates(potentialDuplicates);
+  }, [transactions, existingTransactions]);
+
+  const handleConfirm = () => {
+    onConfirm(selectedTransactions);
+  };
+
+  const toggleSelectTransaction = (transaction: Transaction) => {
+    setSelectedTransactions(prev => {
+      const isSelected = prev.some(t => t.id === transaction.id);
       
-      const updatedEditedTransactions = [...editedTransactions];
-      updatedEditedTransactions[currentIndex] = updatedTransaction;
-      setEditedTransactions(updatedEditedTransactions);
-      
-      if (!transactions && transaction) {
-        await updateTransaction({
-          ...transaction,
-          vendor: selectedVendor,
-          vendorVerified: true
-        });
-        
-        await verifyTransaction(
-          transaction.id, 
-          selectedCategory,
-          selectedType,
-          selectedStatementType
-        );
-        
-        toast.success('Transaction verified successfully');
-        onClose();
+      if (isSelected) {
+        return prev.filter(t => t.id !== transaction.id);
       } else {
-        if (currentIndex < allTransactions.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else {
-          if (onConfirm) {
-            onConfirm(updatedEditedTransactions);
-          }
-          toast.success('All transactions processed successfully');
-          onClose();
-        }
+        return [...prev, transaction];
       }
-    } catch (error) {
-      console.error('Error verifying transaction:', error);
-      toast.error('Failed to verify transaction');
+    });
+  };
+
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedTransactions(editableTransactions);
+    } else {
+      setSelectedTransactions([]);
     }
   };
-  
-  const handleVendorCreated = (newVendor) => {
-    setSelectedVendor(newVendor.name);
-    setIsVendorEditorOpen(false);
+
+  const startEditing = (id: string) => {
+    setEditingRow(id);
+  };
+
+  const saveEdits = (id: string) => {
+    setEditingRow(null);
+  };
+
+  const cancelEdits = (id: string) => {
+    // Revert changes for this row
+    setEditableTransactions(prev => {
+      const originalTransaction = transactions.find(t => t.id === id);
+      if (!originalTransaction) return prev;
+      
+      return prev.map(t => t.id === id ? originalTransaction : t);
+    });
+    
+    setEditingRow(null);
+  };
+
+  const handleTransactionChange = (id: string, field: 'date' | 'description' | 'amount', value: string | number) => {
+    setEditableTransactions(prev => 
+      prev.map(t => {
+        if (t.id === id) {
+          return { ...t, [field]: value };
+        }
+        return t;
+      })
+    );
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {transactions ? 
-                `Review Transaction (${currentIndex + 1} of ${allTransactions.length})` : 
-                'Review Transaction'}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {warnings.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-4">
-              <h4 className="text-amber-800 font-medium text-sm mb-1">Warnings:</h4>
-              <ul className="text-xs text-amber-700 list-disc list-inside">
-                {warnings.slice(0, 3).map((warning, i) => (
-                  <li key={i}>{warning}</li>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Review Transactions</DialogTitle>
+          <DialogDescription>
+            Review and edit transactions before finalizing the import
+          </DialogDescription>
+        </DialogHeader>
+        
+        {duplicates.length > 0 && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="font-bold mb-2">{duplicates.length} potential duplicate transactions found!</div>
+              <p className="text-sm">
+                These transactions have the same date, amount, and description as existing transactions.
+                You may want to deselect them to avoid duplicates.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {warnings.length > 0 && (
+          <Alert variant="warning" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <p className="font-bold mb-2">Warnings:</p>
+              <ul className="list-disc pl-5 text-sm">
+                {warnings.slice(0, 5).map((warning, index) => (
+                  <li key={index}>{warning}</li>
                 ))}
-                {warnings.length > 3 && (
-                  <li>...and {warnings.length - 3} more warnings</li>
-                )}
+                {warnings.length > 5 && <li>...and {warnings.length - 5} more</li>}
               </ul>
-            </div>
-          )}
-          
-          {currentTransaction && (
-            <ReviewFormFields
-              transaction={currentTransaction}
-              selectedCategory={selectedCategory}
-              selectedType={selectedType}
-              selectedStatementType={selectedStatementType}
-              selectedVendor={selectedVendor}
-              vendorsList={vendorsList}
-              onCategoryChange={setSelectedCategory}
-              onTypeChange={setSelectedType}
-              onStatementTypeChange={setSelectedStatementType}
-              onVendorChange={setSelectedVendor}
-              onAddVendor={() => setIsVendorEditorOpen(true)}
-              categories={categories}
-            />
-          )}
-          
-          <DialogFooter>
-            {transactions && (
-              <div className="flex items-center gap-2 mr-auto">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-                  disabled={currentIndex === 0}
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Previous
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setCurrentIndex(Math.min(allTransactions.length - 1, currentIndex + 1))}
-                  disabled={currentIndex === allTransactions.length - 1}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-                
-                <span className="text-xs text-muted-foreground ml-2">
-                  {currentIndex + 1} of {allTransactions.length}
-                </span>
-              </div>
-            )}
-            
-            <Button variant="outline" onClick={onClose}>
-              <X className="h-4 w-4 mr-2" />
-              Cancel
-            </Button>
-            <Button onClick={handleApprove}>
-              <Check className="h-4 w-4 mr-2" />
-              Approve
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <VendorEditor
-        onSave={handleVendorCreated}
-        isOpen={isVendorEditorOpen}
-        onClose={() => setIsVendorEditorOpen(false)}
-        transaction={currentTransaction}
-      />
-    </>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="max-h-[400px] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox 
+                    checked={selectedTransactions.length === editableTransactions.length && editableTransactions.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="w-20">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {editableTransactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No transactions found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                editableTransactions.map((transaction) => {
+                  const isEditing = editingRow === transaction.id;
+                  const isDuplicate = duplicates.some(d => d.id === transaction.id);
+                  
+                  return (
+                    <TableRow 
+                      key={transaction.id}
+                      className={isDuplicate ? "bg-red-50" : undefined}
+                    >
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedTransactions.some(t => t.id === transaction.id)}
+                          onCheckedChange={() => toggleSelectTransaction(transaction)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input 
+                            type="date" 
+                            value={transaction.date} 
+                            onChange={(e) => handleTransactionChange(transaction.id, 'date', e.target.value)}
+                          />
+                        ) : (
+                          <span className={isDuplicate ? "text-red-600 font-medium" : ""}>
+                            {transaction.date}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditing ? (
+                          <Input 
+                            value={transaction.description} 
+                            onChange={(e) => handleTransactionChange(transaction.id, 'description', e.target.value)}
+                          />
+                        ) : (
+                          <span className={`truncate block max-w-[300px] ${isDuplicate ? "text-red-600" : ""}`}>
+                            {transaction.description}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isEditing ? (
+                          <Input 
+                            type="number" 
+                            step="0.01"
+                            value={transaction.amount} 
+                            onChange={(e) => handleTransactionChange(transaction.id, 'amount', parseFloat(e.target.value))}
+                            className="text-right"
+                          />
+                        ) : (
+                          <span className={isDuplicate ? "text-red-600 font-medium" : ""}>
+                            {transaction.amount.toFixed(2)}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          {isEditing ? (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => saveEdits(transaction.id)}>
+                                <Save className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => cancelEdits(transaction.id)}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Button variant="ghost" size="icon" onClick={() => startEditing(transaction.id)}>
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        
+        <div className="flex items-center space-x-2 text-sm text-muted-foreground mt-2">
+          <p>{selectedTransactions.length} of {editableTransactions.length} transactions selected</p>
+        </div>
+        
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirm}
+            disabled={selectedTransactions.length === 0}
+          >
+            Process {selectedTransactions.length} Transactions
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

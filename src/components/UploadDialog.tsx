@@ -11,7 +11,7 @@ import { toast } from '@/utils/toast';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BankConnectionRow } from '@/types/supabase';
 import { Transaction } from '@/types';
-import { parseCSV, validateCSVStructure } from '@/utils/csvParser';
+import { parseCSV, validateCSVStructure, findDuplicateTransactions } from '@/utils/csvParser';
 import TransactionReviewDialog from './TransactionReviewDialog';
 import { format } from 'date-fns';
 
@@ -22,7 +22,7 @@ interface UploadDialogProps {
 }
 
 const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnections }) => {
-  const { uploadCSV, loading } = useBookkeeping();
+  const { uploadCSV, loading, transactions } = useBookkeeping();
   const [step, setStep] = useState(1);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -52,11 +52,11 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       setCsvValidation(validation);
       
       if (validation.isValid) {
-        // Check for duplicates
-        const { hasDuplicates, duplicates } = checkForDuplicates(csvContent);
+        // Check for duplicates within the CSV file
+        const { hasDuplicates, duplicates } = checkForDuplicatesWithinFile(csvContent);
         if (hasDuplicates) {
           setDuplicateTransactions(duplicates);
-          toast.warning(`Found ${duplicates.length} possible duplicate transactions. Please review carefully.`);
+          toast.warning(`Found ${duplicates.length} possible duplicate entries in the file. Please review carefully.`);
         } else {
           setDuplicateTransactions([]);
         }
@@ -114,7 +114,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     reader.readAsText(file);
   };
 
-  const checkForDuplicates = (csvContent: string): { hasDuplicates: boolean; duplicates: string[] } => {
+  const checkForDuplicatesWithinFile = (csvContent: string): { hasDuplicates: boolean; duplicates: string[] } => {
     const rows = csvContent.split('\n');
     if (rows.length <= 1) return { hasDuplicates: false, duplicates: [] };
     
@@ -188,6 +188,15 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       ...t,
       bankAccountId: selectedBankId
     }));
+
+    // Check for duplicates with existing transactions in the database
+    const potentialDuplicates = findDuplicateTransactions(transactions, transactionsWithBankId);
+    if (potentialDuplicates.length > 0) {
+      setWarningMessages(prev => [
+        ...prev, 
+        `Found ${potentialDuplicates.length} potential duplicates with existing transactions.`
+      ]);
+    }
     
     setParsedTransactions(transactionsWithBankId);
     
@@ -201,15 +210,17 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       return;
     }
 
-    // Convert transactions back to CSV format for the upload
-    const headers = "Date,Description,Amount\n";
-    const rows = editedTransactions.map(t => `${t.date},"${t.description}",${t.amount}`).join('\n');
-    const csvContent = headers + rows;
-    
     const initialBalanceValue = parseFloat(initialBalance) || 0;
     const endBalanceValue = endBalance ? parseFloat(endBalance) : undefined;
     
-    uploadCSV(csvContent, selectedBankId, initialBalanceValue, new Date(balanceDate), endBalanceValue);
+    uploadCSV(
+      editedTransactions, 
+      selectedBankId, 
+      initialBalanceValue, 
+      new Date(balanceDate), 
+      endBalanceValue
+    );
+    
     setHasUploaded(true);
     setIsReviewDialogOpen(false);
     resetDialog();
@@ -484,6 +495,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
         transactions={parsedTransactions}
         onConfirm={handleConfirmUpload}
         warnings={warningMessages}
+        existingTransactions={transactions}
       />
     </>
   );

@@ -1,3 +1,4 @@
+
 import { Transaction, Category } from "../types";
 import { mockCategories } from "../data/mockData";
 import { extractVendorName } from "./vendorExtractor";
@@ -342,4 +343,26 @@ export const isBalanceReconciled = (
   
   // Compare with expected balance (allow small rounding differences)
   return Math.abs(lastBalance - expectedEndBalance) < 0.02;
+};
+
+// Identify potential duplicate transactions between existing and new transactions
+export const findDuplicateTransactions = (
+  existingTransactions: Transaction[],
+  newTransactions: Transaction[]
+): Transaction[] => {
+  const potentialDuplicates: Transaction[] = [];
+  
+  for (const newTx of newTransactions) {
+    const isDuplicate = existingTransactions.some(existingTx => 
+      existingTx.date === newTx.date && 
+      Math.abs(existingTx.amount - newTx.amount) < 0.01 &&
+      existingTx.description === newTx.description
+    );
+    
+    if (isDuplicate) {
+      potentialDuplicates.push(newTx);
+    }
+  }
+  
+  return potentialDuplicates;
 };
