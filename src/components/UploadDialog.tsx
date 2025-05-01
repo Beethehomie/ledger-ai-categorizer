@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -199,8 +198,6 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     }
     
     setParsedTransactions(transactionsWithBankId);
-    
-    // Show review dialog with parsed transactions
     setIsReviewDialogOpen(true);
   };
 
@@ -213,6 +210,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     const initialBalanceValue = parseFloat(initialBalance) || 0;
     const endBalanceValue = endBalance ? parseFloat(endBalance) : undefined;
     
+    // Call the uploadCSV function directly with the processed transactions
     uploadCSV(
       editedTransactions, 
       selectedBankId, 

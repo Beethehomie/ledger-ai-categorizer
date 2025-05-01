@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import { Transaction } from '@/types';
@@ -207,7 +206,7 @@ export const useTransactions = (
     }
   };
 
-  // Enhanced uploadCSV function that now takes directly prepared transactions
+  // Modified uploadCSV function to take in prepared transactions directly
   const uploadCSV = async (
     preparedTransactions: Transaction[],
     bankConnectionId?: string, 

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { Category, Transaction, Vendor, FinancialSummary } from '@/types';
@@ -317,13 +316,25 @@ export async function reconcileAccountBalance(
     // We allow a small difference to account for rounding
     const isReconciled = Math.abs(lastBalance - endingBalance) < 0.02;
     
+    // Get the current bank connection to access its api_details
+    const { data: connectionData, error: connectionError } = await supabase
+      .from('bank_connections')
+      .select('api_details')
+      .eq('id', bankAccountId)
+      .single();
+      
+    if (connectionError) {
+      console.error('Error fetching bank connection:', connectionError);
+      return false;
+    }
+    
     // Update the bank connection with reconciliation status
     const { error: updateError } = await supabase
       .from('bank_connections')
       .update({
         last_sync: new Date().toISOString(),
         api_details: {
-          ...lastTransaction.api_details,
+          ...(connectionData?.api_details || {}),
           reconciled: isReconciled,
           expectedBalance: endingBalance,
           actualBalance: lastBalance

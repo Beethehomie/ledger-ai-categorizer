@@ -186,7 +186,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     batchVerifyVendorTransactions,
     fetchTransactions,
     findSimilarTransactions,
-    deleteTransaction,  // Added the deleteTransaction function here
+    deleteTransaction,
   };
 
   return (

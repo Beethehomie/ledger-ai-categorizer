@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -128,7 +127,7 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
         )}
         
         {warnings.length > 0 && (
-          <Alert variant="warning" className="mb-4">
+          <Alert variant="destructive" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               <p className="font-bold mb-2">Warnings:</p>
