@@ -62,31 +62,50 @@ export const ClientsManagement: React.FC = () => {
         
       if (bankError) throw bankError;
       
-      // Count transactions per user
-      const { data: transactionCounts, error: transactionError } = await supabase
+      // Count transactions per user - using a simpler approach
+      const { data: transactionsData, error: transactionError } = await supabase
         .from('bank_transactions')
-        .select('user_id, count')
-        .select('user_id, count(*)')
-        .groupBy('user_id');
+        .select('user_id');
         
       if (transactionError) throw transactionError;
+      
+      // Manually count transactions per user
+      const transactionCounts: Record<string, number> = {};
+      transactionsData?.forEach(transaction => {
+        if (transaction.user_id) {
+          transactionCounts[transaction.user_id] = (transactionCounts[transaction.user_id] || 0) + 1;
+        }
+      });
       
       // Process data
       const processedUsers: UserAccount[] = userProfiles.map(user => {
         // Find bank connections for this user
         const userBankAccounts = bankConnections
           .filter(conn => conn.user_id === user.id)
-          .map(conn => ({
-            id: conn.id,
-            name: conn.display_name || conn.bank_name,
-            connectionType: conn.connection_type,
-            balance: conn.api_details?.currentBalance || 0,
-            lastSync: conn.last_sync
-          }));
+          .map(conn => {
+            // Safely access currentBalance from api_details
+            let balance = 0;
+            if (conn.api_details && 
+                typeof conn.api_details === 'object' && 
+                conn.api_details !== null) {
+              // Try to access currentBalance safely
+              const apiDetails = conn.api_details as Record<string, any>;
+              balance = typeof apiDetails.currentBalance === 'number' 
+                ? apiDetails.currentBalance 
+                : 0;
+            }
+            
+            return {
+              id: conn.id,
+              name: conn.display_name || conn.bank_name,
+              connectionType: conn.connection_type,
+              balance: balance,
+              lastSync: conn.last_sync
+            };
+          });
           
-        // Find transaction count for this user
-        const userTransactions = transactionCounts.find(t => t.user_id === user.id);
-        const transactionCount = userTransactions ? parseInt(userTransactions.count) : 0;
+        // Get transaction count for this user
+        const transactionCount = transactionCounts[user.id] || 0;
         
         // Check if transactions are reconciled
         const transactionsReconciled = userBankAccounts.some(acc => 

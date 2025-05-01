@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,11 +8,25 @@ import { Settings, User, Shield, Bell, Moon, Sun, Globe } from "lucide-react";
 import { useAuth } from '@/hooks/auth';
 import { useSettings } from '@/context/SettingsContext';
 import { toast } from '@/utils/toast';
+import { Currency } from '@/types';
 
 const SettingsPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode, currency, setCurrency } = useSettings();
+  
+  // Helper function to ensure currency is of correct type
+  const handleSetCurrency = (value: string) => {
+    // Validate that the currency is one of the allowed types
+    const validCurrencies: Currency[] = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'CNY', 'INR'];
+    if (validCurrencies.includes(value as Currency)) {
+      setCurrency(value as Currency);
+    } else {
+      console.error(`Invalid currency: ${value}`);
+      // Default to USD if invalid
+      setCurrency('USD');
+    }
+  };
   
   return (
     <div className="container mx-auto py-8 px-4">
@@ -118,7 +131,7 @@ const SettingsPage: React.FC = () => {
                       key={curr}
                       variant={currency === curr ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setCurrency(curr)}
+                      onClick={() => handleSetCurrency(curr)}
                     >
                       {curr}
                     </Button>

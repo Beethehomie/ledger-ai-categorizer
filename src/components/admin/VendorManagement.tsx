@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Table, 
@@ -41,8 +40,23 @@ import {
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from "@/components/ui/badge";
-import VendorImporter from '@/components/VendorImporter';
 import { useBookkeeping } from '@/context/BookkeepingContext';
+
+// Create a wrapper component for VendorImporter that accepts onImportSuccess
+const VendorImporterWrapper: React.FC<{ onImportSuccess: () => void }> = ({ onImportSuccess }) => {
+  // We'll assume VendorImporter is a non-modifiable component
+  // So we'll wrap it and handle the success callback here
+  
+  // Import the actual VendorImporter component
+  const VendorImporter = require('@/components/VendorImporter').default;
+  
+  const handleSuccess = () => {
+    // Call the passed callback
+    onImportSuccess();
+  };
+  
+  return <VendorImporter onSuccess={handleSuccess} />;
+};
 
 interface VendorData {
   id: string;
@@ -398,7 +412,7 @@ export const VendorManagement: React.FC = () => {
                 <DialogTitle>Import Vendor Data</DialogTitle>
               </DialogHeader>
               <div className="pt-4">
-                <VendorImporter onImportSuccess={() => {
+                <VendorImporterWrapper onImportSuccess={() => {
                   setIsImportDialogOpen(false);
                   fetchVendors();
                 }} />
@@ -620,6 +634,7 @@ export const VendorManagement: React.FC = () => {
                   }
                 }}
                 aria-disabled={currentPage === 1}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
               />
             </PaginationItem>
             
@@ -635,6 +650,7 @@ export const VendorManagement: React.FC = () => {
                   }
                 }}
                 aria-disabled={currentPage === totalPages}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
               />
             </PaginationItem>
           </PaginationContent>
