@@ -1,10 +1,5 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from '@/utils/toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/auth';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,88 +8,92 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CheckSquare, Settings, LogOut, User } from 'lucide-react';
-import BusinessContextQuestionnaire from '../business/BusinessContextQuestionnaire';
-import { BusinessContextFormValues } from '../business/BusinessContextQuestionnaire';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/auth";
+import { Settings, LogOut, Upload, User } from "lucide-react";
+import UploadDialog from "@/components/UploadDialog";
+import { useBookkeeping } from "@/context/BookkeepingContext";
 
 export const UserNavigation = () => {
-  const { session } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
+  const { bankConnections } = useBookkeeping();
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   
-  if (!session) return null;
+  if (!user) {
+    return (
+      <Button variant="ghost" onClick={() => navigate('/auth')}>
+        Sign In
+      </Button>
+    );
+  }
   
-  const userInitials = session.user.email 
-    ? session.user.email.substring(0, 2).toUpperCase()
-    : "NA";
-  
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast.success('Logged out successfully');
-      navigate('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-      toast.error('Failed to log out');
-    }
-  };
-  
-  const handleQuestionnaireComplete = (data: BusinessContextFormValues) => {
-    toast.success('Business context updated successfully');
-    setIsQuestionnaireOpen(false);
-  };
+  const initials = user.email ? user.email.substring(0, 2).toUpperCase() : "U";
   
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Avatar className="h-8 w-8 cursor-pointer">
-            <AvatarFallback>{userInitials}</AvatarFallback>
-          </Avatar>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            className="cursor-pointer"
-            onClick={() => navigate('/profile')}
-          >
-            <User className="mr-2 h-4 w-4" />
-            Profile
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            className="cursor-pointer"
-            onClick={() => setIsQuestionnaireOpen(true)}
-          >
-            <CheckSquare className="mr-2 h-4 w-4" />
-            Business Context
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem 
-            className="cursor-pointer"
-            onClick={() => navigate('/settings')}
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem 
-            onClick={handleLogout}
-            className="cursor-pointer"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      
-      <BusinessContextQuestionnaire 
-        isOpen={isQuestionnaireOpen}
-        onClose={() => setIsQuestionnaireOpen(false)}
-        onComplete={handleQuestionnaireComplete}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsUploadDialogOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          <span className="hidden md:inline">Upload CSV</span>
+        </Button>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src="" alt={user.email || "User"} />
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user.email}</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  User Account
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/subscription" className="flex items-center cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>Account</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/settings" className="flex items-center cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={async () => {
+                await signOut();
+                navigate('/auth');
+              }}
+              className="flex items-center cursor-pointer"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <UploadDialog 
+        isOpen={isUploadDialogOpen} 
+        onClose={() => setIsUploadDialogOpen(false)} 
+        bankConnections={bankConnections}
       />
     </>
   );
