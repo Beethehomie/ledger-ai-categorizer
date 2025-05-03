@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -11,11 +11,21 @@ import { useSettings } from '@/context/SettingsContext';
 import { toast } from '@/utils/toast';
 import { Currency } from '@/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from '@/integrations/supabase/client';
+import { BusinessContextFormValues } from '@/components/business/BusinessContextQuestionnaire';
+import BusinessInsight from '@/components/business/BusinessInsight';
 
 const SettingsPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { currency, setCurrency, darkMode, toggleDarkMode } = useSettings();
+  const [businessContext, setBusinessContext] = useState<BusinessContextFormValues | undefined>(undefined);
+  const [businessInsight, setBusinessInsight] = useState<{
+    summary: string;
+    generated_at: string;
+    context_snapshot?: BusinessContextFormValues;
+  } | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Helper function to ensure currency is of correct type
   const handleSetCurrency = (value: string) => {
@@ -28,6 +38,58 @@ const SettingsPage: React.FC = () => {
       console.error(`Invalid currency: ${value}`);
       // Default to USD if invalid
       setCurrency('USD');
+    }
+  };
+
+  // Fetch business context and insight
+  useEffect(() => {
+    const fetchBusinessData = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('business_context, business_insight')
+          .eq('id', user.id)
+          .single();
+          
+        if (error) throw error;
+        
+        if (data) {
+          setBusinessContext(data.business_context as BusinessContextFormValues);
+          setBusinessInsight(data.business_insight);
+        }
+      } catch (error) {
+        console.error('Error fetching business data:', error);
+        toast.error('Failed to load business information');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchBusinessData();
+  }, [user]);
+
+  const handleContextUpdate = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('business_context, business_insight')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) throw error;
+      
+      if (data) {
+        setBusinessContext(data.business_context as BusinessContextFormValues);
+        setBusinessInsight(data.business_insight);
+        toast.success('Business information updated');
+      }
+    } catch (error) {
+      console.error('Error refreshing business data:', error);
     }
   };
   
@@ -97,6 +159,12 @@ const SettingsPage: React.FC = () => {
                 </CardContent>
               </Card>
             )}
+
+            <BusinessInsight 
+              businessContext={businessContext}
+              businessInsight={businessInsight}
+              onContextUpdate={handleContextUpdate}
+            />
           </div>
           
           <div className="md:col-span-2 space-y-6">
