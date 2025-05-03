@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
-import { Transaction } from '@/types';
+import { Transaction, Vendor } from '@/types';
 
 // Find similar transactions based on a vendor name
 export const findSimilarVendorTransactions = async (
@@ -34,6 +34,33 @@ export const findSimilarVendorTransactions = async (
   }
 };
 
+// Add a new vendor to the database
+export const addVendor = async (vendor: Vendor): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('vendor_categorizations')
+      .insert({
+        vendor_name: vendor.name,
+        category: vendor.category,
+        type: vendor.type,
+        statement_type: vendor.statementType,
+        occurrences: vendor.occurrences,
+        verified: vendor.verified
+      });
+      
+    if (error) {
+      console.error('Error adding vendor:', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error in addVendor:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return { success: false, error: errorMessage };
+  }
+};
+
 // Delete a transaction
 export const deleteTransaction = async (id: string): Promise<boolean> => {
   try {
@@ -55,3 +82,4 @@ export const deleteTransaction = async (id: string): Promise<boolean> => {
     return false;
   }
 };
+

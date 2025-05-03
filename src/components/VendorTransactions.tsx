@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { Transaction, Vendor } from '@/types';
@@ -88,7 +89,8 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
       setIsVendorEditorOpen(false);
       setSelectedVendor(newVendor.name);
       
-      await findSimilarVendorTransactions(newVendor.name, transactions, findSimilarTransactions);
+      // Fix: Remove the third argument as findSimilarTransactions is now used as a callback
+      await findSimilarVendorTransactions(newVendor.name, transactions);
       
     } catch (err) {
       console.error('Error processing after vendor add:', err);
@@ -106,7 +108,8 @@ const VendorTransactions: React.FC<VendorTransactionsProps> = ({ transactions })
     
     setProcessingAction(true);
     try {
-      await findSimilarVendorTransactions(selectedVendor, transactions, findSimilarTransactions);
+      // Fix: Remove the third argument here as well
+      await findSimilarVendorTransactions(selectedVendor, transactions);
     } finally {
       setProcessingAction(false);
     }
