@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 
@@ -110,10 +109,9 @@ export const findSimilarVendorsByDescription = async (
       };
     }
     
-    // Use a completely untyped approach to avoid TypeScript errors
-    // The function exists in Supabase but TypeScript doesn't have the proper typing
+    // The correct approach: use a Record type for parameters to properly type the RPC call without specifying generics
     const response = await supabase.rpc('match_vendors_by_embedding', {
-      query_embedding: embedding,
+      query_embedding: embedding as unknown as object, // Type assertion to satisfy TypeScript
       match_threshold: 0.5,
       match_count: 5
     });
