@@ -171,23 +171,32 @@ const BusinessInsightPage: React.FC = () => {
       
       try {
         setLoading(true);
-        const { data: profileData, error: profileError } = await supabase
+        const { data, error } = await supabase
           .from('user_profiles')
           .select('business_context, business_insight')
           .eq('id', user.id)
           .single();
           
-        if (profileError) {
-          console.error('Error fetching user profile:', profileError);
+        if (error) {
+          console.error('Error fetching user profile:', error);
+          
+          // Check if the error is due to the column not existing
+          if (error.message?.includes("column 'business_insight' does not exist")) {
+            // Just continue without data, a migration will be needed to add this column
+            toast.error("Missing business_insight column. A database migration is needed.");
+          }
           return;
         }
         
-        if (profileData?.business_context) {
-          form.reset(profileData.business_context as unknown as BusinessContextFormValues);
-        }
-        
-        if (profileData?.business_insight) {
-          setAIInsight(profileData.business_insight as unknown as AIInsight);
+        // If data exists, safely process it
+        if (data) {
+          if (data.business_context) {
+            form.reset(data.business_context as unknown as BusinessContextFormValues);
+          }
+          
+          if (data.business_insight) {
+            setAIInsight(data.business_insight as unknown as AIInsight);
+          }
         }
       } catch (error) {
         console.error('Error fetching business context:', error);
