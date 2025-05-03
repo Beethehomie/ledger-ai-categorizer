@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Transaction } from '@/types';
@@ -11,7 +10,7 @@ import {
   processTransactions 
 } from '@/context/bookkeeping/transactionUtils';
 import { BankConnectionRow } from '@/types/supabase';
-import { findDuplicatesInDatabase, reconcileAccountBalance, updateTransactionBalances } from '@/services/bookkeepingService';
+import { findDuplicatesInDatabase, reconcileAccountBalance, updateTransactionBalances, getBankAccountIdFromConnection } from '@/services/bookkeepingService';
 
 export const useTransactions = (
   bankConnections: BankConnectionRow[]
@@ -215,7 +214,7 @@ export const useTransactions = (
     }
   };
 
-  // Modified uploadCSV function to take in prepared transactions directly
+  // Modified uploadCSV function to take in prepared transactions directly and set account_id
   const uploadCSV = async (
     preparedTransactions: Transaction[],
     bankConnectionId?: string, 
@@ -235,6 +234,18 @@ export const useTransactions = (
         bankConnection = bankConnections.find(conn => conn.id === bankConnectionId);
       }
       
+      // If we have a bank connection ID, try to get the corresponding account ID
+      let accountId: string | null = null;
+      if (bankConnectionId) {
+        accountId = await getBankAccountIdFromConnection(bankConnectionId);
+        if (!accountId) {
+          console.warn('Could not find account ID for bank connection:', bankConnectionId);
+          // Continue anyway, we'll try to upload without account_id
+        } else {
+          console.log('Found account ID for bank connection:', accountId);
+        }
+      }
+      
       const processCSVTransactions = async () => {
         const processedTransactions: Transaction[] = [];
         
@@ -242,6 +253,11 @@ export const useTransactions = (
           if (bankConnectionId && bankConnection) {
             transaction.bankAccountId = bankConnectionId;
             transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
+            
+            // Set the account ID for RLS policy compliance
+            if (accountId) {
+              transaction.accountId = accountId;
+            }
           }
           
           processedTransactions.push(transaction);
@@ -620,6 +636,7 @@ export const useTransactions = (
     setTransactions,
     fetchTransactions,
     deleteTransaction,
-    recalculateRunningBalances
+    recalculateRunningBalances,
+    getBankAccountIdFromConnection
   };
 };

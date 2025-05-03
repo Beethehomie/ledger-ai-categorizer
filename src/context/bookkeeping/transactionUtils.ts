@@ -26,6 +26,7 @@ export const saveTransactionsToSupabase = async (
       confidence_score: t.confidenceScore || null,
       bank_connection_id: t.bankAccountId || null,
       balance: t.balance || null,
+      account_id: t.accountId || null, // Add account_id for RLS policy compliance
       user_id: userId
     }));
     

@@ -80,7 +80,8 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     fetchTransactionsForBankAccount,
     getBankConnectionById,
     setTransactions,
-    fetchTransactions: fetchTransactionsFromHook
+    fetchTransactions: fetchTransactionsFromHook,
+    getBankAccountIdFromConnection
   } = useTransactions(bankConnections);
   
   const {
@@ -197,6 +198,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     fetchTransactions,
     findSimilarTransactions,
     deleteTransaction,
+    getBankAccountIdFromConnection,
   };
 
   return (

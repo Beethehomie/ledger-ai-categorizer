@@ -33,4 +33,5 @@ export interface BookkeepingContextType {
   fetchTransactions: () => Promise<void>;
   findSimilarTransactions: (vendorName: string, allTransactions: Transaction[]) => Promise<Transaction[]>;
   deleteTransaction: (id: string) => Promise<{ success: boolean; error?: string }>;
+  getBankAccountIdFromConnection: (bankConnectionId: string) => Promise<string | null>;
 }
