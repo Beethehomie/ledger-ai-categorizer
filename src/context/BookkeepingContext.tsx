@@ -11,6 +11,7 @@ import { toast } from '@/utils/toast';
 import { getCategories } from '@/utils/categoryAdapter';
 import { logError } from '@/utils/errorLogger';
 import { deleteTransaction as deleteTransactionService } from '@/services/vendorService';
+import { getBankAccountIdFromConnection as getAccountIdFromConnection } from '@/services/bookkeepingService';
 
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 

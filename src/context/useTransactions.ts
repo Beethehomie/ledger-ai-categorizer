@@ -10,7 +10,12 @@ import {
   processTransactions 
 } from '@/context/bookkeeping/transactionUtils';
 import { BankConnectionRow } from '@/types/supabase';
-import { findDuplicatesInDatabase, reconcileAccountBalance, updateTransactionBalances, getBankAccountIdFromConnection } from '@/services/bookkeepingService';
+import { 
+  findDuplicatesInDatabase, 
+  reconcileAccountBalance, 
+  updateTransactionBalances,
+  getBankAccountIdFromConnection as getAccountIdFromConnection 
+} from '@/services/bookkeepingService';
 
 export const useTransactions = (
   bankConnections: BankConnectionRow[]
@@ -237,7 +242,7 @@ export const useTransactions = (
       // If we have a bank connection ID, try to get the corresponding account ID
       let accountId: string | null = null;
       if (bankConnectionId) {
-        accountId = await getBankAccountIdFromConnection(bankConnectionId);
+        accountId = await getAccountIdFromConnection(bankConnectionId);
         if (!accountId) {
           console.warn('Could not find account ID for bank connection:', bankConnectionId);
           // Continue anyway, we'll try to upload without account_id

@@ -50,7 +50,9 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     }
   };
 
-  const handleFormSubmit = async (formData: FormData) => {
+  const handleFormSubmit = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    
     try {
       console.log('Form submission data:', {
         fileName: selectedFile?.name,

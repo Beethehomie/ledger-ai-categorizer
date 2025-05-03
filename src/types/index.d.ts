@@ -1,6 +1,6 @@
-
-// This is a partial update to add the accountId field to the Transaction interface.
-// We're assuming the Transaction interface exists in this file.
+export type TransactionType = "income" | "expense" | "asset" | "liability" | "equity";
+export type StatementType = "profit_loss" | "balance_sheet"; // Removed "operating" as it's not used
+export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR";
 
 export interface Transaction {
   id: string;
@@ -8,8 +8,8 @@ export interface Transaction {
   description: string;
   amount: number;
   category?: string;
-  type?: 'income' | 'expense' | 'asset' | 'liability' | 'equity';
-  statementType?: 'profit_loss' | 'balance_sheet';
+  type?: TransactionType;
+  statementType?: StatementType;
   isVerified: boolean;
   aiSuggestion?: string;
   vendor?: string;
@@ -17,6 +17,6 @@ export interface Transaction {
   confidenceScore?: number;
   bankAccountId?: string;
   bankAccountName?: string;
-  balance?: number;
-  accountId?: string; // Add this field
+  balance?: number; // Running balance field
+  accountId?: string; // Add accountId field for RLS policy
 }

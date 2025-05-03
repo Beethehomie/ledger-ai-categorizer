@@ -214,7 +214,7 @@ export const useTransactions = (
     }
   };
 
-  // Modified uploadCSV function to take in prepared transactions directly
+  // Modified uploadCSV function to take in prepared transactions directly and set account_id
   const uploadCSV = async (
     preparedTransactions: Transaction[],
     bankConnectionId?: string, 
@@ -234,6 +234,26 @@ export const useTransactions = (
         bankConnection = bankConnections.find(conn => conn.id === bankConnectionId);
       }
       
+      // If we have a bank connection ID, try to get the corresponding account ID
+      let accountId: string | null = null;
+      if (bankConnectionId) {
+        try {
+          // This function is imported from bookkeepingService.ts
+          accountId = await getBankAccountIdFromConnection(bankConnectionId);
+          if (!accountId) {
+            console.warn('Could not find account ID for bank connection:', bankConnectionId);
+            // Continue anyway, we'll use bankConnectionId directly as a fallback
+            accountId = bankConnectionId;
+          } else {
+            console.log('Found account ID for bank connection:', accountId);
+          }
+        } catch (err) {
+          console.error('Error getting account ID:', err);
+          // Use bankConnectionId as a fallback
+          accountId = bankConnectionId;
+        }
+      }
+      
       const processCSVTransactions = async () => {
         const processedTransactions: Transaction[] = [];
         
@@ -241,6 +261,11 @@ export const useTransactions = (
           if (bankConnectionId && bankConnection) {
             transaction.bankAccountId = bankConnectionId;
             transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
+            
+            // Set the account ID for RLS policy compliance
+            if (accountId) {
+              transaction.accountId = accountId;
+            }
           }
           
           processedTransactions.push(transaction);
@@ -604,6 +629,17 @@ export const useTransactions = (
     }
   };
 
+  // Export getBankAccountIdFromConnection for use in context
+  const getBankAccountIdFromConnection = async (bankConnectionId: string): Promise<string | null> => {
+    try {
+      // This function is imported from bookkeepingService.ts
+      return await getAccountIdFromConnection(bankConnectionId);
+    } catch (err) {
+      console.error('Error in getBankAccountIdFromConnection:', err);
+      return null;
+    }
+  };
+
   return {
     transactions,
     loading,
@@ -619,6 +655,7 @@ export const useTransactions = (
     setTransactions,
     fetchTransactions,
     deleteTransaction,
-    recalculateRunningBalances
+    recalculateRunningBalances,
+    getBankAccountIdFromConnection
   };
 };
