@@ -1,3 +1,4 @@
+
 import { Transaction } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
@@ -123,7 +124,8 @@ export const processTransactions = (
       vendorVerified: Boolean(transaction.vendorVerified),
       // Set confidence score - lower for unknown vendors, higher for known ones
       confidenceScore: vendor === "Unknown" ? 0.3 : transaction.confidenceScore || Math.random() * 0.5 + 0.5,
-      isVerified: transaction.isVerified || false
+      isVerified: transaction.isVerified || false,
+      accountId: transaction.accountId // Ensure accountId is passed through
     };
   });
 };

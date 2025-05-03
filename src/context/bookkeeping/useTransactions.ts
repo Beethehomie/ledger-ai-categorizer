@@ -243,7 +243,6 @@ export const useTransactions = (
       let accountId: string | null = null;
       if (bankConnectionId) {
         try {
-          // This function is imported from bookkeepingService.ts
           accountId = await getBankAccountIdFromConnection(bankConnectionId);
           if (!accountId) {
             console.warn('Could not find account ID for bank connection:', bankConnectionId);

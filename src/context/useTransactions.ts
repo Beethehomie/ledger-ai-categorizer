@@ -245,7 +245,8 @@ export const useTransactions = (
         accountId = await getBankAccountIdFromConnection(bankConnectionId);
         if (!accountId) {
           console.warn('Could not find account ID for bank connection:', bankConnectionId);
-          // Continue anyway, we'll try to upload without account_id
+          // Continue anyway, we'll use bankConnectionId directly as a fallback
+          accountId = bankConnectionId;
         } else {
           console.log('Found account ID for bank connection:', accountId);
         }
