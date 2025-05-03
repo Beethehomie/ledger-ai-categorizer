@@ -3,12 +3,11 @@ import { useAuth } from '@/context/AuthContext';
 import { Transaction } from '@/types';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
-import { parseCSV, isBalanceReconciled } from '@/utils/csvParser';
+import { parseCSV, CSVParseResult, calculateRunningBalance, isBalanceReconciled } from '@/utils/csvParser';
 import { useQueryClient } from '@tanstack/react-query';
 import { 
   saveTransactionsToSupabase, 
-  processTransactions,
-  calculateRunningBalance 
+  processTransactions 
 } from '@/context/bookkeeping/transactionUtils';
 import { BankConnectionRow } from '@/types/supabase';
 import { 

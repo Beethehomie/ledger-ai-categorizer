@@ -22,7 +22,6 @@ const BankConnections: React.FC = () => {
   const [syncing, setSyncing] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   const { user } = useAuth();
   const { addTransactions } = useBookkeeping();
@@ -174,12 +173,6 @@ const BankConnections: React.FC = () => {
     }
   };
 
-  const handleFileSelected = (file: File) => {
-    setSelectedFile(file);
-    toast.success(`File selected: ${file.name}`);
-    // Additional logic for handling the selected file
-  };
-
   return (
     <div className="space-y-6">
       <Card className="hover:shadow-md transition-all animate-fade-in">
@@ -245,11 +238,7 @@ const BankConnections: React.FC = () => {
         </CardContent>
       </Card>
       
-      <FileUpload 
-        onFileSelected={handleFileSelected}
-        accept=".csv,.xls,.xlsx"
-        currentFile={selectedFile}
-      />
+      <FileUpload />
     </div>
   );
 };

@@ -1,3 +1,5 @@
+
+// Update the import section at the top
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -20,7 +22,7 @@ import { Transaction } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
 import { useSettings } from "@/context/SettingsContext";
 import { toast } from '@/utils/toast';
-import { isBalanceReconciled, exportToCSV } from '@/utils/csvParser';
+import { isBalanceReconciled } from '@/utils/csvParser';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import TableHeaderComponent from './TableHeader';
 import TransactionRow from './TransactionRow';
@@ -29,6 +31,7 @@ import { useTransactionFilter } from '@/hooks/useTransactionFilter';
 import ReconcileDialog from '../ReconcileDialog';
 import VendorNameEditor from '../vendor/VendorNameEditor';
 import BusinessContextQuestionnaire from '../business/BusinessContextQuestionnaire';
+import { exportToCSV } from '@/utils/csvParser';
 import ConfidenceScore from './ConfidenceScore';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorLogger';
@@ -93,30 +96,17 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   };
 
   const handleExportCSV = () => {
-    try {
-      const csvData = exportToCSV(transactions);
-      
-      if (!csvData) {
-        toast.error('Failed to generate CSV data');
-        return;
-      }
-      
-      // Create a blob and download link
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      const date = new Date().toISOString().split('T')[0];
-      link.setAttribute('href', url);
-      link.setAttribute('download', `transactions_${date}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error exporting to CSV:', error);
-      toast.error('Failed to export transactions');
-    }
+    const csvData = exportToCSV(transactions); 
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${date}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleRefresh = () => {
@@ -145,14 +135,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
 
   const isAccountReconciled = reconciliationBalance !== undefined && 
     transactions.length > 0 && 
-    isBalanceReconciled(
-      transactions.sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return dateB - dateA; // Sort descending for latest date first
-      })[0].balance || 0,
-      reconciliationBalance
-    );
+    isBalanceReconciled(transactions, reconciliationBalance);
 
   const mapTableColumnsToColumnSelector = () => {
     return tableColumns.map(col => ({
@@ -452,7 +435,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           isOpen={isReconcileDialogOpen}
           onClose={() => setIsReconcileDialogOpen(false)}
           transactions={transactions}
-          onReconcile={(endBalance) => handleReconcile(endBalance)}
+          onReconcile={handleReconcile}
         />
         
         <VendorNameEditor

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -230,32 +230,18 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     toast.success('Account reconciliation status updated');
   };
 
-  // Fix the export to CSV function
   const handleExportCSV = () => {
-    try {
-      const csvData = exportToCSV(transactions);
-      
-      if (!csvData) {
-        toast.error('Failed to generate CSV data');
-        return;
-      }
-      
-      // Create a blob and download link
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      
-      const link = document.createElement('a');
-      const date = new Date().toISOString().split('T')[0];
-      link.setAttribute('href', url);
-      link.setAttribute('download', `transactions_${date}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error exporting to CSV:', error);
-      toast.error('Failed to export transactions');
-    }
+    const csvData = exportToCSV(transactions); 
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${date}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleRefresh = () => {
@@ -266,15 +252,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   };
 
   const isAccountReconciled = reconciliationBalance !== undefined && 
-    transactions.length > 0 && 
-    isBalanceReconciled(
-      transactions.sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return dateB - dateA; // Sort descending for latest date first
-      })[0].balance || 0,
-      reconciliationBalance
-    );
+                              transactions.length > 0 && 
+                              isBalanceReconciled(transactions, reconciliationBalance);
 
   const renderConfidenceScore = (score?: number) => {
     if (score === undefined) return null;
@@ -425,7 +404,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           isOpen={isReconcileDialogOpen}
           onClose={() => setIsReconcileDialogOpen(false)}
           transactions={transactions}
-          onReconcile={(endBalance) => handleReconcile(endBalance)}
+          onReconcile={handleReconcile}
         />
         
         <VendorEditor

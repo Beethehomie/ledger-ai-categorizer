@@ -1,3 +1,4 @@
+
 import { Transaction } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
@@ -29,8 +30,6 @@ export const saveTransactionsToSupabase = async (
       user_id: userId
     }));
     
-    console.log('Supabase insert transactions sample:', supabaseTransactions[0]);
-    
     const { data, error } = await supabase
       .from('bank_transactions')
       .insert(supabaseTransactions)
@@ -60,13 +59,10 @@ export const saveTransactionsToSupabase = async (
   }
 };
 
-/**
- * Calculate running balance for each transaction in the array
- */
 export const calculateRunningBalance = (
   parsedTransactions: Transaction[], 
-  initialBalance: number = 0,
-  balanceDate: Date = new Date()
+  initialBalance: number,
+  balanceDate: Date
 ): Transaction[] => {
   const sortedTransactions = [...parsedTransactions].sort((a, b) => {
     const dateA = new Date(a.date).getTime();
@@ -88,7 +84,11 @@ export const calculateRunningBalance = (
       runningBalance += Math.abs(transaction.amount);
     } else {
       // Default behavior for unspecified types - assume expense if negative, income if positive
-      runningBalance += transaction.amount;
+      if (transaction.amount < 0) {
+        runningBalance += transaction.amount; // Amount is already negative
+      } else {
+        runningBalance += transaction.amount;
+      }
     }
     
     return {

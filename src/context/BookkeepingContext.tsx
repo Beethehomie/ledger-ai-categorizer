@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
@@ -11,52 +10,12 @@ import { Category, Transaction, Vendor } from '@/types';
 import { toast } from '@/utils/toast';
 import { getCategories } from '@/utils/categoryAdapter';
 import { logError } from '@/utils/errorLogger';
-import { getBankAccountIdFromConnection } from '@/services/bookkeepingService';
+import { deleteTransaction as deleteTransactionService } from '@/services/vendorService';
+import { getBankAccountIdFromConnection as getAccountIdFromConnection } from '@/services/bookkeepingService';
 
-const BookkeepingContext = createContext<BookkeepingContextType>({
-  transactions: [],
-  categories: [],
-  vendors: [],
-  financialSummary: {
-    totalIncome: 0,
-    totalExpenses: 0,
-    totalAssets: 0,
-    totalLiabilities: 0,
-    totalEquity: 0,
-    netProfit: 0,
-    cashBalance: 0,
-    income: 0
-  },
-  loading: false,
-  aiAnalyzeLoading: false,
-  bankConnections: [],
-  addTransactions: async () => Promise.resolve([]),
-  updateTransaction: async () => Promise.resolve(false),
-  verifyTransaction: async () => Promise.resolve(),
-  verifyVendor: async () => Promise.resolve(),
-  uploadCSV: async () => Promise.resolve(),
-  getFilteredTransactions: () => [],
-  filterTransactionsByDate: () => [],
-  getVendorsList: () => [],
-  calculateFinancialSummary: () => {},
-  analyzeTransactionWithAI: async () => Promise.resolve(null),
-  getBankConnectionById: (id: string) => undefined,
-  removeDuplicateVendors: async () => Promise.resolve(),
-  fetchTransactionsForBankAccount: async () => Promise.resolve([]),
-  batchVerifyVendorTransactions: async () => Promise.resolve(),
-  fetchTransactions: async () => Promise.resolve(),
-  findSimilarTransactions: (vendorName: string, allTransactions: Transaction[]) => Promise.resolve([]),
-  deleteTransaction: async () => ({ success: false }),
-  getBankAccountIdFromConnection: async () => null,
-});
+const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 
-interface BookkeepingProviderProps {
-  children: React.ReactNode;
-}
-
-export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({ 
-  children 
-}) => {
+export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [bankConnections, setBankConnections] = useState<BankConnectionRow[]>([]);
@@ -123,8 +82,7 @@ export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({
     getBankConnectionById,
     setTransactions,
     fetchTransactions: fetchTransactionsFromHook,
-    deleteTransaction: deleteTransactionFromHook,
-    getBankAccountIdFromConnection: getBankAccountIdFromConnectionHook
+    getBankAccountIdFromConnection
   } = useTransactions(bankConnections);
   
   const {
@@ -145,93 +103,74 @@ export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({
   
   const loading = transactionsLoading || vendorsLoading || loadingCategories;
   
-  useEffect(() => {
-    if (!session) return;
+  const fetchTransactions = async (): Promise<void> => {
+    if (!session) {
+      toast.error('You must be logged in to fetch transactions');
+      return;
+    }
     
-    const fetchAllTransactions = async () => {
-      console.log('BookkeepingContext: Fetching transactions...');
-      if (!session) {
-        toast.error('You must be logged in to fetch transactions');
+    try {
+      const { data, error } = await supabase
+        .from('bank_transactions')
+        .select('*')
+        .order('date', { ascending: false });
+        
+      if (error) {
+        console.error('Error fetching transactions:', error);
+        toast.error('Failed to fetch transactions');
         return;
       }
       
-      try {
-        const { data, error } = await supabase
-          .from('bank_transactions')
-          .select('*')
-          .order('date', { ascending: false });
-          
-        if (error) {
-          console.error('Error fetching transactions:', error);
-          toast.error('Failed to fetch transactions');
-          return;
-        }
-        
-        if (data) {
-          const fetchedTransactions: Transaction[] = data.map((t) => {
-            return {
-              id: t.id,
-              date: t.date,
-              description: t.description,
-              amount: Number(t.amount),
-              category: t.category || undefined,
-              type: t.type as Transaction['type'] || undefined,
-              statementType: t.statement_type as Transaction['statementType'] || undefined,
-              isVerified: t.is_verified || false,
-              aiSuggestion: undefined,
-              vendor: t.vendor || undefined,
-              vendorVerified: t.vendor_verified || false,
-              confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
-              bankAccountId: t.bank_connection_id || undefined,
-              bankAccountName: undefined,
-              balance: t.balance || undefined,
-              accountId: t.bank_connection_id || undefined // Using bank_connection_id as a fallback
-            };
-          });
-          
-          if (fetchedTransactions.length > 0) {
-            for (const transaction of fetchedTransactions) {
-              if (transaction.bankAccountId) {
-                const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
-                if (bankConnection) {
-                  transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
-                }
-              }
+      const fetchedTransactions: Transaction[] = data.map((t) => ({
+        id: t.id,
+        date: t.date,
+        description: t.description,
+        amount: Number(t.amount),
+        category: t.category || undefined,
+        type: t.type as Transaction['type'] || undefined,
+        statementType: t.statement_type as Transaction['statementType'] || undefined,
+        isVerified: t.is_verified || false,
+        aiSuggestion: undefined,
+        vendor: t.vendor || undefined,
+        vendorVerified: t.vendor_verified || false,
+        confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
+        bankAccountId: t.bank_connection_id || undefined,
+        bankAccountName: undefined,
+        balance: t.balance || undefined,
+      }));
+      
+      if (fetchedTransactions.length > 0) {
+        for (const transaction of fetchedTransactions) {
+          if (transaction.bankAccountId) {
+            const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
+            if (bankConnection) {
+              transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
             }
           }
-          
-          setTransactions(fetchedTransactions);
-          
-          setTimeout(() => calculateFinancialSummary(), 100);
-          
-          toast.success('Transactions refreshed successfully');
         }
-      } catch (err) {
-        console.error('Error fetching transactions:', err);
-        toast.error('Failed to refresh transactions');
       }
-    };
-    
-    fetchAllTransactions();
-  }, [session, bankConnections, calculateFinancialSummary, setTransactions]);
-  
-  // Wrapper for deleteTransaction that returns a success/error object
-  const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const result = await deleteTransactionFromHook(id);
-      return { success: result };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Failed to delete transaction' };
+      
+      setTransactions(fetchedTransactions);
+      
+      setTimeout(() => calculateFinancialSummary(), 100);
+      
+      toast.success('Transactions refreshed successfully');
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      toast.error('Failed to refresh transactions');
     }
   };
 
-  // Helper function to get account ID from connection, exporting for the interface
-  const getBankAccountIdFromConnectionHelper = async (bankConnectionId: string): Promise<string | null> => {
+  // Add a wrapper for deleteTransaction to match the signature in the interface
+  const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      return await getBankAccountIdFromConnectionHook(bankConnectionId);
-    } catch (err) {
-      console.error('Error in getBankAccountIdFromConnection:', err);
-      return null;
+      const success = await deleteTransactionService(id);
+      if (success) {
+        return { success: true };
+      }
+      return { success: false, error: 'Failed to delete transaction' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   };
   
@@ -257,10 +196,10 @@ export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({
     removeDuplicateVendors,
     fetchTransactionsForBankAccount,
     batchVerifyVendorTransactions,
-    fetchTransactions: fetchTransactionsFromHook,
+    fetchTransactions,
     findSimilarTransactions,
     deleteTransaction,
-    getBankAccountIdFromConnection: getBankAccountIdFromConnectionHelper,
+    getBankAccountIdFromConnection,
   };
 
   return (
