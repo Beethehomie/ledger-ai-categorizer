@@ -11,12 +11,20 @@ import AdminPage from './pages/AdminPage';
 import Subscription from './pages/Subscription';
 import Settings from './pages/Settings';
 import BusinessInsight from './pages/BusinessInsight';
+import Dashboard from './pages/Dashboard';
 import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { BookkeepingProvider } from "@/context/BookkeepingContext";
 import { RequireAuth } from "./components/RequireAuth";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -28,8 +36,9 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
-                <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
-                <Route path="/auth" element={<Auth />} />
+                <Route path="/" element={<Index />} />
+                <Route path="/auth/*" element={<Auth />} />
+                <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
                 <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
                 <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
                 <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />

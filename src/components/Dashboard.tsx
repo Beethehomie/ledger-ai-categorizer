@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TransactionTable from "./TransactionTable";
 import VendorTransactions from "./VendorTransactions";
@@ -36,6 +36,10 @@ declare module "@/components/ChartSection" {
 }
 
 const Dashboard: React.FC = () => {
+  // Track if component is mounted to prevent state updates after unmount
+  const isMounted = useRef(true);
+  const initialFetchDone = useRef(false);
+  
   const { 
     transactions, 
     filterTransactionsByDate, 
@@ -62,6 +66,21 @@ const Dashboard: React.FC = () => {
   const [goalProgressSource, setGoalProgressSource] = useState<'income' | 'balance'>('balance');
   
   useEffect(() => {
+    // Set cleanup function
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+  
+  useEffect(() => {
+    // Only fetch transactions once when component mounts
+    if (!initialFetchDone.current && !dataLoading) {
+      initialFetchDone.current = true;
+      fetchTransactions().catch(console.error);
+    }
+  }, [fetchTransactions, dataLoading]);
+  
+  useEffect(() => {
     setFilteredTransactions(
       filterTransactionsByDate(dateRange.startDate, dateRange.endDate)
     );
@@ -72,6 +91,8 @@ const Dashboard: React.FC = () => {
   }, [transactions, calculateFinancialSummary]);
   
   const handleRefresh = async () => {
+    if (refreshing) return;
+    
     setRefreshing(true);
     toast.success('Refreshing data...');
     
@@ -79,12 +100,18 @@ const Dashboard: React.FC = () => {
       await fetchTransactions();
       calculateFinancialSummary();
       
-      toast.success('Data successfully refreshed');
+      if (isMounted.current) {
+        toast.success('Data successfully refreshed');
+      }
     } catch (error) {
       console.error('Error refreshing data:', error);
-      toast.error('Failed to refresh data');
+      if (isMounted.current) {
+        toast.error('Failed to refresh data');
+      }
     } finally {
-      setRefreshing(false);
+      if (isMounted.current) {
+        setRefreshing(false);
+      }
     }
   };
   

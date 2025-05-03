@@ -21,17 +21,27 @@ const Index: React.FC = () => {
         {session ? (
           <>
             <p className="text-lg">You are logged in. Go to your dashboard to manage your finances.</p>
-            <Button onClick={() => navigate('/dashboard')} className="bg-finance-green hover:bg-finance-green-light hover-scale">
+            <Button 
+              onClick={() => navigate('/dashboard')} 
+              className="bg-finance-green hover:bg-finance-green-light hover-scale"
+            >
               Go to Dashboard <ArrowRight className="ml-2" />
             </Button>
           </>
         ) : (
           <>
             <p className="text-lg">Create an account or log in to start tracking your finances.</p>
-            <Button onClick={() => navigate('/auth/sign-up')} className="bg-finance-green hover:bg-finance-green-light hover-scale">
+            <Button 
+              onClick={() => navigate('/auth/sign-up')} 
+              className="bg-finance-green hover:bg-finance-green-light hover-scale"
+            >
               Sign Up <ArrowRight className="ml-2" />
             </Button>
-            <Button onClick={() => navigate('/auth/sign-in')} variant="outline" className="hover-scale">
+            <Button 
+              onClick={() => navigate('/auth/sign-in')} 
+              variant="outline" 
+              className="hover-scale"
+            >
               Log In <ArrowRight className="ml-2" />
             </Button>
           </>
