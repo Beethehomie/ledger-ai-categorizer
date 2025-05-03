@@ -26,6 +26,7 @@ const SettingsPage: React.FC = () => {
     context_snapshot?: BusinessContextFormValues;
   } | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Helper function to ensure currency is of correct type
   const handleSetCurrency = (value: string) => {
@@ -47,6 +48,7 @@ const SettingsPage: React.FC = () => {
       if (!user) return;
       
       setIsLoading(true);
+      setError(null);
       try {
         const { data, error } = await supabase
           .from('user_profiles')
@@ -54,15 +56,25 @@ const SettingsPage: React.FC = () => {
           .eq('id', user.id)
           .single();
           
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching business data:', error);
+          setError(`Failed to load business information: ${error.message}`);
+          return;
+        }
         
         if (data) {
-          setBusinessContext(data.business_context as BusinessContextFormValues);
-          setBusinessInsight(data.business_insight);
+          // Only set these values if data exists and properties are present
+          if (data.business_context) {
+            setBusinessContext(data.business_context as BusinessContextFormValues);
+          }
+          
+          if (data.business_insight) {
+            setBusinessInsight(data.business_insight as any);
+          }
         }
-      } catch (error) {
-        console.error('Error fetching business data:', error);
-        toast.error('Failed to load business information');
+      } catch (err) {
+        console.error('Exception fetching business data:', err);
+        setError('An unexpected error occurred when loading business information');
       } finally {
         setIsLoading(false);
       }
@@ -74,6 +86,7 @@ const SettingsPage: React.FC = () => {
   const handleContextUpdate = async () => {
     if (!user) return;
     
+    setError(null);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -81,15 +94,27 @@ const SettingsPage: React.FC = () => {
         .eq('id', user.id)
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error refreshing business data:', error);
+        toast.error(`Failed to refresh data: ${error.message}`);
+        return;
+      }
       
       if (data) {
-        setBusinessContext(data.business_context as BusinessContextFormValues);
-        setBusinessInsight(data.business_insight);
+        // Only update these values if data exists and properties are present
+        if (data.business_context) {
+          setBusinessContext(data.business_context as BusinessContextFormValues);
+        }
+        
+        if (data.business_insight) {
+          setBusinessInsight(data.business_insight as any);
+        }
+        
         toast.success('Business information updated');
       }
-    } catch (error) {
-      console.error('Error refreshing business data:', error);
+    } catch (err) {
+      console.error('Exception refreshing business data:', err);
+      toast.error('An unexpected error occurred');
     }
   };
   
