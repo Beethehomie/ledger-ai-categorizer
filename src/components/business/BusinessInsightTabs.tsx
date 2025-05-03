@@ -10,12 +10,13 @@ import {
   Lightbulb,
   DollarSign,
   FileText,
-  BriefCase,
+  Briefcase,
   Wrench,
   Layers,
   BarChart
 } from "lucide-react";
 import { BusinessContextFormValues } from './BusinessContextQuestionnaire';
+import { ExtendedBusinessContextFormValues } from '@/types/business';
 
 interface BusinessInsightTabsProps {
   businessContext?: BusinessContextFormValues;
@@ -32,25 +33,28 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
   const hasInfoForSection = (section: string): boolean => {
     if (!businessContext) return false;
     
+    // Cast businessContext to ExtendedBusinessContextFormValues to access extended properties
+    const extendedContext = businessContext as ExtendedBusinessContextFormValues;
+    
     switch(section) {
       case 'customers':
-        return Boolean(businessContext.customerSegments || businessContext.targetAudience || businessContext.businessDescription);
+        return Boolean(extendedContext.customerSegments || extendedContext.targetAudience || businessContext.businessDescription);
       case 'value':
-        return Boolean(businessContext.valueProposition || businessContext.uniqueValue || businessContext.businessDescription);
+        return Boolean(extendedContext.valueProposition || extendedContext.uniqueValue || businessContext.businessDescription);
       case 'channels':
-        return Boolean(businessContext.marketingChannels || businessContext.salesChannels || businessContext.businessModel);
+        return Boolean(extendedContext.marketingChannels || extendedContext.salesChannels || businessContext.businessModel);
       case 'relationships':
-        return Boolean(businessContext.customerRelationship || businessContext.supportType);
+        return Boolean(extendedContext.customerRelationship || extendedContext.supportType);
       case 'revenue':
         return Boolean(businessContext.revenueChannels || businessContext.incomeTypes || businessContext.receivesPaymentsInAccount);
       case 'resources':
-        return Boolean(businessContext.keyResources || businessContext.physicalSpace || businessContext.techPlatforms);
+        return Boolean(extendedContext.keyResources || extendedContext.physicalSpace || extendedContext.techPlatforms);
       case 'activities':
-        return Boolean(businessContext.keyActivities || businessContext.businessModel);
+        return Boolean(extendedContext.keyActivities || businessContext.businessModel);
       case 'partnerships':
-        return Boolean(businessContext.keyPartnerships || businessContext.outsourcedOperations);
+        return Boolean(extendedContext.keyPartnerships || extendedContext.outsourcedOperations);
       case 'costs':
-        return Boolean(businessContext.costStructure || businessContext.topMonthlyExpenses);
+        return Boolean(extendedContext.costStructure || businessContext.topMonthlyExpenses);
       default:
         return false;
     }
@@ -62,6 +66,9 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
       <Button onClick={onEditContext}>Add Information</Button>
     </div>
   );
+
+  // Cast businessContext to ExtendedBusinessContextFormValues to access extended properties
+  const extendedContext = businessContext as ExtendedBusinessContextFormValues;
 
   return (
     <Card>
@@ -122,36 +129,36 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
               
               {hasInfoForSection('customers') ? (
                 <div className="space-y-4">
-                  {businessContext?.customerSegments && (
+                  {extendedContext.customerSegments && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Primary Customers</h4>
-                      <p>{businessContext.customerSegments}</p>
+                      <p>{extendedContext.customerSegments}</p>
                     </div>
                   )}
                   
-                  {businessContext?.targetAudience && (
+                  {extendedContext.targetAudience && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Target Audience</h4>
                       <Badge className="mr-2 mt-1">
-                        {businessContext.targetAudience === 'b2b' ? 'Business (B2B)' : 
-                         businessContext.targetAudience === 'b2c' ? 'Consumer (B2C)' : 
-                         businessContext.targetAudience === 'both' ? 'Both B2B & B2C' : 'Not specified'}
+                        {extendedContext.targetAudience === 'b2b' ? 'Business (B2B)' : 
+                         extendedContext.targetAudience === 'b2c' ? 'Consumer (B2C)' : 
+                         extendedContext.targetAudience === 'both' ? 'Both B2B & B2C' : 'Not specified'}
                       </Badge>
                     </div>
                   )}
                   
-                  {businessContext?.customerLocation && (
+                  {extendedContext.customerLocation && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Customer Location</h4>
                       <Badge className="mr-2 mt-1">
-                        {businessContext.customerLocation === 'local' ? 'Local' : 
-                         businessContext.customerLocation === 'regional' ? 'Regional' : 
-                         businessContext.customerLocation === 'global' ? 'Global' : 'Not specified'}
+                        {extendedContext.customerLocation === 'local' ? 'Local' : 
+                         extendedContext.customerLocation === 'regional' ? 'Regional' : 
+                         extendedContext.customerLocation === 'global' ? 'Global' : 'Not specified'}
                       </Badge>
                     </div>
                   )}
                   
-                  {businessContext?.businessDescription && (
+                  {businessContext.businessDescription && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Business Description</h4>
                       <p className="italic">{businessContext.businessDescription}</p>
@@ -172,21 +179,21 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
               
               {hasInfoForSection('value') ? (
                 <div className="space-y-4">
-                  {businessContext?.valueProposition && (
+                  {extendedContext.valueProposition && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Problem Solved</h4>
-                      <p>{businessContext.valueProposition}</p>
+                      <p>{extendedContext.valueProposition}</p>
                     </div>
                   )}
                   
-                  {businessContext?.uniqueValue && (
+                  {extendedContext.uniqueValue && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Unique Value</h4>
-                      <p>{businessContext.uniqueValue}</p>
+                      <p>{extendedContext.uniqueValue}</p>
                     </div>
                   )}
                   
-                  {businessContext?.businessDescription && (
+                  {businessContext.businessDescription && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Products/Services</h4>
                       <p className="italic">{businessContext.businessDescription}</p>
@@ -207,21 +214,21 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
               
               {hasInfoForSection('channels') ? (
                 <div className="space-y-4">
-                  {businessContext?.marketingChannels && (
+                  {extendedContext.marketingChannels && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Marketing Channels</h4>
-                      <p>{businessContext.marketingChannels}</p>
+                      <p>{extendedContext.marketingChannels}</p>
                     </div>
                   )}
                   
-                  {businessContext?.salesChannels && (
+                  {extendedContext.salesChannels && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Sales Channels</h4>
-                      <p>{businessContext.salesChannels}</p>
+                      <p>{extendedContext.salesChannels}</p>
                     </div>
                   )}
                   
-                  {businessContext?.businessModel && (
+                  {businessContext.businessModel && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Business Model</h4>
                       <p>{businessContext.businessModel}</p>
@@ -242,31 +249,31 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
               
               {hasInfoForSection('relationships') ? (
                 <div className="space-y-4">
-                  {businessContext?.customerRelationship && (
+                  {extendedContext.customerRelationship && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Customer Interaction</h4>
-                      <p>{businessContext.customerRelationship}</p>
+                      <p>{extendedContext.customerRelationship}</p>
                     </div>
                   )}
                   
-                  {businessContext?.supportType && (
+                  {extendedContext.supportType && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Support Type</h4>
                       <Badge className="mr-2 mt-1">
-                        {businessContext.supportType === 'personalized' ? 'Personalized' : 
-                         businessContext.supportType === 'self-service' ? 'Self-service' : 
-                         businessContext.supportType === 'community' ? 'Community-based' : 'Not specified'}
+                        {extendedContext.supportType === 'personalized' ? 'Personalized' : 
+                         extendedContext.supportType === 'self-service' ? 'Self-service' : 
+                         extendedContext.supportType === 'community' ? 'Community-based' : 'Not specified'}
                       </Badge>
                     </div>
                   )}
                   
-                  {businessContext?.salesType && (
+                  {extendedContext.salesType && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Sales Type</h4>
                       <Badge className="mr-2 mt-1">
-                        {businessContext.salesType === 'one-time' ? 'One-time purchases' : 
-                         businessContext.salesType === 'recurring' ? 'Recurring subscription' : 
-                         businessContext.salesType === 'both' ? 'Both one-time and recurring' : 'Not specified'}
+                        {extendedContext.salesType === 'one-time' ? 'One-time purchases' : 
+                         extendedContext.salesType === 'recurring' ? 'Recurring subscription' : 
+                         extendedContext.salesType === 'both' ? 'Both one-time and recurring' : 'Not specified'}
                       </Badge>
                     </div>
                   )}
@@ -285,21 +292,21 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
               
               {hasInfoForSection('revenue') ? (
                 <div className="space-y-4">
-                  {businessContext?.revenueChannels && (
+                  {businessContext.revenueChannels && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Revenue Channels</h4>
                       <p>{businessContext.revenueChannels}</p>
                     </div>
                   )}
                   
-                  {businessContext?.receivesPaymentsInAccount !== undefined && (
+                  {businessContext.receivesPaymentsInAccount !== undefined && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Receives Payments In Account</h4>
                       <p>{businessContext.receivesPaymentsInAccount ? "Yes" : "No"}</p>
                     </div>
                   )}
                   
-                  {businessContext?.incomeTypes && businessContext.incomeTypes.length > 0 && (
+                  {businessContext.incomeTypes && businessContext.incomeTypes.length > 0 && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Income Types</h4>
                       <div className="flex flex-wrap gap-2 mt-1">
@@ -330,14 +337,14 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
               
               {hasInfoForSection('resources') ? (
                 <div className="space-y-4">
-                  {businessContext?.keyResources && (
+                  {extendedContext.keyResources && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Essential Resources</h4>
-                      <p>{businessContext.keyResources}</p>
+                      <p>{extendedContext.keyResources}</p>
                     </div>
                   )}
                   
-                  {businessContext?.workspaceType && (
+                  {businessContext.workspaceType && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Workspace</h4>
                       <Badge className="mr-2 mt-1">
@@ -348,10 +355,10 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
                     </div>
                   )}
                   
-                  {businessContext?.techPlatforms && (
+                  {extendedContext.techPlatforms && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Technology Platforms</h4>
-                      <p>{businessContext.techPlatforms}</p>
+                      <p>{extendedContext.techPlatforms}</p>
                     </div>
                   )}
                 </div>
@@ -369,14 +376,14 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
               
               {hasInfoForSection('activities') ? (
                 <div className="space-y-4">
-                  {businessContext?.keyActivities && (
+                  {extendedContext.keyActivities && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Main Activities</h4>
-                      <p>{businessContext.keyActivities}</p>
+                      <p>{extendedContext.keyActivities}</p>
                     </div>
                   )}
                   
-                  {businessContext?.businessModel && (
+                  {businessContext.businessModel && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Business Model</h4>
                       <p>{businessContext.businessModel}</p>
@@ -397,14 +404,14 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
               
               {hasInfoForSection('partnerships') ? (
                 <div className="space-y-4">
-                  {businessContext?.keyPartnerships && (
+                  {extendedContext.keyPartnerships && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Partners</h4>
-                      <p>{businessContext.keyPartnerships}</p>
+                      <p>{extendedContext.keyPartnerships}</p>
                     </div>
                   )}
                   
-                  {businessContext?.hasEmployees && (
+                  {businessContext.hasEmployees && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Team</h4>
                       <Badge className="mr-2 mt-1">
@@ -415,10 +422,10 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
                     </div>
                   )}
                   
-                  {businessContext?.outsourcedOperations && (
+                  {extendedContext.outsourcedOperations && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Outsourced Operations</h4>
-                      <p>{businessContext.outsourcedOperations}</p>
+                      <p>{extendedContext.outsourcedOperations}</p>
                     </div>
                   )}
                 </div>
@@ -436,21 +443,21 @@ const BusinessInsightTabs: React.FC<BusinessInsightTabsProps> = ({
               
               {hasInfoForSection('costs') ? (
                 <div className="space-y-4">
-                  {businessContext?.costStructure && (
+                  {extendedContext.costStructure && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Cost Structure</h4>
-                      <p>{businessContext.costStructure}</p>
+                      <p>{extendedContext.costStructure}</p>
                     </div>
                   )}
                   
-                  {businessContext?.costsOfSales && (
+                  {businessContext.costsOfSales && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Costs of Sales</h4>
                       <p>{businessContext.costsOfSales}</p>
                     </div>
                   )}
                   
-                  {businessContext?.topMonthlyExpenses && (
+                  {businessContext.topMonthlyExpenses && (
                     <div>
                       <h4 className="text-sm font-medium text-muted-foreground">Top Expenses</h4>
                       <p>{businessContext.topMonthlyExpenses}</p>
