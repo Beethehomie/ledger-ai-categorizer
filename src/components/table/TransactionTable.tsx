@@ -63,6 +63,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     tableColumns,
     toggleColumn
   } = useSettings();
+  
+  // Add the session from useAuth hook
+  const { session } = useAuth();
 
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [isReconcileDialogOpen, setIsReconcileDialogOpen] = useState(false);
@@ -196,7 +199,11 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           
         if (!error && data?.business_context) {
           businessContext = data.business_context;
-          country = data.business_context.country || "ZA";
+          // Fix the type issue by safely accessing the country property
+          if (typeof data.business_context === 'object' && data.business_context !== null) {
+            const typedContext = data.business_context as Record<string, any>;
+            country = typedContext.country || "ZA";
+          }
         }
       }
       
