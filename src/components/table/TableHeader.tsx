@@ -1,54 +1,49 @@
 
 import React from 'react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { 
-  RefreshCw, 
-  FileDown, 
-  FileUp, 
-  CheckCircle, 
-  MoreVertical, 
-  PlusCircle,
-  CheckSquare 
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuCheckboxItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CheckCircle2, RefreshCw, Upload, Download, PlusCircle, Settings, FileUp } from "lucide-react";
+import { cn } from '@/lib/utils';
 
 interface TableHeaderProps {
-  filter: string;
+  filter?: string;
   vendorName?: string;
-  isAccountReconciled?: boolean;
   onRefresh?: () => void;
   onExport?: () => void;
   onUpload?: () => void;
   onReconcile?: () => void;
   onAddVendor?: () => void;
-  onToggleColumn?: (column: string) => void;
-  onBusinessContext?: () => void;
+  isAccountReconciled?: boolean;
+  onToggleColumn?: (id: string) => void;
   columns?: { id: string; label: string; visible: boolean }[];
+  reconciliationStatus?: React.ReactNode;
 }
 
 const TableHeaderComponent: React.FC<TableHeaderProps> = ({
   filter,
   vendorName,
-  isAccountReconciled,
   onRefresh,
   onExport,
   onUpload,
   onReconcile,
   onAddVendor,
+  isAccountReconciled,
   onToggleColumn,
-  onBusinessContext,
-  columns
+  columns = [],
+  reconciliationStatus
 }) => {
-  const getTitle = () => {
-    switch (filter) {
+  const headerTitle = () => {
+    switch(filter) {
+      case 'all':
+        return 'All Transactions';
       case 'unverified':
         return 'Unverified Transactions';
       case 'profit_loss':
@@ -56,154 +51,134 @@ const TableHeaderComponent: React.FC<TableHeaderProps> = ({
       case 'balance_sheet':
         return 'Balance Sheet Transactions';
       case 'by_vendor':
-        return vendorName ? `Vendor: ${vendorName}` : 'Transactions by Vendor';
+        return vendorName ? `Transactions for ${vendorName}` : 'Transactions by Vendor';
       case 'review':
-        return 'Transactions for Review';
+        return 'Transactions Needing Review';
       default:
-        return 'All Transactions';
+        return 'Transactions';
     }
   };
-  
+
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-      <div>
-        <h3 className="font-semibold text-lg leading-none tracking-tight">
-          {getTitle()}
-          {isAccountReconciled && (
-            <span className="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-              <CheckCircle className="h-3.5 w-3.5 text-green-500 mr-1" />
-              Reconciled
-            </span>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-medium">{headerTitle()}</h3>
+          
+          {reconciliationStatus && (
+            <div className="ml-2">
+              {reconciliationStatus}
+            </div>
           )}
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Manage your financial transactions
-        </p>
-      </div>
-      
-      <div className="flex items-center gap-2">
-        {onExport && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onExport}
-            className="hidden md:flex"
-          >
-            <FileDown className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-        )}
+        </div>
         
-        {onUpload && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onUpload}
-            className="hidden md:flex"
-          >
-            <FileUp className="h-4 w-4 mr-2" />
-            Upload
-          </Button>
-        )}
-        
-        {onAddVendor && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onAddVendor}
-            className="hidden md:flex"
-          >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Add Vendor
-          </Button>
-        )}
-        
-        {onBusinessContext && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onBusinessContext}
-            className="hidden md:flex"
-          >
-            <CheckSquare className="h-4 w-4 mr-2" />
-            Business Context
-          </Button>
-        )}
-        
-        {onReconcile && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onReconcile}
-            className="hidden md:flex"
-            disabled={isAccountReconciled}
-          >
-            <CheckCircle className={cn("h-4 w-4 mr-2", isAccountReconciled && "text-green-500")} />
-            Reconcile
-          </Button>
-        )}
-        
-        {onRefresh && (
-          <Button 
-            variant="outline" 
-            size="icon"
-            onClick={onRefresh}
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        )}
-        
-        {(columns && onToggleColumn) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Columns</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {columns.map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  checked={column.visible}
-                  onCheckedChange={() => onToggleColumn(column.id)}
+        <div className="flex items-center space-x-2">
+          {onRefresh && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={onRefresh}
+                  className="hover-scale"
                 >
-                  {column.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-              
-              <DropdownMenuSeparator />
-              
-              {/* Mobile-only options */}
-              <div className="md:hidden">
-                {onExport && (
-                  <DropdownMenuCheckboxItem onClick={onExport}>
-                    <FileDown className="h-4 w-4 mr-2" /> Export
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh</TooltipContent>
+            </Tooltip>
+          )}
+          
+          {onExport && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={onExport}
+                  className="hover-scale"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export CSV</TooltipContent>
+            </Tooltip>
+          )}
+          
+          {onUpload && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={onUpload}
+                  className="hover-scale"
+                >
+                  <FileUp className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Upload CSV</TooltipContent>
+            </Tooltip>
+          )}
+          
+          {onAddVendor && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={onAddVendor}
+                  className="hover-scale"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Add Vendor</TooltipContent>
+            </Tooltip>
+          )}
+          
+          {onReconcile && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={onReconcile}
+                  className={cn(
+                    "hover-scale",
+                    isAccountReconciled && "border-green-300 text-green-600"
+                  )}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Reconcile Account</TooltipContent>
+            </Tooltip>
+          )}
+          
+          {onToggleColumn && columns.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {columns.map((column) => (
+                  <DropdownMenuCheckboxItem
+                    key={column.id}
+                    checked={column.visible}
+                    onCheckedChange={() => onToggleColumn(column.id)}
+                  >
+                    {column.label}
                   </DropdownMenuCheckboxItem>
-                )}
-                
-                {onUpload && (
-                  <DropdownMenuCheckboxItem onClick={onUpload}>
-                    <FileUp className="h-4 w-4 mr-2" /> Upload
-                  </DropdownMenuCheckboxItem>
-                )}
-                
-                {onBusinessContext && (
-                  <DropdownMenuCheckboxItem onClick={onBusinessContext}>
-                    <CheckSquare className="h-4 w-4 mr-2" /> Business Context
-                  </DropdownMenuCheckboxItem>
-                )}
-                
-                {onReconcile && (
-                  <DropdownMenuCheckboxItem onClick={onReconcile} disabled={isAccountReconciled}>
-                    <CheckCircle className="h-4 w-4 mr-2" /> Reconcile
-                  </DropdownMenuCheckboxItem>
-                )}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
     </div>
   );

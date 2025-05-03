@@ -11,7 +11,7 @@ import { toast } from '@/utils/toast';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BankConnectionRow } from '@/types/supabase';
 import { Transaction } from '@/types';
-import { parseCSV, validateCSVStructure, findDuplicateTransactions } from '@/utils/csvParser';
+import { parseCSV, validateCSVStructure, findDuplicateTransactions, isBalanceReconciled } from '@/utils/csvParser';
 import TransactionReviewDialog from './TransactionReviewDialog';
 import { format } from 'date-fns';
 
@@ -42,6 +42,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   const [parsedTransactions, setParsedTransactions] = useState<Transaction[]>([]);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [uploadInProgress, setUploadInProgress] = useState(false);
+  const [showInitialBalancePrompt, setShowInitialBalancePrompt] = useState(false);
 
   // Get CSV-type bank connections
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
@@ -64,6 +65,14 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       }
     }
   }, [csvContent]);
+
+  // Check if we need to show initial balance prompt when bank account changes
+  useEffect(() => {
+    if (selectedBankId) {
+      const existingForSelectedBank = transactions.filter(t => t.bankAccountId === selectedBankId);
+      setShowInitialBalancePrompt(existingForSelectedBank.length === 0);
+    }
+  }, [selectedBankId, transactions]);
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -199,7 +208,14 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       ]);
     }
     
-    setParsedTransactions(transactionsWithBankId);
+    // Sort transactions by date
+    const sortedTransactions = [...transactionsWithBankId].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateA - dateB;
+    });
+    
+    setParsedTransactions(sortedTransactions);
     setIsReviewDialogOpen(true);
   };
 
@@ -230,6 +246,16 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       onClose();
       
       toast.success(`Successfully uploaded ${editedTransactions.length} transactions`);
+      
+      // Check reconciliation if end balance is provided
+      if (endBalanceValue !== undefined) {
+        const isReconciled = isBalanceReconciled(editedTransactions, endBalanceValue);
+        if (isReconciled) {
+          toast.success('🎉 Account successfully reconciled!');
+        } else {
+          toast.warning('⚠️ Account reconciliation failed. Please check your transactions.');
+        }
+      }
     } catch (error) {
       console.error('Error uploading transactions:', error);
       toast.error('Failed to upload transactions');
@@ -427,42 +453,46 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
                   )}
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="balance-date">Balance Date</Label>
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="balance-date"
-                      type="date"
-                      value={balanceDate}
-                      onChange={(e) => setBalanceDate(e.target.value)}
-                      className="w-full"
-                    />
+                {showInitialBalancePrompt && (
+                  <div className="space-y-2">
+                    <Label htmlFor="balance-date">Balance Date</Label>
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="balance-date"
+                        type="date"
+                        value={balanceDate}
+                        onChange={(e) => setBalanceDate(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      <Info className="inline h-3 w-3 mr-1" />
+                      Date associated with the initial balance
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    <Info className="inline h-3 w-3 mr-1" />
-                    Date associated with the initial balance
-                  </p>
-                </div>
+                )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="initial-balance">Initial Balance</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      id="initial-balance"
-                      type="number"
-                      step="0.01"
-                      value={initialBalance}
-                      onChange={(e) => setInitialBalance(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full"
-                    />
+                {showInitialBalancePrompt && (
+                  <div className="space-y-2">
+                    <Label htmlFor="initial-balance">Initial Balance</Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        id="initial-balance"
+                        type="number"
+                        step="0.01"
+                        value={initialBalance}
+                        onChange={(e) => setInitialBalance(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      <Info className="inline h-3 w-3 mr-1" />
+                      Starting balance for calculating running balances
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    <Info className="inline h-3 w-3 mr-1" />
-                    Starting balance for calculating running balances
-                  </p>
-                </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="end-balance">Ending Balance (Optional)</Label>
