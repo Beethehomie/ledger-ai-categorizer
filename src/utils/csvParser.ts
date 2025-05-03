@@ -1,368 +1,301 @@
 
-import { Transaction, Category } from "../types";
-import { mockCategories } from "../data/mockData";
-import { extractVendorName } from "./vendorExtractor";
+import { Transaction } from '@/types';
+import Papa from 'papaparse';
+import { format } from 'date-fns';
 
+// Interface for CSV parsing result
 export interface CSVParseResult {
   transactions: Transaction[];
   warnings: string[];
-  headers: string[];
-  mappedFields: Record<string, string>;
 }
 
-export const validateCSVStructure = (csvString: string): { 
-  isValid: boolean; 
+// Function to validate CSV structure
+export const validateCSVStructure = (csvContent: string): {
+  isValid: boolean;
   headers: string[];
   errorMessage?: string;
 } => {
-  if (!csvString || typeof csvString !== 'string') {
-    return { isValid: false, headers: [], errorMessage: 'Invalid CSV content' };
-  }
-
-  const lines = csvString.split('\n');
-  if (lines.length < 2) {
-    return { isValid: false, headers: [], errorMessage: 'CSV file must have at least a header row and one data row' };
-  }
-
-  const headers = lines[0].split(',').map(h => h.trim());
-  
-  // Check for required headers (case insensitive)
-  const requiredFields = ['date', 'description', 'amount'];
-  const lowerCaseHeaders = headers.map(h => h.toLowerCase());
-  
-  const missingFields = requiredFields.filter(field => 
-    !lowerCaseHeaders.some(header => header.includes(field))
-  );
-
-  if (missingFields.length > 0) {
-    return { 
-      isValid: false, 
-      headers,
-      errorMessage: `Required fields missing: ${missingFields.join(', ')}. Please ensure your CSV has Date, Description, and Amount columns.` 
+  try {
+    // Check if csvContent is a string and not empty
+    if (!csvContent || typeof csvContent !== 'string') {
+      return {
+        isValid: false,
+        headers: [],
+        errorMessage: 'CSV content is empty or invalid'
+      };
+    }
+    
+    // Parse the first row to get headers
+    const firstLine = csvContent.split('\n')[0];
+    if (!firstLine) {
+      return {
+        isValid: false,
+        headers: [],
+        errorMessage: 'CSV file appears to be empty'
+      };
+    }
+    
+    const headers = firstLine.split(',').map(h => h.trim().toLowerCase());
+    
+    // Check for required columns
+    const hasDateColumn = headers.some(h => h.includes('date'));
+    const hasDescriptionColumn = headers.some(h => 
+      h.includes('desc') || h.includes('narration') || h.includes('memo') || h.includes('note')
+    );
+    const hasAmountColumn = headers.some(h => 
+      h.includes('amount') || h.includes('sum') || h.includes('value')
+    );
+    
+    if (!hasDateColumn || !hasDescriptionColumn || !hasAmountColumn) {
+      const missing = [];
+      if (!hasDateColumn) missing.push('date');
+      if (!hasDescriptionColumn) missing.push('description');
+      if (!hasAmountColumn) missing.push('amount');
+      
+      return {
+        isValid: false,
+        headers,
+        errorMessage: `CSV file is missing required columns: ${missing.join(', ')}`
+      };
+    }
+    
+    return {
+      isValid: true,
+      headers
+    };
+  } catch (err) {
+    console.error('Error validating CSV structure:', err);
+    return {
+      isValid: false,
+      headers: [],
+      errorMessage: 'Error validating CSV structure'
     };
   }
-
-  return { isValid: true, headers };
 };
 
-export const mapCSVHeaders = (headers: string[]): Record<string, string> => {
-  const lowerCaseHeaders = headers.map(h => h.toLowerCase());
-  const fieldMapping: Record<string, string> = {};
-  
-  // Map headers to standard fields
-  headers.forEach((header, index) => {
-    const lowerHeader = lowerCaseHeaders[index];
-    
-    if (lowerHeader.includes('date')) {
-      fieldMapping['date'] = header;
-    } else if (lowerHeader.includes('desc')) {
-      fieldMapping['description'] = header;
-    } else if (lowerHeader.includes('amount') || lowerHeader.includes('sum') || lowerHeader.includes('value')) {
-      fieldMapping['amount'] = header;
-    } else if (lowerHeader.includes('balance')) {
-      fieldMapping['balance'] = header;
-    } else if (lowerHeader.includes('category') || lowerHeader.includes('type')) {
-      fieldMapping['category'] = header;
-    }
-  });
-  
-  return fieldMapping;
-};
-
-export const parseCSV = (csvString: string): CSVParseResult => {
+// Parse CSV function
+export const parseCSV = (csvContent: string): CSVParseResult => {
   const result: CSVParseResult = {
     transactions: [],
-    warnings: [],
-    headers: [],
-    mappedFields: {}
+    warnings: []
   };
   
-  // Validate CSV structure
-  const validation = validateCSVStructure(csvString);
-  if (!validation.isValid) {
-    result.warnings.push(validation.errorMessage || 'Invalid CSV format');
-    return result;
-  }
-  
-  // Get headers and map them
-  result.headers = validation.headers;
-  result.mappedFields = mapCSVHeaders(validation.headers);
-  
-  // Skip the header line and split by newlines
-  const rows = csvString.split('\n').slice(1).filter(row => row.trim() !== '');
-  
-  // Find indexes for required fields
-  const headerIndexes = result.headers.reduce<Record<string, number>>((acc, header, index) => {
-    Object.entries(result.mappedFields).forEach(([field, mappedHeader]) => {
-      if (mappedHeader === header) {
-        acc[field] = index;
-      }
-    });
-    return acc;
-  }, {});
-  
-  if (!('date' in headerIndexes) || !('description' in headerIndexes) || !('amount' in headerIndexes)) {
-    result.warnings.push('Could not identify all required fields (date, description, amount)');
-    return result;
-  }
-  
-  result.transactions = rows.map((row, index) => {
-    // Handle values that might contain commas by looking for quoted values
-    const values: string[] = [];
-    let inQuotes = false;
-    let currentValue = '';
+  try {
+    const parsedCsv = Papa.parse(csvContent, { header: true, skipEmptyLines: true });
     
-    for (let i = 0; i < row.length; i++) {
-      const char = row[i];
-      
-      if (char === '"' && (i === 0 || row[i-1] !== '\\')) {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        values.push(currentValue);
-        currentValue = '';
-      } else {
-        currentValue += char;
-      }
+    if (parsedCsv.errors && parsedCsv.errors.length > 0) {
+      parsedCsv.errors.forEach(err => {
+        result.warnings.push(`CSV Parse Error: ${err.message} at row ${err.row}`);
+      });
     }
-    values.push(currentValue); // Add the last value
     
-    // Clean up quotes from values
-    const cleanValues = values.map(val => {
-      if (val.startsWith('"') && val.endsWith('"')) {
-        return val.slice(1, -1).replace(/""/g, '"');
+    if (!parsedCsv.data || !Array.isArray(parsedCsv.data)) {
+      result.warnings.push('CSV parsing resulted in no valid data');
+      return result;
+    }
+    
+    // Detect column names from the headers
+    const headers = parsedCsv.meta.fields || [];
+    const lowercaseHeaders = headers.map(h => h.toLowerCase());
+    
+    // Determine which columns to use
+    const dateColumnIndex = lowercaseHeaders.findIndex(h => h.includes('date'));
+    const descColumnIndex = lowercaseHeaders.findIndex(h => 
+      h.includes('desc') || h.includes('narration') || h.includes('memo') || h.includes('note')
+    );
+    const amountColumnIndex = lowercaseHeaders.findIndex(h => 
+      h.includes('amount') || h.includes('sum') || h.includes('value')
+    );
+    
+    if (dateColumnIndex === -1 || descColumnIndex === -1 || amountColumnIndex === -1) {
+      result.warnings.push('Could not detect one or more required columns');
+      return result;
+    }
+    
+    const dateColumnName = headers[dateColumnIndex];
+    const descColumnName = headers[descColumnIndex];
+    const amountColumnName = headers[amountColumnIndex];
+    
+    // Process each row
+    parsedCsv.data.forEach((row: any, index: number) => {
+      if (!row || typeof row !== 'object') {
+        result.warnings.push(`Skipped row ${index + 1}: Invalid row format`);
+        return;
       }
-      return val.trim();
-    });
-    
-    // Extract values using mapped indexes
-    const date = cleanValues[headerIndexes.date] || '';
-    const description = cleanValues[headerIndexes.description] || '';
-    let amount = 0;
-    let balance = undefined;
-    
-    // Parse amount, handling various formats
-    try {
-      const amountStr = cleanValues[headerIndexes.amount] || '0';
-      // Remove currency symbols, handle parentheses for negative values
-      const cleanAmount = amountStr
-        .replace(/[$£€]/g, '')
-        .replace(/,/g, '')
-        .replace(/\(([^)]+)\)/, '-$1')
-        .trim();
       
-      amount = parseFloat(cleanAmount);
+      const dateValue = row[dateColumnName];
+      const descValue = row[descColumnName];
+      let amountValue = row[amountColumnName];
       
-      // If amount is NaN, add a warning
-      if (isNaN(amount)) {
-        result.warnings.push(`Could not parse amount "${amountStr}" on row ${index + 2}`);
+      // Skip rows with missing essential data
+      if (!dateValue || !descValue || amountValue === undefined) {
+        result.warnings.push(`Skipped row ${index + 1}: Missing required data`);
+        return;
+      }
+      
+      // Parse date
+      let formattedDate: string;
+      try {
+        const dateObj = new Date(dateValue);
+        formattedDate = format(dateObj, 'yyyy-MM-dd');
+      } catch (err) {
+        result.warnings.push(`Warning for row ${index + 1}: Invalid date format, using current date`);
+        formattedDate = format(new Date(), 'yyyy-MM-dd');
+      }
+      
+      // Parse amount
+      let amount: number;
+      try {
+        // Remove currency symbols and commas
+        const cleanAmount = String(amountValue)
+          .replace(/[^-0-9.,]/g, '')
+          .replace(/,/g, '.');
+          
+        // Find the last period (as decimal separator)
+        const lastPeriodIndex = cleanAmount.lastIndexOf('.');
+        
+        if (lastPeriodIndex !== -1) {
+          // Handle case with decimal separator
+          const integerPart = cleanAmount.substring(0, lastPeriodIndex).replace(/\./g, '');
+          const decimalPart = cleanAmount.substring(lastPeriodIndex + 1);
+          amount = parseFloat(`${integerPart}.${decimalPart}`);
+        } else {
+          // No decimal separator
+          amount = parseFloat(cleanAmount);
+        }
+        
+        if (isNaN(amount)) {
+          throw new Error('Invalid amount');
+        }
+      } catch (err) {
+        result.warnings.push(`Warning for row ${index + 1}: Invalid amount format, using 0`);
         amount = 0;
       }
-    } catch (e) {
-      result.warnings.push(`Error parsing amount on row ${index + 2}`);
-      amount = 0;
-    }
-    
-    // Parse balance if available
-    if ('balance' in headerIndexes) {
-      try {
-        const balanceStr = cleanValues[headerIndexes.balance] || '';
-        const cleanBalance = balanceStr
-          .replace(/[$£€]/g, '')
-          .replace(/,/g, '')
-          .replace(/\(([^)]+)\)/, '-$1')
-          .trim();
-        
-        balance = parseFloat(cleanBalance);
-        if (isNaN(balance)) {
-          balance = undefined;
-        }
-      } catch (e) {
-        // Ignore balance parsing errors
-      }
-    }
-    
-    // Generate a unique ID
-    const id = `temp-${Date.now()}-${index}`;
-    
-    // Extract vendor name from description, ensuring we always get a value
-    const vendorName = extractVendorName(description);
-    
-    // Create transaction object
-    const transaction: Transaction = {
-      id,
-      date,
-      description,
-      amount,
-      isVerified: false,
-      vendor: vendorName
-    };
-    
-    // Add balance if available
-    if (balance !== undefined) {
-      transaction.balance = balance;
-    }
-    
-    // Try auto-categorization
-    const categorization = categorizeByCriteria(transaction);
-    if (categorization) {
-      transaction.category = categorization.categoryName;
-      transaction.type = categorization.type;
-      transaction.statementType = categorization.statementType;
-      transaction.aiSuggestion = categorization.categoryName;
-    }
-    
-    return transaction;
-  });
-  
-  return result;
-};
-
-// Simulate AI-driven categorization using keyword matching
-// In a real app, this would call an actual AI service
-export const categorizeByCriteria = (transaction: Transaction): {
-  categoryName: string;
-  type: Transaction['type'];
-  statementType: Transaction['statementType'];
-} | null => {
-  const description = transaction.description.toLowerCase();
-  const vendor = transaction.vendor?.toLowerCase() || '';
-  
-  // Check each category for matching keywords
-  for (const category of mockCategories) {
-    for (const keyword of category.keywords) {
-      if (description.includes(keyword.toLowerCase()) || vendor.includes(keyword.toLowerCase())) {
-        return {
-          categoryName: category.name,
-          type: category.type,
-          statementType: category.statementType,
-        };
-      }
-    }
-  }
-  
-  // No clear match found
-  return null;
-};
-
-// Simulate AI analysis for transactions that couldn't be automatically categorized
-export const analyzeTransactionWithAI = (transaction: Transaction): {
-  aiSuggestion: string;
-  confidence: number;
-} => {
-  // In a real app, this would call an AI service like OpenAI or a custom model
-  // For now, we're implementing a basic "smart" logic for demonstration
-  
-  const description = transaction.description.toLowerCase();
-  const vendor = transaction.vendor?.toLowerCase() || '';
-  let bestMatch = { categoryName: "", matchScore: 0 };
-  
-  // Check for partial keyword matches
-  for (const category of mockCategories) {
-    for (const keyword of category.keywords) {
-      // Calculate simple string similarity (very basic for demo)
-      const keywordParts = keyword.toLowerCase().split(' ');
-      let matchScore = 0;
       
-      for (const part of keywordParts) {
-        if (description.includes(part) || vendor.includes(part)) {
-          matchScore += 1;
-        }
-      }
+      // Create transaction object
+      const transaction: Transaction = {
+        id: `temp_${Date.now()}_${index}`, // Temporary ID until saved to DB
+        date: formattedDate,
+        description: String(descValue),
+        amount: amount,
+        isVerified: false,
+        vendorVerified: false,
+        // These properties will be added later in the processing
+        // vendor, type, statementType, confidenceScore, etc.
+      };
       
-      if (matchScore > bestMatch.matchScore) {
-        bestMatch = { categoryName: category.name, matchScore };
-      }
-    }
-  }
-  
-  // If no matches found, make an educated guess based on amount
-  if (bestMatch.matchScore === 0) {
-    if (transaction.amount > 0) {
-      return { aiSuggestion: "Sales Revenue", confidence: 0.4 };
-    } else {
-      return { aiSuggestion: "Office Supplies", confidence: 0.3 };
-    }
-  }
-  
-  // Calculate confidence based on match quality
-  const confidence = Math.min(0.5 + (bestMatch.matchScore * 0.1), 0.9);
-  
-  return {
-    aiSuggestion: bestMatch.categoryName,
-    confidence,
-  };
-};
-
-export const exportToCSV = (transactions: Transaction[]): string => {
-  const headers = "Date,Description,Amount,Category,Type,Statement Type,Vendor,Balance,Verified\n";
-  
-  const rows = transactions.map(t => {
-    return `${t.date},"${t.description}",${t.amount},${t.category || ''},${t.type || ''},${t.statementType || ''},${t.vendor || ''},${t.balance || ''},${t.isVerified}`;
-  }).join('\n');
-  
-  return headers + rows;
-};
-
-export const calculateRunningBalance = (
-  transactions: Transaction[],
-  initialBalance: number,
-  balanceDate?: Date
-): Transaction[] => {
-  // Clone the transactions to avoid mutating the original array
-  const sortedTransactions = [...transactions].sort((a, b) => {
-    const dateA = new Date(a.date).getTime();
-    const dateB = new Date(b.date).getTime();
-    return dateA - dateB; // Sort by date ascending
-  });
-
-  let runningBalance = initialBalance;
-  
-  return sortedTransactions.map(transaction => {
-    // Update the running balance with this transaction
-    runningBalance += transaction.amount;
+      result.transactions.push(transaction);
+    });
     
-    // Create a new transaction object with the balance
-    return {
-      ...transaction,
-      balance: Number(runningBalance.toFixed(2)) // Round to 2 decimal places and convert back to number
-    };
-  });
+    // Add warning if no transactions were parsed
+    if (result.transactions.length === 0) {
+      result.warnings.push('No valid transactions could be parsed from the CSV');
+    }
+    
+    return result;
+  } catch (err) {
+    console.error('Error parsing CSV:', err);
+    result.warnings.push(`Error parsing CSV: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    return result;
+  }
 };
 
-export const isBalanceReconciled = (
-  transactions: Transaction[],
-  expectedEndBalance?: number
-): boolean => {
-  if (!expectedEndBalance || transactions.length === 0) return false;
-  
-  // Get the last transaction's balance
-  const lastTransaction = transactions[transactions.length - 1];
-  const lastBalance = lastTransaction.balance;
-  
-  if (lastBalance === undefined) return false;
-  
-  // Compare with expected balance (allow small rounding differences)
-  return Math.abs(lastBalance - expectedEndBalance) < 0.02;
-};
-
-// Identify potential duplicate transactions between existing and new transactions
+// Function to find duplicate transactions between arrays
 export const findDuplicateTransactions = (
   existingTransactions: Transaction[],
   newTransactions: Transaction[]
 ): Transaction[] => {
-  const potentialDuplicates: Transaction[] = [];
+  const duplicates: Transaction[] = [];
   
-  for (const newTx of newTransactions) {
-    const isDuplicate = existingTransactions.some(existingTx => 
-      existingTx.date === newTx.date && 
-      Math.abs(existingTx.amount - newTx.amount) < 0.01 &&
-      existingTx.description === newTx.description
+  for (const newTransaction of newTransactions) {
+    const isDuplicate = existingTransactions.some(existingTransaction => 
+      existingTransaction.date === newTransaction.date &&
+      existingTransaction.description === newTransaction.description &&
+      Math.abs(existingTransaction.amount - newTransaction.amount) < 0.01 // Allow small rounding differences
     );
     
     if (isDuplicate) {
-      potentialDuplicates.push(newTx);
+      duplicates.push(newTransaction);
     }
   }
   
-  return potentialDuplicates;
+  return duplicates;
+};
+
+// Calculate running balance for a list of transactions
+export const calculateRunningBalance = (
+  transactions: Transaction[],
+  initialBalance: number,
+  balanceDate: Date
+): Transaction[] => {
+  // First sort transactions by date
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateA - dateB;
+  });
+  
+  let runningBalance = initialBalance;
+  
+  return sortedTransactions.map(transaction => {
+    // Adjust the balance based on transaction type and amount
+    if (transaction.type === 'income') {
+      runningBalance += Math.abs(transaction.amount);
+    } else if (transaction.type === 'expense') {
+      runningBalance -= Math.abs(transaction.amount);
+    } else if (transaction.type === 'asset') {
+      runningBalance -= Math.abs(transaction.amount);
+    } else if (transaction.type === 'liability') {
+      runningBalance += Math.abs(transaction.amount);
+    } else {
+      // Default behavior - use the sign of the amount
+      runningBalance += transaction.amount;
+    }
+    
+    return {
+      ...transaction,
+      balance: Number(runningBalance.toFixed(2))
+    };
+  });
+};
+
+// Check if the transactions reconcile with an expected ending balance
+export const isBalanceReconciled = (
+  transactions: Transaction[],
+  expectedEndingBalance: number
+): boolean => {
+  if (transactions.length === 0) return false;
+  
+  // Sort transactions by date
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateA - dateB;
+  });
+  
+  // Get the last transaction's balance
+  const lastTransaction = sortedTransactions[sortedTransactions.length - 1];
+  const lastBalance = lastTransaction.balance || 0;
+  
+  // Compare with expected balance (allow for small rounding differences)
+  return Math.abs(lastBalance - expectedEndingBalance) < 0.02;
+};
+
+// Export transactions to CSV
+export const exportToCSV = (transactions: Transaction[]): string => {
+  // Prepare data for CSV export
+  const data = transactions.map(t => ({
+    Date: t.date,
+    Description: t.description,
+    Amount: t.amount.toFixed(2),
+    Vendor: t.vendor || '',
+    Category: t.category || '',
+    Type: t.type || '',
+    'Statement Type': t.statementType || '',
+    Verified: t.isVerified ? 'Yes' : 'No',
+    'Vendor Verified': t.vendorVerified ? 'Yes' : 'No',
+    Balance: t.balance ? t.balance.toFixed(2) : ''
+  }));
+  
+  return Papa.unparse(data);
 };

@@ -45,6 +45,7 @@ export async function fetchVendors(): Promise<Vendor[]> {
 
 export async function fetchTransactionsFromDatabase(): Promise<Transaction[]> {
   try {
+    console.log('Fetching transactions from database');
     const { data, error } = await supabase
       .from('bank_transactions')
       .select('*')
@@ -56,6 +57,7 @@ export async function fetchTransactionsFromDatabase(): Promise<Transaction[]> {
     }
     
     if (data) {
+      console.log(`Fetched ${data.length} transactions from database`);
       const fetchedTransactions: Transaction[] = data.map((t) => ({
         id: t.id,
         date: t.date,

@@ -95,8 +95,12 @@ export const useTransactions = (
       
       setTransactions(prev => [...prev, ...savedTransactions]);
       toast.success(`Added ${savedTransactions.length} transactions`);
+      
+      return savedTransactions;
     } catch (err: any) {
       console.error('Error adding transactions:', err);
+      toast.error('Failed to add transactions');
+      throw err;
     }
   };
 
@@ -110,6 +114,8 @@ export const useTransactions = (
       const { error } = await supabase
         .from('bank_transactions')
         .update({
+          description: updatedTransaction.description,
+          amount: updatedTransaction.amount,
           category: updatedTransaction.category || null,
           type: updatedTransaction.type || null,
           statement_type: updatedTransaction.statementType || null,
@@ -131,9 +137,11 @@ export const useTransactions = (
         )
       );
       
+      return true;
     } catch (err: any) {
       console.error('Error updating transaction in Supabase:', err);
       toast.error('Failed to update transaction in database');
+      return false;
     }
   };
 
@@ -288,7 +296,7 @@ export const useTransactions = (
             toast.error('Failed to save transactions to database');
           }
         } else {
-          // No duplicates, proceed normally
+          // No duplicates, process all transactions
           const transactionsWithBalance = calculateRunningBalance(processedTransactions, initialBalance, balanceDate);
           
           try {
@@ -326,9 +334,10 @@ export const useTransactions = (
       };
       
       await processCSVTransactions();
-    } catch (error) {
-      console.error('Error uploading CSV:', error);
-      toast.error('Error processing CSV file');
+      
+    } catch (err: any) {
+      console.error('Error in uploadCSV:', err);
+      toast.error('Failed to process CSV file');
     } finally {
       setLoading(false);
     }
@@ -601,7 +610,7 @@ export const useTransactions = (
     aiAnalyzeLoading,
     addTransactions,
     updateTransaction,
-    analyzeTransactionWithAI,
+    analyzeTransactionWithAI: analyzeTransactionWithAI,
     uploadCSV,
     getFilteredTransactions,
     filterTransactionsByDate,
