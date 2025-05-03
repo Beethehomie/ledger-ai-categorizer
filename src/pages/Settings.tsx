@@ -64,11 +64,11 @@ const SettingsPage: React.FC = () => {
         
         if (data) {
           // Only set these values if data exists and properties are present
-          if (data.business_context) {
+          if ('business_context' in data && data.business_context) {
             setBusinessContext(data.business_context as BusinessContextFormValues);
           }
           
-          if (data.business_insight) {
+          if ('business_insight' in data && data.business_insight) {
             setBusinessInsight(data.business_insight as any);
           }
         }
@@ -102,11 +102,11 @@ const SettingsPage: React.FC = () => {
       
       if (data) {
         // Only update these values if data exists and properties are present
-        if (data.business_context) {
+        if ('business_context' in data && data.business_context) {
           setBusinessContext(data.business_context as BusinessContextFormValues);
         }
         
-        if (data.business_insight) {
+        if ('business_insight' in data && data.business_insight) {
           setBusinessInsight(data.business_insight as any);
         }
         
