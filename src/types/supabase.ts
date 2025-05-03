@@ -63,6 +63,7 @@ export type Database = {
           user_id: string | null
           vendor: string | null
           vendor_verified: boolean | null
+          account_id: string | null
         }
         Insert: {
           amount: number
@@ -81,6 +82,7 @@ export type Database = {
           user_id?: string | null
           vendor?: string | null
           vendor_verified?: boolean | null
+          account_id?: string | null
         }
         Update: {
           amount?: number
@@ -99,6 +101,7 @@ export type Database = {
           user_id?: string | null
           vendor?: string | null
           vendor_verified?: boolean | null
+          account_id?: string | null
         }
         Relationships: [
           {
@@ -222,7 +225,9 @@ export type Database = {
 // Create type aliases to make it easier to work with these tables
 export type VendorCategorizationRow = Database['public']['Tables']['vendor_categorizations']['Row'];
 export type BankConnectionRow = Database['public']['Tables']['bank_connections']['Row'];
-export type BankTransactionRow = Database['public']['Tables']['bank_transactions']['Row'];
+export type BankTransactionRow = Database['public']['Tables']['bank_transactions']['Row'] & {
+  account_id?: string | null; // Add account_id property explicitly
+};
 
 // Define a BusinessContext interface to help with type safety
 export interface BusinessContext {

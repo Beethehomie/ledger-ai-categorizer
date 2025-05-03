@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Transaction } from '@/types';
 
@@ -115,19 +114,9 @@ export const getBankAccountIdFromConnection = async (
   try {
     console.log('Getting bank account ID for connection:', bankConnectionId);
     
-    // First try to find a direct mapping if it exists
-    const { data: mappingData, error: mappingError } = await supabase
-      .from('bank_accounts')
-      .select('account_id')
-      .eq('account_name', bankConnectionId)
-      .maybeSingle();
-      
-    if (!mappingError && mappingData?.account_id) {
-      console.log('Found direct mapping for bankConnectionId:', mappingData.account_id);
-      return mappingData.account_id;
-    }
-    
-    // If no direct mapping, try to find the bank account by matching names
+    // Since we don't have a bank_accounts table available, we'll use the bank connection ID as the account ID
+    // This is a simplified approach that assumes bank_connection_id can be used as accountId
+    // First, try to get the bank connection to verify it exists
     const { data: connectionData, error: connectionError } = await supabase
       .from('bank_connections')
       .select('bank_name, display_name')
@@ -139,28 +128,8 @@ export const getBankAccountIdFromConnection = async (
       return null;
     }
     
-    const bankName = connectionData.bank_name;
-    const displayName = connectionData.display_name || bankName;
-    
-    // Try to find bank account with matching name
-    const { data: accountData, error: accountError } = await supabase
-      .from('bank_accounts')
-      .select('account_id')
-      .or(`account_name.eq.${bankName},account_name.eq.${displayName}`)
-      .maybeSingle();
-      
-    if (accountError) {
-      console.error('Error finding bank account:', accountError);
-      return null;
-    }
-    
-    if (accountData?.account_id) {
-      console.log('Found account ID by name matching:', accountData.account_id);
-      return accountData.account_id;
-    }
-    
-    // As a fallback, just return the bankConnectionId itself
-    console.log('No matching bank account found, using connection ID as fallback');
+    // For simplicity, we'll just return the bank connection ID as the account ID
+    console.log('Using connection ID as account ID:', bankConnectionId);
     return bankConnectionId;
   } catch (err) {
     console.error('Error in getBankAccountIdFromConnection:', err);

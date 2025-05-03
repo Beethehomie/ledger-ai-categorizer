@@ -59,7 +59,7 @@ export const useTransactions = (
             bankAccountId: t.bank_connection_id || undefined,
             bankAccountName: undefined,
             balance: t.balance || undefined,
-            accountId: t.account_id || undefined,  // Add accountId
+            accountId: t.account_id || undefined,  // Map account_id from database
           }));
           
           if (fetchedTransactions.length > 0) {
@@ -244,26 +244,13 @@ export const useTransactions = (
       let accountId: string | null = null;
       if (bankConnectionId) {
         try {
-          // First try to get the account ID using our service
+          // Get account ID from the bank connection (simplified approach)
           accountId = await getBankAccountIdFromConnection(bankConnectionId);
-          console.log('Found account ID for bank connection:', accountId || 'NOT FOUND');
+          console.log('Using account ID for bank connection:', accountId || 'USING CONNECTION ID');
           
-          // If not found, check if there's a matching bank_accounts record
           if (!accountId) {
-            const { data, error } = await supabase
-              .from('bank_accounts')
-              .select('account_id')
-              .eq('account_name', bankConnection?.bank_name || '')
-              .maybeSingle();
-              
-            if (!error && data) {
-              accountId = data.account_id;
-              console.log('Found account ID from bank_accounts table:', accountId);
-            } else {
-              console.warn('Could not find account ID for bank connection:', bankConnectionId);
-              // As a last resort, use the bank connection ID itself
-              accountId = bankConnectionId;
-            }
+            // As a last resort, use the bank connection ID itself
+            accountId = bankConnectionId;
           }
         } catch (err) {
           console.error('Error getting account ID:', err);
@@ -280,7 +267,7 @@ export const useTransactions = (
             transaction.bankAccountId = bankConnectionId;
             transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
             
-            // Set the account ID for RLS policy compliance
+            // Set the account ID for the transaction
             if (accountId) {
               transaction.accountId = accountId;
             }

@@ -59,6 +59,7 @@ export const saveTransactionsToSupabase = async (
       bank_connection_id: txn.bankAccountId || null,
       balance: txn.balance || null,
       user_id: userId,
+      // Handle the accountId field properly
       account_id: txn.accountId || txn.bankAccountId || null, // Use accountId if available, fallback to bankAccountId
     }));
     
