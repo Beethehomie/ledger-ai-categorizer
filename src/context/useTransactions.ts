@@ -90,7 +90,8 @@ export const useTransactions = (
       return [];
     }
     
-    const processedTransactions = processTransactions(newTransactions);
+    // Process the transactions first (we need to await this)
+    const processedTransactions = await processTransactions(newTransactions);
     
     try {
       const { transactions: savedTransactions } = await saveTransactionsToSupabase(

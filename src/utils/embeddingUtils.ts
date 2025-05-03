@@ -119,8 +119,8 @@ export const findSimilarVendorsByDescription = async (
     
     return {
       success: true,
-      results: data,
-      count: data.length
+      results: data || [],
+      count: data ? data.length : 0
     };
   } catch (err) {
     console.error('Error in findSimilarVendorsByDescription:', err);
@@ -134,8 +134,6 @@ export const findSimilarVendorsByDescription = async (
 // Helper function to get embedding for text
 async function getEmbeddingForText(text: string): Promise<number[] | null> {
   try {
-    const openaiApiKey = 'sk-...'; // This should be handled securely via edge function
-    
     const { data, error } = await supabase.functions.invoke('generate-embeddings', {
       body: {
         text: text,
@@ -143,7 +141,7 @@ async function getEmbeddingForText(text: string): Promise<number[] | null> {
       }
     });
     
-    if (error || !data.embedding) {
+    if (error || !data || !data.embedding) {
       console.error('Error getting embedding for text:', error || 'No embedding returned');
       return null;
     }
