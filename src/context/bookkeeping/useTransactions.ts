@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import { Transaction } from '@/types';
@@ -19,6 +20,7 @@ export const useTransactions = (
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [aiAnalyzeLoading, setAiAnalyzeLoading] = useState<boolean>(false);
+  const [bankConnections, setBankConnections] = useState<BankConnectionRow[]>(initialBankConnections);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export const useTransactions = (
         }
         
         if (data) {
-          const fetchedTransactions: Transaction[] = data.map((t) => ({
+          const fetchedTransactions: Transaction[] = data.map((t: any) => ({
             id: t.id,
             date: t.date,
             description: t.description,
@@ -354,7 +356,7 @@ export const useTransactions = (
       }
       
       if (data) {
-        const bankTransactions: Transaction[] = data.map((t) => ({
+        const bankTransactions: Transaction[] = data.map((t: any) => ({
           id: t.id,
           date: t.date,
           description: t.description,
@@ -391,7 +393,6 @@ export const useTransactions = (
     }
   };
 
-  // Modify the deleteTransaction function to return the expected type
   const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
     if (!session) {
       return { success: false, error: 'You must be logged in to delete transactions' };
@@ -492,7 +493,7 @@ export const useTransactions = (
       }
       
       if (data) {
-        const fetchedTransactions: Transaction[] = data.map((t) => ({
+        const fetchedTransactions: Transaction[] = data.map((t: any) => ({
           id: t.id,
           date: t.date,
           description: t.description,
@@ -604,6 +605,7 @@ export const useTransactions = (
     transactions,
     loading,
     aiAnalyzeLoading,
+    bankConnections,
     addTransactions,
     updateTransaction,
     analyzeTransactionWithAI,
@@ -612,9 +614,8 @@ export const useTransactions = (
     filterTransactionsByDate,
     fetchTransactionsForBankAccount,
     getBankConnectionById,
-    setTransactions,
-    fetchTransactions,
     deleteTransaction,
+    fetchTransactions,
     recalculateRunningBalances
   };
 };
