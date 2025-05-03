@@ -1,5 +1,6 @@
 
-import { Currency } from '@/types';
+import { Currency, CurrencySettings } from '@/types';
+import { currencySettings } from '@/utils/currencyUtils';
 
 /**
  * Format a number as a currency string
@@ -8,15 +9,18 @@ export const formatCurrency = (
   amount: number, 
   currency: Currency | string
 ): string => {
-  // Default to USD if currency is not provided or invalid
-  const currencyCode = typeof currency === 'string' ? currency : (currency?.code || 'USD');
-  const locale = typeof currency === 'string' ? 'en-US' : (currency?.locale || 'en-US');
-
-  return new Intl.NumberFormat(locale, {
+  // Handle string or Currency enum by getting the proper settings
+  const settings: CurrencySettings = typeof currency === 'string' 
+    ? (Object.prototype.hasOwnProperty.call(currencySettings, currency) 
+        ? currencySettings[currency as Currency] 
+        : currencySettings.USD)
+    : currency;
+    
+  return new Intl.NumberFormat(settings.locale, {
     style: 'currency',
-    currency: currencyCode,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    currency: settings.code,
+    minimumFractionDigits: settings.decimalPlaces,
+    maximumFractionDigits: settings.decimalPlaces
   }).format(amount);
 };
 
@@ -28,9 +32,15 @@ export const formatDate = (
   currency: Currency | string
 ): string => {
   const date = new Date(dateString);
-  const locale = typeof currency === 'string' ? 'en-US' : (currency?.locale || 'en-US');
+  
+  // Handle string or Currency enum by getting the proper settings
+  const settings: CurrencySettings = typeof currency === 'string' 
+    ? (Object.prototype.hasOwnProperty.call(currencySettings, currency) 
+        ? currencySettings[currency as Currency] 
+        : currencySettings.USD)
+    : currency;
 
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(settings.locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
