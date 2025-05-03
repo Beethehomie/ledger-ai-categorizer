@@ -111,8 +111,12 @@ export const findSimilarVendorsByDescription = async (
     }
     
     // Search for similar vendors using the database function
-    // Fix the typing issue by explicitly typing the embedding parameter
-    const { data, error } = await supabase.rpc<VendorMatch>(
+    // Fix the typing issue by providing both type arguments - return type and parameters
+    const { data, error } = await supabase.rpc<VendorMatch[], { 
+      query_embedding: number[],
+      match_threshold: number,
+      match_count: number 
+    }>(
       'match_vendors_by_embedding',
       {
         query_embedding: embedding as unknown as number[], 
