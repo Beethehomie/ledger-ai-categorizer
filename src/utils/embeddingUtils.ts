@@ -115,7 +115,7 @@ export const findSimilarVendorsByDescription = async (
     const { data, error } = await supabase.rpc(
       'match_vendors_by_embedding', 
       {
-        query_embedding: embedding as unknown as any, // Use type assertion to bypass TypeScript type checking
+        query_embedding: embedding, // Fix: Pass embedding directly without type assertions
         match_threshold: 0.5,
         match_count: 5
       }

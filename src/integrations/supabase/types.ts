@@ -409,11 +409,18 @@ export type Database = {
         Returns: string
       }
       match_vendors_by_embedding: {
-        Args: {
-          query_embedding: string
-          match_threshold: number
-          match_count: number
-        }
+        Args:
+          | { embedding: string }
+          | {
+              param1: Database["public"]["CompositeTypes"]["type1"]
+              param2: Database["public"]["CompositeTypes"]["type2"]
+            }
+          | { parameter_name: string }
+          | {
+              query_embedding: string
+              match_threshold: number
+              match_count: number
+            }
         Returns: {
           id: string
           vendor_name: string
@@ -465,7 +472,14 @@ export type Database = {
       [_ in never]: never
     }
     CompositeTypes: {
-      [_ in never]: never
+      type1: {
+        field1: string | null
+        field2: number | null
+      }
+      type2: {
+        field1: string | null
+        field2: number | null
+      }
     }
   }
 }
