@@ -157,9 +157,9 @@ const ReconciliationDashboard: React.FC = () => {
   const filteredTransactions = getFilteredTransactions();
   const selectedBank = bankConnections.find(bank => bank.id === selectedBankId);
   
-  const handleDateRangeChange = (range: DateRange) => {
-    setStartDate(range.startDate);
-    setEndDate(range.endDate);
+  const handleDateRangeChange = (startDate: Date | undefined, endDate: Date | undefined) => {
+    setStartDate(startDate);
+    setEndDate(endDate);
   };
   
   return (
