@@ -188,14 +188,21 @@ const BusinessInsightPage: React.FC = () => {
           return;
         }
         
-        // If data exists, safely process it
+        // Only proceed with the data if it's not null or undefined
+        // TypeScript now knows data is not an error object here
         if (data) {
-          if (data.business_context) {
-            form.reset(data.business_context as unknown as BusinessContextFormValues);
+          // Check if business_context exists and is not null
+          const businessContext = data.business_context;
+          if (businessContext) {
+            // Cast to the form values type
+            form.reset(businessContext as unknown as BusinessContextFormValues);
           }
           
-          if (data.business_insight) {
-            setAIInsight(data.business_insight as unknown as AIInsight);
+          // Check if business_insight exists and is not null
+          const businessInsight = data.business_insight;
+          if (businessInsight) {
+            // Cast to the AIInsight type
+            setAIInsight(businessInsight as unknown as AIInsight);
           }
         }
       } catch (error) {
