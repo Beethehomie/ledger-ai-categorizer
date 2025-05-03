@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,9 +18,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/utils/toast';
+import { Json } from '@/types/supabase';
 
 // Define interfaces for our form data
-interface BusinessContextFormValues {
+export interface BusinessContextFormValues {
   // Core questions
   businessDescription: string;
   incomeStreams: string;
@@ -85,8 +86,13 @@ interface BusinessContextFormValues {
 interface AIInsight {
   summary: string;
   generatedAt: string;
-  contextSnapshot?: BusinessContextFormValues;
+  contextSnapshot?: Record<string, any>;
 }
+
+// Helper function to convert BusinessContextFormValues to Json compatible object
+const businessContextToJson = (values: BusinessContextFormValues): Record<string, any> => {
+  return JSON.parse(JSON.stringify(values));
+};
 
 const BusinessInsightPage: React.FC = () => {
   const { user } = useAuth();
@@ -171,14 +177,17 @@ const BusinessInsightPage: React.FC = () => {
           .eq('id', user.id)
           .single();
           
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+          return;
+        }
         
         if (profileData?.business_context) {
-          form.reset(profileData.business_context as BusinessContextFormValues);
+          form.reset(profileData.business_context as unknown as BusinessContextFormValues);
         }
         
         if (profileData?.business_insight) {
-          setAIInsight(profileData.business_insight as AIInsight);
+          setAIInsight(profileData.business_insight as unknown as AIInsight);
         }
       } catch (error) {
         console.error('Error fetching business context:', error);
@@ -201,7 +210,7 @@ const BusinessInsightPage: React.FC = () => {
       const { error } = await supabase
         .from('user_profiles')
         .update({ 
-          business_context: values,
+          business_context: businessContextToJson(values),
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
@@ -228,7 +237,7 @@ const BusinessInsightPage: React.FC = () => {
       
       const { data, error } = await supabase.functions.invoke('generate-business-insight', {
         body: { 
-          businessContext: values,
+          businessContext: businessContextToJson(values),
           userId: user.id
         }
       });
@@ -239,7 +248,7 @@ const BusinessInsightPage: React.FC = () => {
         const newInsight: AIInsight = {
           summary: data.insight,
           generatedAt: data.timestamp,
-          contextSnapshot: values
+          contextSnapshot: businessContextToJson(values)
         };
         
         setAIInsight(newInsight);
