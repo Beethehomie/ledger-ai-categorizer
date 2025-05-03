@@ -110,16 +110,15 @@ export const findSimilarVendorsByDescription = async (
       };
     }
     
-    // Call the RPC function without type parameters - fix for the TS error
-    const { data, error } = await supabase.rpc(
-      'match_vendors_by_embedding',
-      {
-        // Convert the embedding to any to avoid the type error
-        query_embedding: embedding as any,
-        match_threshold: 0.5,
-        match_count: 5
-      }
-    );
+    // Use a completely untyped approach to avoid TypeScript errors
+    // The function exists in Supabase but TypeScript doesn't have the proper typing
+    const response = await supabase.rpc('match_vendors_by_embedding', {
+      query_embedding: embedding,
+      match_threshold: 0.5,
+      match_count: 5
+    });
+    
+    const { data, error } = response;
     
     if (error) {
       console.error('Error finding similar vendors:', error);
