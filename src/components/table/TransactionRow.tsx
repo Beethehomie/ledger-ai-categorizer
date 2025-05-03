@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency } from '@/utils/formatters';
-import { Transaction } from '@/types';
+import { Transaction, Currency } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface TransactionRowProps {
