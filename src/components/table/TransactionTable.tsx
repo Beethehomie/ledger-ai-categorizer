@@ -1,5 +1,3 @@
-
-// Update the import section at the top
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -22,7 +20,7 @@ import { Transaction } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
 import { useSettings } from "@/context/SettingsContext";
 import { toast } from '@/utils/toast';
-import { isBalanceReconciled } from '@/utils/csvParser';
+import { isBalanceReconciled, exportToCSV } from '@/utils/csvParser';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import TableHeaderComponent from './TableHeader';
 import TransactionRow from './TransactionRow';
@@ -31,7 +29,6 @@ import { useTransactionFilter } from '@/hooks/useTransactionFilter';
 import ReconcileDialog from '../ReconcileDialog';
 import VendorNameEditor from '../vendor/VendorNameEditor';
 import BusinessContextQuestionnaire from '../business/BusinessContextQuestionnaire';
-import { exportToCSV } from '@/utils/csvParser';
 import ConfidenceScore from './ConfidenceScore';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorLogger';
@@ -135,7 +132,14 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
 
   const isAccountReconciled = reconciliationBalance !== undefined && 
     transactions.length > 0 && 
-    isBalanceReconciled(transactions, reconciliationBalance);
+    isBalanceReconciled(
+      transactions.sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateB - dateA; // Sort descending for latest date first
+      })[0].balance || 0,
+      reconciliationBalance
+    );
 
   const mapTableColumnsToColumnSelector = () => {
     return tableColumns.map(col => ({

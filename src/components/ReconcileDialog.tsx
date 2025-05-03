@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -46,10 +45,11 @@ const ReconcileDialog: React.FC<ReconcileDialogProps> = ({
     onClose();
   };
   
-  const isReconciled = isBalanceReconciled(
-    transactions,
-    endBalance ? parseFloat(endBalance.replace(/[^0-9.-]+/g, '')) : undefined
-  );
+  const isReconciled = endBalance ? 
+    isBalanceReconciled(
+      currentBalance,
+      parseFloat(endBalance.replace(/[^0-9.-]+/g, ''))
+    ) : false;
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

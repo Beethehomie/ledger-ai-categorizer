@@ -11,8 +11,7 @@ import { Category, Transaction, Vendor } from '@/types';
 import { toast } from '@/utils/toast';
 import { getCategories } from '@/utils/categoryAdapter';
 import { logError } from '@/utils/errorLogger';
-import { deleteTransaction as deleteTransactionService } from '@/services/vendorService';
-import { getBankAccountIdFromConnection as getAccountIdFromConnection } from '@/services/bookkeepingService';
+import { getBankAccountIdFromConnection } from '@/services/bookkeepingService';
 
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 
@@ -84,7 +83,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setTransactions,
     fetchTransactions: fetchTransactionsFromHook,
     deleteTransaction,
-    getBankAccountIdFromConnection
+    getBankAccountIdFromConnection: getBankAccountIdFromConnectionHook
   } = useTransactions(bankConnections);
   
   const {
@@ -167,10 +166,20 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
+  // Wrapper for deleteTransaction that returns a success/error object
+  const deleteTransactionWrapper = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const result = await deleteTransaction(id);
+      return { success: result };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to delete transaction' };
+    }
+  };
+
   // Helper function to get account ID from connection, exporting for the interface
   const getBankAccountIdFromConnectionHelper = async (bankConnectionId: string): Promise<string | null> => {
     try {
-      return await getAccountIdFromConnection(bankConnectionId);
+      return await getBankAccountIdFromConnection(bankConnectionId);
     } catch (err) {
       console.error('Error in getBankAccountIdFromConnection:', err);
       return null;
@@ -201,7 +210,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     batchVerifyVendorTransactions,
     fetchTransactions,
     findSimilarTransactions,
-    deleteTransaction,
+    deleteTransaction: deleteTransactionWrapper,
     getBankAccountIdFromConnection: getBankAccountIdFromConnectionHelper,
   };
 

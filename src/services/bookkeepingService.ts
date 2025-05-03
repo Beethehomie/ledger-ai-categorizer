@@ -148,10 +148,21 @@ export const getBankAccountIdFromConnection = async (bankConnectionId: string): 
       return accountData.account_id;
     }
     
-    // If not found in bank_accounts, use the bank connection ID as the account ID
-    console.log('No account ID found for bank connection. Using connection ID as fallback:', bankConnectionId);
-    return bankConnectionId;
+    // If not found in bank_accounts, check if the connection has an account_id field
+    const { data: connectionData, error: connectionError } = await supabase
+      .from('bank_connections')
+      .select('id')
+      .eq('id', bankConnectionId)
+      .single();
     
+    if (connectionData) {
+      // Use the connection ID as the account ID as a fallback
+      console.log('No account ID found for bank connection. Using connection ID as fallback:', bankConnectionId);
+      return bankConnectionId;
+    }
+    
+    console.log('No bank connection found with ID:', bankConnectionId);
+    return null;
   } catch (err) {
     console.error('Error in getBankAccountIdFromConnection:', err);
     return null;

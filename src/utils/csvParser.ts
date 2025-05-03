@@ -1,4 +1,3 @@
-
 import { parse } from 'papaparse';
 import { Transaction } from '@/types';
 import { parseDate } from '@/utils/dateUtils';
@@ -234,8 +233,75 @@ export const findDuplicateTransactions = (
   });
 };
 
-export const isBalanceReconciled = (endingBalance: number, calculatedBalance: number): boolean => {
-  // Allow for rounding errors by using a small tolerance
-  const tolerance = 0.01; // 1 cent tolerance
-  return Math.abs(endingBalance - calculatedBalance) <= tolerance;
+/**
+ * Check if the account balance is reconciled within tolerance
+ * 
+ * @param transactions Transactions to check or ending balance number
+ * @param expectedBalance The expected ending balance
+ * @returns True if reconciled, false otherwise
+ */
+export const isBalanceReconciled = (
+  transactions: Transaction[] | number,
+  expectedBalance?: number
+): boolean => {
+  // Handle case when first argument is the transactions array
+  if (Array.isArray(transactions)) {
+    if (!transactions.length || expectedBalance === undefined) {
+      return false;
+    }
+    
+    // Get the last transaction balance
+    const lastTransaction = transactions.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA; // Sort descending
+    })[0];
+    
+    const calculatedBalance = lastTransaction.balance || 0;
+    
+    // Allow for a small difference due to rounding or calculation differences
+    const tolerance = 0.01; // 1 cent tolerance
+    return Math.abs(calculatedBalance - expectedBalance) <= tolerance;
+  } 
+  // Handle case when first argument is a number (current balance)
+  else {
+    const currentBalance = transactions;
+    if (expectedBalance === undefined) {
+      return false;
+    }
+    
+    // Allow for a small difference due to rounding or calculation differences
+    const tolerance = 0.01; // 1 cent tolerance
+    return Math.abs(currentBalance - expectedBalance) <= tolerance;
+  }
+};
+
+/**
+ * Export transactions to CSV format
+ * 
+ * @param transactions Array of transactions to export
+ * @returns CSV string content
+ */
+export const exportToCSV = (transactions: Transaction[]): string => {
+  if (!transactions || transactions.length === 0) {
+    return 'date,description,amount,category,type,vendor,balance\n';
+  }
+
+  const headers = ['date', 'description', 'amount', 'category', 'type', 'vendor', 'balance'];
+  const csvContent = [headers.join(',')];
+
+  for (const transaction of transactions) {
+    const row = [
+      transaction.date,
+      `"${transaction.description.replace(/"/g, '""')}"`, // Escape quotes in description
+      transaction.amount,
+      transaction.category || '',
+      transaction.type || '',
+      transaction.vendor ? `"${transaction.vendor.replace(/"/g, '""')}"` : '',
+      transaction.balance || ''
+    ];
+    csvContent.push(row.join(','));
+  }
+
+  return csvContent.join('\n');
 };
