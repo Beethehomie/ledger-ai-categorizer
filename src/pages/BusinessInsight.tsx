@@ -71,9 +71,11 @@ const BusinessInsightPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('insight');
   
   useEffect(() => {
-    fetchBusinessData();
-    if (isAdmin) {
-      fetchAIUsageStats();
+    if (user?.id) {
+      fetchBusinessData();
+      if (isAdmin) {
+        fetchAIUsageStats();
+      }
     }
   }, [user, isAdmin]);
 
@@ -99,7 +101,7 @@ const BusinessInsightPage: React.FC = () => {
       // Also fetch from user_profiles for backward compatibility
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
-        .select('business_context, business_insight')
+        .select('business_context')
         .eq('id', user.id)
         .single();
       
@@ -111,7 +113,7 @@ const BusinessInsightPage: React.FC = () => {
       }
       
       if (insightData) {
-        setBusinessInsight(insightData);
+        setBusinessInsight(insightData as BusinessInsightData);
         
         // Create a business context object from the insight data
         setBusinessContext({
@@ -130,24 +132,6 @@ const BusinessInsightPage: React.FC = () => {
       } else if (profileData && profileData.business_context) {
         // Fall back to user profile data if no insight record exists
         setBusinessContext(profileData.business_context as BusinessContextFormValues);
-        
-        if (profileData.business_insight) {
-          // Create a synthetic business insight object from profile data
-          const insight = profileData.business_insight as any;
-          setBusinessInsight({
-            id: user.id,
-            user_id: user.id,
-            industry: (profileData.business_context as any)?.industry || null,
-            business_model: (profileData.business_context as any)?.businessModel || null,
-            description: (profileData.business_context as any)?.businessDescription || null,
-            ai_summary: insight.summary || null,
-            ai_processing_status: insight.summary ? 'completed' : 'pending',
-            version: 1,
-            updated_at: insight.generated_at || new Date().toISOString(),
-            created_at: insight.generated_at || new Date().toISOString(),
-            error_log: null
-          });
-        }
       }
     } catch (err: any) {
       console.error('Exception fetching business data:', err);
@@ -181,7 +165,7 @@ const BusinessInsightPage: React.FC = () => {
         let lastCall = null;
         if (stats.length > 0) {
           const sortedByDate = [...stats].sort((a, b) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
           );
           lastCall = sortedByDate[0]?.created_at;
         }
