@@ -110,7 +110,7 @@ export const findSimilarVendorsByDescription = async (
       };
     }
     
-    // Fix the TypeScript error by properly typing the RPC call
+    // Fix the TypeScript error by properly typing the RPC call with both params and return types
     // Define the expected parameters type for the match_vendors_by_embedding function
     interface MatchVendorsParams {
       query_embedding: number[];
@@ -121,14 +121,14 @@ export const findSimilarVendorsByDescription = async (
     // Define the expected return type for the RPC call
     type MatchVendorsResult = VendorMatch[];
     
-    // Use explicit typing for the RPC call
-    const { data, error } = await supabase.rpc<MatchVendorsResult>(
+    // Use explicit typing for the RPC call with both type parameters
+    const { data, error } = await supabase.rpc<MatchVendorsResult, MatchVendorsParams>(
       'match_vendors_by_embedding',
       {
         query_embedding: embedding,
         match_threshold: 0.5,
         match_count: 5
-      } as MatchVendorsParams
+      }
     );
     
     if (error) {
