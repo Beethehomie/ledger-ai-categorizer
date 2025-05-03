@@ -1,15 +1,20 @@
 
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Transaction } from "@/types";
 import { formatCurrency } from "@/utils/currencyUtils";
 import { useSettings } from "@/context/SettingsContext";
-import { toast } from "@/utils/toast";
-import { isBalanceReconciled } from "@/utils/csvParser";
-import { CheckCircle2, AlertCircle } from "lucide-react";
+import { Transaction } from '@/types';
+import { isBalanceReconciled } from '@/utils/csvParser';
 
 interface ReconcileDialogProps {
   isOpen: boolean;
@@ -18,99 +23,104 @@ interface ReconcileDialogProps {
   onReconcile: (endBalance: number) => void;
 }
 
-const ReconcileDialog: React.FC<ReconcileDialogProps> = ({ 
-  isOpen, 
-  onClose, 
+const ReconcileDialog: React.FC<ReconcileDialogProps> = ({
+  isOpen,
+  onClose,
   transactions,
   onReconcile
 }) => {
   const { currency } = useSettings();
-  const [endBalance, setEndBalance] = useState<string>('');
+  const [endBalance, setEndBalance] = useState<string>("");
+  const [calculatedEndBalance, setCalculatedEndBalance] = useState<number | null>(null);
   
-  // Calculate the current last balance
-  const currentBalance = transactions.length > 0 && transactions[transactions.length - 1].balance !== undefined
-    ? transactions[transactions.length - 1].balance
-    : 0;
+  useEffect(() => {
+    // Find latest transaction by date to get the most recent balance
+    if (transactions.length > 0) {
+      const sortedTransactions = [...transactions].sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateB - dateA; // Sort descending for latest date first
+      });
+      
+      setCalculatedEndBalance(sortedTransactions[0].balance || 0);
+    } else {
+      setCalculatedEndBalance(0);
+    }
+  }, [transactions]);
   
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const numericBalance = parseFloat(endBalance.replace(/[^0-9.-]+/g, ''));
-    
-    if (isNaN(numericBalance)) {
-      toast.error("Please enter a valid balance amount");
+  const handleReconcile = () => {
+    const numEndBalance = parseFloat(endBalance);
+    if (isNaN(numEndBalance)) {
       return;
     }
     
-    onReconcile(numericBalance);
+    onReconcile(numEndBalance);
     onClose();
   };
   
-  const isReconciled = endBalance ? 
-    isBalanceReconciled(
-      currentBalance || 0,
-      parseFloat(endBalance.replace(/[^0-9.-]+/g, '')) || 0
-    ) : false;
+  const isReconciled = calculatedEndBalance !== null && 
+    !isNaN(parseFloat(endBalance)) && 
+    isBalanceReconciled(calculatedEndBalance, parseFloat(endBalance));
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Reconcile Account Balance</DialogTitle>
+          <DialogTitle>Reconcile Account</DialogTitle>
           <DialogDescription>
-            Enter the ending balance from your account statement to reconcile with the calculated balance.
+            Enter the ending balance from your bank statement to reconcile the account.
           </DialogDescription>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="flex flex-col space-y-2">
-            <Label htmlFor="calculated-balance">Calculated Balance</Label>
-            <div className="flex items-center border rounded-md px-3 py-2 bg-muted/40">
-              <span className="text-muted-foreground">{formatCurrency(currentBalance || 0, currency)}</span>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="calculated-balance" className="text-right">
+              Calculated Balance:
+            </Label>
+            <div className="col-span-3">
+              <span className="text-muted-foreground">
+                {calculatedEndBalance !== null 
+                  ? formatCurrency(calculatedEndBalance, currency) 
+                  : "No transactions"}
+              </span>
             </div>
           </div>
-          
-          <div className="flex flex-col space-y-2">
-            <Label htmlFor="end-balance">Statement Ending Balance</Label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="end-balance" className="text-right">
+              Statement Balance:
+            </Label>
             <Input
               id="end-balance"
-              placeholder={`Enter balance (e.g., ${formatCurrency(1000, currency)})`}
+              type="number"
+              step="0.01"
               value={endBalance}
               onChange={(e) => setEndBalance(e.target.value)}
               className="col-span-3"
+              placeholder="Enter statement ending balance"
             />
           </div>
-          
-          {endBalance && (
-            <div className={`flex items-center p-3 rounded-md ${isReconciled ? 'bg-green-50' : 'bg-amber-50'}`}>
-              {isReconciled ? (
-                <>
-                  <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
-                  <span className="text-sm text-green-700">Balance matches! Your account is reconciled.</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-5 w-5 text-amber-500 mr-2" />
-                  <span className="text-sm text-amber-700">
-                    Balance difference: {formatCurrency(
-                      Math.abs((parseFloat(endBalance.replace(/[^0-9.-]+/g, '')) || 0) - (currentBalance || 0)), 
-                      currency
-                    )}
-                  </span>
-                </>
-              )}
+          {endBalance && calculatedEndBalance !== null && (
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Difference:</Label>
+              <div className="col-span-3">
+                <span className={isReconciled ? "text-green-600" : "text-red-600"}>
+                  {formatCurrency(
+                    Math.abs(calculatedEndBalance - parseFloat(endBalance || "0")), 
+                    currency
+                  )}
+                  {isReconciled && " (Reconciled)"}
+                </span>
+              </div>
             </div>
           )}
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              Save & Reconcile
-            </Button>
-          </DialogFooter>
-        </form>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleReconcile} disabled={!endBalance}>
+            Reconcile
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

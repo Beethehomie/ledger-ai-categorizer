@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Transaction } from '@/types';
 import { toast } from '@/utils/toast';
@@ -119,7 +120,8 @@ export const updateTransactionBalances = async (bankAccountId: string, initialBa
           .eq('id', update.id);
           
         if (updateError) {
-          console.error('Error updating transaction balance:', updateError);
+          console.error('Error updating balance:', updateError);
+          return false;
         }
       }
     }
@@ -133,48 +135,24 @@ export const updateTransactionBalances = async (bankAccountId: string, initialBa
 
 export const getBankAccountIdFromConnection = async (bankConnectionId: string): Promise<string | null> => {
   try {
-    console.log('Looking up bank account ID for connection:', bankConnectionId);
+    // In this implementation, we assume the bank_connection_id can be used directly
+    // as the account_id when needed, since there's no direct mapping in the database
+    // This is a simplified approach; in a real app, you might query a mapping table
     
-    // First, check if the connection exists
-    const { data: connection, error: connectionError } = await supabase
+    // First check if the connection exists
+    const { data, error } = await supabase
       .from('bank_connections')
-      .select('*')
+      .select('id')
       .eq('id', bankConnectionId)
       .single();
-    
-    if (connectionError) {
-      console.error('Error fetching bank connection:', connectionError);
+      
+    if (error || !data) {
+      console.error('Error getting bank connection:', error);
       return null;
     }
     
-    if (!connection) {
-      console.warn('Bank connection not found:', bankConnectionId);
-      return null;
-    }
-    
-    // Now try to find a matching account in bank_accounts table
-    // This assumes that there's a column in bank_accounts that references the connection
-    const { data: accountData, error: accountError } = await supabase
-      .from('bank_accounts')
-      .select('account_id')
-      .eq('connection_id', bankConnectionId)
-      .maybeSingle();
-    
-    if (accountError) {
-      // This might be because the column doesn't exist, which is fine
-      console.warn('Error querying bank_accounts:', accountError);
-      return null;
-    }
-    
-    // If we found an account, return its ID
-    if (accountData && accountData.account_id) {
-      console.log('Found account ID:', accountData.account_id);
-      return accountData.account_id;
-    }
-    
-    // If we didn't find an account, that's okay - we'll use the connection ID directly
-    console.log('No matching account found for connection:', bankConnectionId);
-    return null;
+    // Return the connection ID as the account ID for now
+    return bankConnectionId;
   } catch (err) {
     console.error('Error in getBankAccountIdFromConnection:', err);
     return null;

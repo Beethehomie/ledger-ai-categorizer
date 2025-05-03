@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
@@ -16,29 +17,42 @@ const BookkeepingContext = createContext<BookkeepingContextType>({
   transactions: [],
   categories: [],
   vendors: [],
-  financialSummary: {},
+  financialSummary: {
+    totalIncome: 0,
+    totalExpenses: 0,
+    totalAssets: 0,
+    totalLiabilities: 0,
+    netWorth: 0,
+    cashFlow: 0,
+    cashBalance: 0,
+    income: 0
+  },
   loading: false,
   aiAnalyzeLoading: false,
   bankConnections: [],
-  addTransactions: () => {},
-  updateTransaction: () => {},
-  verifyTransaction: () => {},
-  verifyVendor: () => {},
-  uploadCSV: () => {},
+  addTransactions: async () => [],
+  updateTransaction: async () => false,
+  verifyTransaction: async () => {},
+  verifyVendor: async () => {},
+  uploadCSV: async () => {},
   getFilteredTransactions: () => [],
   filterTransactionsByDate: () => [],
   getVendorsList: () => [],
   calculateFinancialSummary: () => {},
-  analyzeTransactionWithAI: () => {},
-  getBankConnectionById: () => {},
-  removeDuplicateVendors: () => {},
-  fetchTransactionsForBankAccount: () => {},
-  batchVerifyVendorTransactions: () => {},
-  fetchTransactions: () => {},
+  analyzeTransactionWithAI: async () => null,
+  getBankConnectionById: (id: string) => undefined,
+  removeDuplicateVendors: async () => {},
+  fetchTransactionsForBankAccount: async () => [],
+  batchVerifyVendorTransactions: async () => {},
+  fetchTransactions: async () => {},
   findSimilarTransactions: () => [],
-  deleteTransaction: () => {},
-  getBankAccountIdFromConnection: () => null,
+  deleteTransaction: async () => ({ success: false }),
+  getBankAccountIdFromConnection: async () => null,
 });
+
+interface BookkeepingProviderProps {
+  children: React.ReactNode;
+}
 
 export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({ 
   children 
@@ -109,7 +123,7 @@ export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({
     getBankConnectionById,
     setTransactions,
     fetchTransactions: fetchTransactionsFromHook,
-    deleteTransaction,
+    deleteTransaction: deleteTransactionFromHook,
     getBankAccountIdFromConnection: getBankAccountIdFromConnectionHook
   } = useTransactions(bankConnections);
   
@@ -134,7 +148,7 @@ export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({
   useEffect(() => {
     if (!session) return;
     
-    const fetchTransactions = async () => {
+    const fetchAllTransactions = async () => {
       console.log('BookkeepingContext: Fetching transactions...');
       if (!session) {
         toast.error('You must be logged in to fetch transactions');
@@ -198,39 +212,13 @@ export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({
       }
     };
     
-    fetchTransactions();
-  }, [session, bankConnections]);
+    fetchAllTransactions();
+  }, [session, bankConnections, calculateFinancialSummary, setTransactions]);
   
-  // Fix the deleteTransaction function to return the expected type
-  const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
-    if (!session) {
-      toast.error('You must be logged in to delete transactions');
-      return { success: false, error: 'Not logged in' };
-    }
-    
-    try {
-      const { error } = await supabase
-        .from('bank_transactions')
-        .delete()
-        .eq('id', id);
-        
-      if (error) {
-        console.error('Error deleting transaction:', error);
-        return { success: false, error: error.message };
-      }
-      
-      setTransactions(prev => prev.filter(transaction => transaction.id !== id));
-      return { success: true };
-    } catch (err: any) {
-      console.error('Error deleting transaction:', err);
-      return { success: false, error: err.message || 'Unknown error' };
-    }
-  };
-
   // Wrapper for deleteTransaction that returns a success/error object
-  const deleteTransactionWrapper = async (id: string): Promise<{ success: boolean; error?: string }> => {
+  const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const result = await deleteTransaction(id);
+      const result = await deleteTransactionFromHook(id);
       return { success: result };
     } catch (err: any) {
       return { success: false, error: err.message || 'Failed to delete transaction' };
@@ -240,7 +228,7 @@ export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({
   // Helper function to get account ID from connection, exporting for the interface
   const getBankAccountIdFromConnectionHelper = async (bankConnectionId: string): Promise<string | null> => {
     try {
-      return await getBankAccountIdFromConnection(bankConnectionId);
+      return await getBankAccountIdFromConnectionHook(bankConnectionId);
     } catch (err) {
       console.error('Error in getBankAccountIdFromConnection:', err);
       return null;
@@ -269,9 +257,9 @@ export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({
     removeDuplicateVendors,
     fetchTransactionsForBankAccount,
     batchVerifyVendorTransactions,
-    fetchTransactions,
+    fetchTransactions: fetchTransactionsFromHook,
     findSimilarTransactions,
-    deleteTransaction: deleteTransactionWrapper,
+    deleteTransaction,
     getBankAccountIdFromConnection: getBankAccountIdFromConnectionHelper,
   };
 

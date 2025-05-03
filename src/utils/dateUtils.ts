@@ -1,140 +1,115 @@
 
 /**
- * Utility functions for date handling
+ * Formats a date object or ISO date string to a readable format
  */
-
-/**
- * Parse a date string in various formats to a Date object
- * @param dateString The date string to parse
- * @returns A Date object or null if parsing fails
- */
-export const parseDate = (dateString: string): Date | null => {
-  if (!dateString) return null;
+export const formatDate = (date: Date | string): string => {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
   
-  // Remove non-breaking spaces and trim
-  const trimmed = dateString.replace(/\u00A0/g, ' ').trim();
-  
-  // Try different date formats
-  const formats = [
-    // ISO format
-    /^\d{4}-\d{2}-\d{2}(T.*)?$/,
-    // MM/DD/YYYY or DD/MM/YYYY
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-    // MM-DD-YYYY or DD-MM-YYYY
-    /^(\d{1,2})-(\d{1,2})-(\d{4})$/,
-    // YYYY/MM/DD
-    /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/,
-    // Month name formats
-    /^([a-zA-Z]{3,9})\s+(\d{1,2}),?\s+(\d{4})$/,
-    // DD Month YYYY
-    /^(\d{1,2})\s+([a-zA-Z]{3,9})\s+(\d{4})$/
-  ];
-  
-  // Try to parse using built-in Date
-  const date = new Date(trimmed);
-  if (!isNaN(date.getTime())) {
-    return date;
-  }
-  
-  // Try to manually parse with regex patterns
-  for (const format of formats) {
-    if (format.test(trimmed)) {
-      const parts = trimmed.match(format);
-      if (parts) {
-        if (format === formats[1] || format === formats[2]) {
-          // Handle MM/DD/YYYY or DD/MM/YYYY formats
-          // Since we're not sure of the order, default to MM/DD/YYYY
-          const month = parseInt(parts[1], 10) - 1;
-          const day = parseInt(parts[2], 10);
-          const year = parseInt(parts[3], 10);
-          
-          if (month >= 0 && month < 12 && day >= 1 && day <= 31) {
-            return new Date(year, month, day);
-          }
-        } else if (format === formats[3]) {
-          // Handle YYYY/MM/DD format
-          const year = parseInt(parts[1], 10);
-          const month = parseInt(parts[2], 10) - 1;
-          const day = parseInt(parts[3], 10);
-          
-          return new Date(year, month, day);
-        } else if (format === formats[4]) {
-          // Month name formats like "January 15, 2023"
-          const monthName = parts[1].toLowerCase();
-          const day = parseInt(parts[2], 10);
-          const year = parseInt(parts[3], 10);
-          
-          const monthIndex = getMonthIndexFromName(monthName);
-          if (monthIndex !== -1) {
-            return new Date(year, monthIndex, day);
-          }
-        } else if (format === formats[5]) {
-          // DD Month YYYY format like "15 January 2023"
-          const day = parseInt(parts[1], 10);
-          const monthName = parts[2].toLowerCase();
-          const year = parseInt(parts[3], 10);
-          
-          const monthIndex = getMonthIndexFromName(monthName);
-          if (monthIndex !== -1) {
-            return new Date(year, monthIndex, day);
-          }
-        }
-      }
-    }
-  }
-  
-  // If all attempts failed, return null
-  return null;
+  // Format: YYYY-MM-DD
+  return dateObj.toISOString().split('T')[0];
 };
 
 /**
- * Get month index from month name
- * @param monthName Month name (full or abbreviated)
- * @returns Month index (0-11) or -1 if not found
+ * Get the first day of the current month
  */
-const getMonthIndexFromName = (monthName: string): number => {
-  const months = [
-    'january', 'february', 'march', 'april', 'may', 'june',
-    'july', 'august', 'september', 'october', 'november', 'december'
-  ];
-  
-  const shortMonths = [
-    'jan', 'feb', 'mar', 'apr', 'may', 'jun',
-    'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
-  ];
-  
-  const monthLower = monthName.toLowerCase();
-  
-  // Try full month name
-  const monthIndex = months.findIndex(m => m === monthLower);
-  if (monthIndex !== -1) {
-    return monthIndex;
-  }
-  
-  // Try abbreviated month name
-  const shortIndex = shortMonths.findIndex(m => m === monthLower);
-  if (shortIndex !== -1) {
-    return shortIndex;
-  }
-  
-  // Try partial match
-  for (let i = 0; i < months.length; i++) {
-    if (months[i].startsWith(monthLower) || shortMonths[i].startsWith(monthLower)) {
-      return i;
-    }
-  }
-  
-  return -1;
+export const getFirstDayOfMonth = (): Date => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1);
 };
 
 /**
- * Format a date as YYYY-MM-DD
- * @param date Date to format
- * @returns Formatted date string
+ * Get the last day of the current month
  */
-export const formatDateYYYYMMDD = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+export const getLastDayOfMonth = (): Date => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + 1, 0);
+};
+
+/**
+ * Get the first day of the current year
+ */
+export const getFirstDayOfYear = (): Date => {
+  const now = new Date();
+  return new Date(now.getFullYear(), 0, 1);
+};
+
+/**
+ * Get the last day of the current year
+ */
+export const getLastDayOfYear = (): Date => {
+  const now = new Date();
+  return new Date(now.getFullYear(), 11, 31);
+};
+
+/**
+ * Check if a date is within a given range
+ */
+export const isDateInRange = (
+  date: Date | string,
+  startDate: Date | string | undefined,
+  endDate: Date | string | undefined
+): boolean => {
+  if (!startDate && !endDate) return true;
+  
+  const checkDate = new Date(date);
+  
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return checkDate >= start && checkDate <= end;
+  }
+  
+  if (startDate) {
+    const start = new Date(startDate);
+    return checkDate >= start;
+  }
+  
+  if (endDate) {
+    const end = new Date(endDate);
+    return checkDate <= end;
+  }
+  
+  return true;
+};
+
+/**
+ * Get a date range for a specific period
+ */
+export const getDateRange = (period: 'week' | 'month' | 'quarter' | 'year' | 'all'): { start: Date; end: Date } => {
+  const now = new Date();
+  
+  switch (period) {
+    case 'week':
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      return { start: startOfWeek, end: endOfWeek };
+      
+    case 'month':
+      return {
+        start: getFirstDayOfMonth(),
+        end: getLastDayOfMonth()
+      };
+      
+    case 'quarter':
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      const startQuarter = new Date(now.getFullYear(), currentQuarter * 3, 1);
+      const endQuarter = new Date(now.getFullYear(), (currentQuarter + 1) * 3, 0);
+      return { start: startQuarter, end: endQuarter };
+      
+    case 'year':
+      return {
+        start: getFirstDayOfYear(),
+        end: getLastDayOfYear()
+      };
+      
+    case 'all':
+    default:
+      // Set a far past date and today's date for "all"
+      return {
+        start: new Date(2000, 0, 1),
+        end: now
+      };
+  }
 };

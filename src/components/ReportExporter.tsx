@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +11,17 @@ import { useSettings } from "@/context/SettingsContext";
 interface ReportExporterProps {
   transactions: any[];
   defaultFilename?: string;
+  currency?: string;
 }
 
-const ReportExporter: React.FC<ReportExporterProps> = ({ transactions, defaultFilename = 'transactions.csv' }) => {
+const ReportExporter: React.FC<ReportExporterProps> = ({ 
+  transactions, 
+  defaultFilename = 'transactions.csv',
+  currency 
+}) => {
   const [filename, setFilename] = useState(defaultFilename);
-  const { currency } = useSettings();
+  const settingsContext = useSettings();
+  const currencyToUse = currency || settingsContext.currency;
   
   const handleExport = () => {
     try {

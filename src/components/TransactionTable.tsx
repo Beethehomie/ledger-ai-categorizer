@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -242,15 +242,16 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
       
       // Create a blob and download link
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
       
+      const link = document.createElement('a');
       const date = new Date().toISOString().split('T')[0];
-      link.setAttribute('href', URL.createObjectURL(blob));
+      link.setAttribute('href', url);
       link.setAttribute('download', `transactions_${date}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting to CSV:', error);
       toast.error('Failed to export transactions');
@@ -265,8 +266,15 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   };
 
   const isAccountReconciled = reconciliationBalance !== undefined && 
-                              transactions.length > 0 && 
-                              isBalanceReconciled(transactions, reconciliationBalance);
+    transactions.length > 0 && 
+    isBalanceReconciled(
+      transactions.sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateB - dateA; // Sort descending for latest date first
+      })[0].balance || 0,
+      reconciliationBalance
+    );
 
   const renderConfidenceScore = (score?: number) => {
     if (score === undefined) return null;

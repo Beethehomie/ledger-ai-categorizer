@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -7,7 +8,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +18,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
+} from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { Transaction } from '@/types';
 import { formatCurrency } from '@/utils/currencyUtils';
@@ -56,7 +57,11 @@ const Admin = () => {
       const csvData = exportToCSV(allTransactions);
       
       if (!csvData) {
-        toast.error('Failed to generate CSV data');
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to generate CSV data"
+        });
         return;
       }
       
@@ -78,7 +83,11 @@ const Admin = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting all transactions:', error);
-      toast.error('Failed to export all transactions');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to export all transactions"
+      });
     }
   };
 
