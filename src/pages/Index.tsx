@@ -1,5 +1,5 @@
+
 import React, { useState, useCallback } from 'react';
-import { BookkeepingProvider } from '@/context/BookkeepingContext';
 import Dashboard from '@/components/Dashboard';
 import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -73,13 +73,11 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 flex-grow">
-        <BookkeepingProvider>
-          <AppContent 
-            isUploadDialogOpen={isUploadDialogOpen} 
-            setIsUploadDialogOpen={setIsUploadDialogOpen}
-            isAdmin={isAdmin}
-          />
-        </BookkeepingProvider>
+        <AppContent 
+          isUploadDialogOpen={isUploadDialogOpen} 
+          setIsUploadDialogOpen={setIsUploadDialogOpen}
+          isAdmin={isAdmin}
+        />
       </main>
 
       <footer className="bg-[hsl(var(--muted))] border-t mt-auto">

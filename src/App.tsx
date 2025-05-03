@@ -12,6 +12,7 @@ import Subscription from './pages/Subscription';
 import Settings from './pages/Settings';
 import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
+import { BookkeepingProvider } from "@/context/BookkeepingContext";
 import { RequireAuth } from "./components/RequireAuth";
 
 const queryClient = new QueryClient();
@@ -21,18 +22,20 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <SettingsProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
-              <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
-              <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <BookkeepingProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
+                <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
+                <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </BookkeepingProvider>
         </SettingsProvider>
       </AuthProvider>
     </TooltipProvider>
