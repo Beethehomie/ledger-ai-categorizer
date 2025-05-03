@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Upload, AlertCircle, CheckCircle } from "lucide-react";
@@ -7,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useBookkeeping, BookkeepingProvider } from '@/context/bookkeeping/BookkeepingContext';
+import { useBookkeeping, BookkeepingProvider } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
 import { BackToDashboard } from '@/components/header/BackToDashboard';
 import { Transaction } from '@/types';
@@ -22,6 +23,7 @@ const TransactionUploadContent: React.FC = () => {
   const [selectedBankId, setSelectedBankId] = useState<string>("");
   const [initialBalance, setInitialBalance] = useState<number>(0);
   const [endBalance, setEndBalance] = useState<number | undefined>(undefined);
+  const [uploadInProgress, setUploadInProgress] = useState(false);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -56,6 +58,8 @@ const TransactionUploadContent: React.FC = () => {
       toast.error('No valid transactions to upload');
       return;
     }
+
+    setUploadInProgress(true);
     
     try {
       await uploadCSV(
@@ -73,6 +77,8 @@ const TransactionUploadContent: React.FC = () => {
     } catch (error) {
       console.error('Error uploading transactions:', error);
       toast.error('Failed to upload transactions');
+    } finally {
+      setUploadInProgress(false);
     }
   };
   
@@ -245,10 +251,10 @@ const TransactionUploadContent: React.FC = () => {
             <CardFooter>
               <Button 
                 onClick={handleConfirmUpload} 
-                disabled={parsedData.transactions.length === 0 || loading}
+                disabled={parsedData.transactions.length === 0 || uploadInProgress}
                 className="ml-auto"
               >
-                {loading ? 'Uploading...' : 'Confirm Upload'}
+                {uploadInProgress ? 'Uploading...' : 'Confirm Upload'}
               </Button>
             </CardFooter>
           </Card>

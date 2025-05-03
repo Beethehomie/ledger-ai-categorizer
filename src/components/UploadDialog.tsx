@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   const [hasUploaded, setHasUploaded] = useState(false);
   const [parsedTransactions, setParsedTransactions] = useState<Transaction[]>([]);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [uploadInProgress, setUploadInProgress] = useState(false);
 
   // Get CSV-type bank connections
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
@@ -201,28 +203,39 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     setIsReviewDialogOpen(true);
   };
 
-  const handleConfirmUpload = (editedTransactions: Transaction[]) => {
+  const handleConfirmUpload = async (editedTransactions: Transaction[]) => {
     if (editedTransactions.length === 0) {
       toast.error('No transactions selected for upload');
       return;
     }
 
-    const initialBalanceValue = parseFloat(initialBalance) || 0;
-    const endBalanceValue = endBalance ? parseFloat(endBalance) : undefined;
+    setUploadInProgress(true);
     
-    // Call the uploadCSV function directly with the processed transactions
-    uploadCSV(
-      editedTransactions, 
-      selectedBankId, 
-      initialBalanceValue, 
-      new Date(balanceDate), 
-      endBalanceValue
-    );
-    
-    setHasUploaded(true);
-    setIsReviewDialogOpen(false);
-    resetDialog();
-    onClose();
+    try {
+      const initialBalanceValue = parseFloat(initialBalance) || 0;
+      const endBalanceValue = endBalance ? parseFloat(endBalance) : undefined;
+      
+      // Call the uploadCSV function directly with the processed transactions
+      await uploadCSV(
+        editedTransactions, 
+        selectedBankId, 
+        initialBalanceValue, 
+        new Date(balanceDate), 
+        endBalanceValue
+      );
+      
+      setHasUploaded(true);
+      setIsReviewDialogOpen(false);
+      resetDialog();
+      onClose();
+      
+      toast.success(`Successfully uploaded ${editedTransactions.length} transactions`);
+    } catch (error) {
+      console.error('Error uploading transactions:', error);
+      toast.error('Failed to upload transactions');
+    } finally {
+      setUploadInProgress(false);
+    }
   };
 
   const nextStep = () => {
@@ -247,6 +260,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     setWarningMessages([]);
     setHasUploaded(false);
     setParsedTransactions([]);
+    setUploadInProgress(false);
   };
 
   const handleClose = () => {
@@ -476,10 +490,10 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
                 </Button>
                 <Button
                   onClick={processFile}
-                  disabled={!selectedBankId || loading}
+                  disabled={!selectedBankId || uploadInProgress}
                   className="bg-finance-green hover:bg-finance-green-light"
                 >
-                  {loading ? 'Processing...' : 'Review Transactions'}
+                  {uploadInProgress ? 'Processing...' : 'Review Transactions'}
                 </Button>
               </DialogFooter>
             </>
@@ -487,14 +501,16 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
         </DialogContent>
       </Dialog>
 
-      <TransactionReviewDialog 
-        isOpen={isReviewDialogOpen}
-        onClose={() => setIsReviewDialogOpen(false)}
-        transactions={parsedTransactions}
-        onConfirm={handleConfirmUpload}
-        warnings={warningMessages}
-        existingTransactions={transactions}
-      />
+      {isReviewDialogOpen && (
+        <TransactionReviewDialog 
+          isOpen={isReviewDialogOpen}
+          onClose={() => setIsReviewDialogOpen(false)}
+          transactions={parsedTransactions}
+          onConfirm={handleConfirmUpload}
+          warnings={warningMessages}
+          existingTransactions={transactions}
+        />
+      )}
     </>
   );
 };

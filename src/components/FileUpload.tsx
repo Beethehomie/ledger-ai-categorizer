@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UploadCloud, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react";
-import { useBookkeeping } from '@/context/BookkeepingContext';
+import { useBookkeeping } from '@/context/bookkeeping/BookkeepingContext';
 import { toast } from '@/utils/toast';
 import { validateCSVStructure, parseCSV, findDuplicateTransactions } from '@/utils/csvParser';
 import {
@@ -29,6 +29,7 @@ const FileUpload: React.FC = () => {
   const [selectedBankId, setSelectedBankId] = useState<string>('');
   const [warningMessages, setWarningMessages] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [uploadInProgress, setUploadInProgress] = useState(false);
 
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
 
@@ -233,10 +234,10 @@ const FileUpload: React.FC = () => {
         <CardFooter className="flex justify-end">
           <Button
             onClick={processFile}
-            disabled={!selectedFile || !selectedBankId || !csvValidation.isValid || loading}
+            disabled={!selectedFile || !selectedBankId || !csvValidation.isValid || uploadInProgress}
             className="bg-finance-green hover:bg-finance-green-light hover-scale"
           >
-            {loading ? 'Processing...' : 'Process Transactions'}
+            {uploadInProgress ? 'Processing...' : 'Process Transactions'}
           </Button>
         </CardFooter>
       </Card>
