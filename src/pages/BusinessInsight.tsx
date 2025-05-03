@@ -26,6 +26,7 @@ import { useAuth } from '@/hooks/auth';
 import { BusinessContextFormValues } from '@/components/business/BusinessContextQuestionnaire';
 import OnboardingQuestionnaire from '@/components/OnboardingQuestionnaire';
 
+// Define the interfaces for the business insight and AI usage stats
 interface BusinessInsightData {
   id: string;
   user_id: string;
@@ -37,6 +38,14 @@ interface BusinessInsightData {
   version: number;
   updated_at: string;
   created_at: string;
+  previous_versions?: Array<{
+    version: number;
+    industry: string | null;
+    business_model: string | null;
+    description: string | null;
+    ai_summary: string | null;
+    updated_at: string;
+  }> | null;
   error_log: any;
 }
 
@@ -116,13 +125,13 @@ const BusinessInsightPage: React.FC = () => {
           hasEmployees: '',
           mixedUseAccount: false,
           workspaceType: '',
-          ...((profileData && 'business_context' in profileData && profileData.business_context) || {})
+          ...((profileData && profileData.business_context) || {})
         });
-      } else if (profileData && 'business_context' in profileData && profileData.business_context) {
+      } else if (profileData && profileData.business_context) {
         // Fall back to user profile data if no insight record exists
         setBusinessContext(profileData.business_context as BusinessContextFormValues);
         
-        if ('business_insight' in profileData && profileData.business_insight) {
+        if (profileData.business_insight) {
           // Create a synthetic business insight object from profile data
           const insight = profileData.business_insight as any;
           setBusinessInsight({
@@ -444,7 +453,7 @@ const BusinessInsightPage: React.FC = () => {
         </Card>
         
         {/* Version History (if available) */}
-        {businessInsight?.version > 1 && businessInsight.previous_versions?.length > 0 && (
+        {businessInsight?.version > 1 && businessInsight.previous_versions && businessInsight.previous_versions.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-md">Version History</CardTitle>

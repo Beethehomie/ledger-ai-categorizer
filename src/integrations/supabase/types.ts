@@ -9,6 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_usage_stats: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          function_name: string
+          id: string
+          model: string | null
+          request_type: string | null
+          status: string | null
+          tokens_used: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          function_name: string
+          id?: string
+          model?: string | null
+          request_type?: string | null
+          status?: string | null
+          tokens_used?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          function_name?: string
+          id?: string
+          model?: string | null
+          request_type?: string | null
+          status?: string | null
+          tokens_used?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_id: string
@@ -152,6 +188,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      business_insights: {
+        Row: {
+          ai_processing_status: string
+          ai_summary: string | null
+          business_model: string | null
+          created_at: string
+          description: string | null
+          error_log: Json | null
+          id: string
+          industry: string | null
+          previous_versions: Json | null
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          ai_processing_status?: string
+          ai_summary?: string | null
+          business_model?: string | null
+          created_at?: string
+          description?: string | null
+          error_log?: Json | null
+          id?: string
+          industry?: string | null
+          previous_versions?: Json | null
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          ai_processing_status?: string
+          ai_summary?: string | null
+          business_model?: string | null
+          created_at?: string
+          description?: string | null
+          error_log?: Json | null
+          id?: string
+          industry?: string | null
+          previous_versions?: Json | null
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
       }
       user_profiles: {
         Row: {

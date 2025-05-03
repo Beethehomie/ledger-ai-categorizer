@@ -1,3 +1,4 @@
+
 import React from 'react';
 import MainNavigation from '@/components/MainNavigation';
 import { UserNavigation } from '@/components/header/UserNavigation';
