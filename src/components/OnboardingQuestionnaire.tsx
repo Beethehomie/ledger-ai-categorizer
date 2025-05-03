@@ -6,7 +6,7 @@ interface OnboardingQuestionnaireProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: (data: BusinessContextFormValues) => void;
-  initialValues?: any;
+  initialValues?: BusinessContextFormValues;
 }
 
 // This component is a wrapper around BusinessContextQuestionnaire for backward compatibility
