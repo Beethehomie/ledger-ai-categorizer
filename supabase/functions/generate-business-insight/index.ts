@@ -29,50 +29,78 @@ serve(async (req) => {
     // Convert business context to a descriptive prompt
     let prompt = 'Generate a concise 1-2 sentence summary describing this business based on the following context:\n\n';
     
-    if (businessContext.entityType) {
-      prompt += `Entity Type: ${businessContext.entityType === 'business' ? 'Business' : 'Individual'}\n`;
-    }
-    
-    if (businessContext.country) {
-      prompt += `Country: ${businessContext.country}\n`;
-    }
-    
-    if (businessContext.industry) {
-      prompt += `Industry: ${businessContext.industry}\n`;
-    }
-    
-    if (businessContext.businessModel) {
-      prompt += `Business Model: ${businessContext.businessModel}\n`;
-    }
-    
+    // Core questions
     if (businessContext.businessDescription) {
-      prompt += `Description: ${businessContext.businessDescription}\n`;
+      prompt += `Business Description: ${businessContext.businessDescription}\n`;
     }
     
-    if (businessContext.revenueChannels) {
-      prompt += `Revenue Channels: ${businessContext.revenueChannels}\n`;
+    if (businessContext.incomeStreams) {
+      prompt += `Income Streams: ${businessContext.incomeStreams}\n`;
     }
-
-    if (businessContext.hasEmployees) {
-      prompt += `Employees: ${businessContext.hasEmployees}\n`;
+    
+    if (businessContext.commonExpenses) {
+      prompt += `Common Expenses: ${businessContext.commonExpenses}\n`;
     }
-
-    if (businessContext.mixedUseAccount !== undefined) {
-      prompt += `Mixed Use Account: ${businessContext.mixedUseAccount ? 'Yes' : 'No'}\n`;
+    
+    if (businessContext.productType) {
+      prompt += `Product Type: ${businessContext.productType}\n`;
     }
-
-    if (businessContext.incomeTypes && businessContext.incomeTypes.length > 0) {
-      prompt += `Income Types: ${businessContext.incomeTypes.join(', ')}\n`;
+    
+    if (businessContext.hasInventory !== undefined) {
+      prompt += `Has Inventory: ${businessContext.hasInventory ? 'Yes' : 'No'}\n`;
     }
-
-    if (businessContext.costsOfSales) {
-      prompt += `Costs of Sales: ${businessContext.costsOfSales}\n`;
+    
+    if (businessContext.usesContractors !== undefined) {
+      prompt += `Uses Contractors: ${businessContext.usesContractors ? 'Yes' : 'No'}\n`;
     }
-
-    if (businessContext.workspaceType) {
-      prompt += `Workspace Type: ${businessContext.workspaceType}\n`;
+    
+    if (businessContext.paymentMethods) {
+      prompt += `Payment Methods: ${businessContext.paymentMethods}\n`;
     }
-
+    
+    // Extended business model questions
+    // Customer Segments
+    const customerSegments = businessContext.customerSegments;
+    if (customerSegments) {
+      if (customerSegments.primaryCustomers) {
+        prompt += `Primary Customers: ${customerSegments.primaryCustomers}\n`;
+      }
+      
+      if (customerSegments.customerType) {
+        prompt += `Customer Type: ${customerSegments.customerType}\n`;
+      }
+      
+      if (customerSegments.customerLocation) {
+        prompt += `Customer Location: ${customerSegments.customerLocation}\n`;
+      }
+      
+      if (customerSegments.isNicheMarket !== undefined) {
+        prompt += `Niche Market: ${customerSegments.isNicheMarket ? 'Yes' : 'No'}\n`;
+      }
+    }
+    
+    // Value Propositions
+    const valueProps = businessContext.valuePropositions;
+    if (valueProps) {
+      if (valueProps.problemsSolved) {
+        prompt += `Problems Solved: ${valueProps.problemsSolved}\n`;
+      }
+      
+      if (valueProps.productServices) {
+        prompt += `Products/Services: ${valueProps.productServices}\n`;
+      }
+      
+      if (valueProps.competitiveAdvantage) {
+        prompt += `Competitive Advantage: ${valueProps.competitiveAdvantage}\n`;
+      }
+      
+      if (valueProps.uniqueFeatures) {
+        prompt += `Unique Features: ${valueProps.uniqueFeatures}\n`;
+      }
+    }
+    
+    // Add other sections as needed for a comprehensive prompt
+    
     // Generate AI insight using OpenAI
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -85,7 +113,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are an AI assistant specialized in business analytics. Generate concise, insightful summaries (1-2 sentences) about businesses based on contextual information.'
+            content: 'You are an AI assistant specialized in business analytics. Generate a concise, insightful summary (1-2 sentences) about businesses based on contextual information.'
           },
           {
             role: 'user',

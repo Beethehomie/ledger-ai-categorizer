@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
 import Dashboard from '@/components/Dashboard';
-import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react';
+import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard, RefreshCw, AlertTriangle, Briefcase } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import BankConnections from '@/components/BankConnections';
@@ -123,7 +123,7 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
     <>
       <Tabs defaultValue="reports" className="w-full">
         <div className="mb-6">
-          <TabsList className="w-full grid grid-cols-5">
+          <TabsList className="w-full grid grid-cols-6">
             <TabsTrigger value="reports">
               <PieChart className="h-4 w-4 mr-2" />
               Reports
@@ -131,6 +131,10 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
             <TabsTrigger value="transactions">
               <FileText className="h-4 w-4 mr-2" />
               Transactions
+            </TabsTrigger>
+            <TabsTrigger value="business-insight">
+              <Briefcase className="h-4 w-4 mr-2" />
+              Business Insight
             </TabsTrigger>
             <TabsTrigger value="review">
               <AlertTriangle className="h-4 w-4 mr-2" />
@@ -176,6 +180,17 @@ const AppContent = ({ isUploadDialogOpen, setIsUploadDialogOpen, isAdmin }: AppC
               transactions={transactions} 
               onRefresh={handleRefresh}
             />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="business-insight" className="mt-0">
+          <div className="flex justify-center">
+            <Link to="/business-insight" className="w-full">
+              <Button variant="outline" className="w-full py-8 text-lg">
+                <Briefcase className="h-6 w-6 mr-2" />
+                Go to Business Insight Page
+              </Button>
+            </Link>
           </div>
         </TabsContent>
         

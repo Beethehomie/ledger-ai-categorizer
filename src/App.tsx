@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import AdminPage from './pages/AdminPage';
 import Subscription from './pages/Subscription';
 import Settings from './pages/Settings';
+import BusinessInsight from './pages/BusinessInsight';
 import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { BookkeepingProvider } from "@/context/BookkeepingContext";
@@ -32,6 +33,7 @@ const App = () => (
                 <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
                 <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
                 <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+                <Route path="/business-insight" element={<RequireAuth><BusinessInsight /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
