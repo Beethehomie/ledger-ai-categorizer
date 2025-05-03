@@ -110,14 +110,12 @@ export const findSimilarVendorsByDescription = async (
       };
     }
     
-    // Search for similar vendors using the database function
-    // Fix the typing issue by using a type assertion for the RPC call
-    const { data, error } = await supabase
-  .rpc<VendorMatch[]>('match_vendors_by_embedding', {
-    query_embedding: embedding,
-    match_threshold: 0.5,
-    match_count: 5
-  });
+    // Use a type assertion to handle the RPC call correctly
+    const { data, error } = await supabase.rpc('match_vendors_by_embedding', {
+      query_embedding: embedding,
+      match_threshold: 0.5,
+      match_count: 5
+    });
 
     
     if (error) {
@@ -129,8 +127,8 @@ export const findSimilarVendorsByDescription = async (
     }
     
     // Transform results to include confidence (for compatibility with VendorEmbeddings component)
-    // Cast data to the expected type since we know what the function returns
-    const vendors = (data as VendorMatch[] | null) || [];
+    // Handle the case when data is null or undefined
+    const vendors = data as VendorMatch[] || [];
     const transformedResults = vendors.map(vendor => ({
       ...vendor,
       confidence: Math.round(vendor.similarity * 100) // Convert similarity to percentage confidence
