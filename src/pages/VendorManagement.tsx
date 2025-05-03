@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { useBookkeeping } from '@/context/BookkeepingContext';
+import { useBookkeeping, BookkeepingProvider } from '@/context/BookkeepingContext';
 import { Store, Edit, Check, X, Search, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +15,8 @@ import { generateVendorEmbeddings } from '@/utils/embeddingUtils';
 import VendorTransactionsDisplay from '@/components/vendor/VendorTransactionsDisplay';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-const VendorManagement: React.FC = () => {
+// Create a wrapper component that uses the hook
+const VendorManagementContent: React.FC = () => {
   const { 
     vendors, 
     getVendorsList, 
@@ -450,6 +450,15 @@ const VendorManagement: React.FC = () => {
         </DialogContent>
       </Dialog>
     </div>
+  );
+};
+
+// Main component that wraps the content with the provider
+const VendorManagement: React.FC = () => {
+  return (
+    <BookkeepingProvider>
+      <VendorManagementContent />
+    </BookkeepingProvider>
   );
 };
 
