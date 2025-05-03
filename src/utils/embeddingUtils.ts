@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 
@@ -109,14 +110,15 @@ export const findSimilarVendorsByDescription = async (
       };
     }
     
-    // The correct approach: use a Record type for parameters to properly type the RPC call without specifying generics
-    const response = await supabase.rpc('match_vendors_by_embedding', {
-      query_embedding: embedding as unknown as object, // Type assertion to satisfy TypeScript
-      match_threshold: 0.5,
-      match_count: 5
-    });
-    
-    const { data, error } = response;
+    // Handle the RPC call by using the parameter object approach
+    const { data, error } = await supabase.rpc(
+      'match_vendors_by_embedding', 
+      {
+        query_embedding: embedding,
+        match_threshold: 0.5,
+        match_count: 5
+      }
+    );
     
     if (error) {
       console.error('Error finding similar vendors:', error);
