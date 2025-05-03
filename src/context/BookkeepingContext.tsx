@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
@@ -44,7 +45,7 @@ const BookkeepingContext = createContext<BookkeepingContextType>({
   fetchTransactionsForBankAccount: async () => Promise.resolve([]),
   batchVerifyVendorTransactions: async () => Promise.resolve(),
   fetchTransactions: async () => Promise.resolve(),
-  findSimilarTransactions: () => [],
+  findSimilarTransactions: (vendorName: string, allTransactions: Transaction[]) => Promise.resolve([]),
   deleteTransaction: async () => ({ success: false }),
   getBankAccountIdFromConnection: async () => null,
 });
