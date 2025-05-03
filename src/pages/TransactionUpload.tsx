@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Upload, AlertCircle, CheckCircle } from "lucide-react";
@@ -176,7 +175,7 @@ const TransactionUpload: React.FC = () => {
             <CardHeader>
               <CardTitle>Preview Transactions</CardTitle>
               <div className="flex items-center gap-2">
-                <Badge variant={parsedData.warnings.length === 0 ? "success" : "destructive"}>
+                <Badge variant={parsedData.warnings.length === 0 ? "outline" : "destructive"} className={parsedData.warnings.length === 0 ? "bg-green-50 text-green-700 border-green-200" : ""}>
                   {parsedData.transactions.length} Transactions
                 </Badge>
                 {parsedData.warnings.length > 0 && (

@@ -1,13 +1,23 @@
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
 import { useFinancialSummary } from './bookkeeping/useFinancialSummary';
 import { BookkeepingContextType } from './bookkeeping/types';
+import { Category } from '@/types';
+
+// Default categories to use
+const defaultCategories: Category[] = [
+  { id: '1', name: 'Sales', type: 'income', statementType: 'profit_loss', keywords: ['sales', 'revenue', 'income'] },
+  { id: '2', name: 'Expenses', type: 'expense', statementType: 'profit_loss', keywords: ['expense', 'cost', 'fee'] },
+  // Add more default categories as needed
+];
 
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
 
 export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [categories, setCategories] = useState<Category[]>(defaultCategories);
+  
   const { 
     transactions,
     loading,
@@ -37,10 +47,9 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   } = useVendors(transactions, updateTransaction);
 
   const {
-    categories,
     financialSummary,
     calculateFinancialSummary
-  } = useFinancialSummary(transactions, categories || []);
+  } = useFinancialSummary(transactions);
 
   const value: BookkeepingContextType = {
     transactions,

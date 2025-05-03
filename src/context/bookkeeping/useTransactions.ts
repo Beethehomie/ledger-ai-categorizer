@@ -13,7 +13,7 @@ import { BankConnectionRow } from '@/types/supabase';
 import { findDuplicatesInDatabase, reconcileAccountBalance, updateTransactionBalances } from '@/services/bookkeepingService';
 
 export const useTransactions = (
-  bankConnections: BankConnectionRow[]
+  initialBankConnections: BankConnectionRow[]
 ) => {
   const { session } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -54,12 +54,13 @@ export const useTransactions = (
             bankAccountId: t.bank_connection_id || undefined,
             bankAccountName: undefined,
             balance: t.balance || undefined,
+            isReconciled: t.is_reconciled || false,
           }));
           
           if (fetchedTransactions.length > 0) {
             for (const transaction of fetchedTransactions) {
               if (transaction.bankAccountId) {
-                const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
+                const bankConnection = initialBankConnections.find(conn => conn.id === transaction.bankAccountId);
                 if (bankConnection) {
                   transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
                 }
@@ -77,7 +78,7 @@ export const useTransactions = (
     };
     
     fetchTransactions();
-  }, [session, bankConnections]);
+  }, [session, initialBankConnections]);
 
   const addTransactions = async (newTransactions: Transaction[]) => {
     if (!session) {
@@ -117,7 +118,8 @@ export const useTransactions = (
           vendor: updatedTransaction.vendor || null,
           vendor_verified: updatedTransaction.vendorVerified || false,
           confidence_score: updatedTransaction.confidenceScore || null,
-          balance: updatedTransaction.balance || null
+          balance: updatedTransaction.balance || null,
+          is_reconciled: updatedTransaction.isReconciled || false
         })
         .eq('id', updatedTransaction.id);
         
@@ -223,7 +225,7 @@ export const useTransactions = (
     try {
       let bankConnection: BankConnectionRow | undefined;
       if (bankConnectionId) {
-        bankConnection = bankConnections.find(conn => conn.id === bankConnectionId);
+        bankConnection = initialBankConnections.find(conn => conn.id === bankConnectionId);
       }
       
       const processCSVTransactions = async () => {
@@ -368,9 +370,10 @@ export const useTransactions = (
           bankAccountId: t.bank_connection_id || undefined,
           bankAccountName: undefined,
           balance: t.balance || undefined,
+          isReconciled: t.is_reconciled || false,
         }));
         
-        const bankConnection = bankConnections.find(conn => conn.id === bankAccountId);
+        const bankConnection = initialBankConnections.find(conn => conn.id === bankAccountId);
         if (bankConnection) {
           for (const transaction of bankTransactions) {
             transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
@@ -388,10 +391,10 @@ export const useTransactions = (
     }
   };
 
-  const deleteTransaction = async (id: string): Promise<boolean> => {
+  // Modify the deleteTransaction function to return the expected type
+  const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
     if (!session) {
-      toast.error('You must be logged in to delete transactions');
-      return false;
+      return { success: false, error: 'You must be logged in to delete transactions' };
     }
     
     try {
@@ -401,15 +404,16 @@ export const useTransactions = (
         .eq('id', id);
         
       if (error) {
-        throw error;
+        console.error('Error deleting transaction:', error);
+        return { success: false, error: error.message };
       }
       
       setTransactions(prev => prev.filter(transaction => transaction.id !== id));
-      return true;
+      
+      return { success: true };
     } catch (err: any) {
       console.error('Error deleting transaction:', err);
-      toast.error('Failed to delete transaction');
-      return false;
+      return { success: false, error: err.message || 'Unknown error occurred' };
     }
   };
 
@@ -465,7 +469,7 @@ export const useTransactions = (
   };
 
   const getBankConnectionById = (id: string) => {
-    return bankConnections.find(conn => conn.id === id);
+    return initialBankConnections.find(conn => conn.id === id);
   };
 
   const fetchTransactions = async (): Promise<void> => {
@@ -504,12 +508,13 @@ export const useTransactions = (
           bankAccountId: t.bank_connection_id || undefined,
           bankAccountName: undefined,
           balance: t.balance || undefined,
+          isReconciled: t.is_reconciled || false,
         }));
         
         if (fetchedTransactions.length > 0) {
           for (const transaction of fetchedTransactions) {
             if (transaction.bankAccountId) {
-              const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
+              const bankConnection = initialBankConnections.find(conn => conn.id === transaction.bankAccountId);
               if (bankConnection) {
                 transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
               }

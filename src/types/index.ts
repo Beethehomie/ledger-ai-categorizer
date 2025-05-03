@@ -18,6 +18,7 @@ export interface Transaction {
   bankAccountId?: string;
   bankAccountName?: string;
   balance?: number; // Running balance field
+  isReconciled?: boolean; // Add this field for reconciliation
 }
 
 export interface Category {
@@ -44,6 +45,11 @@ export interface VendorItem {
   verified: boolean;
 }
 
+export interface CategoryExpense {
+  category: string;
+  amount: number;
+}
+
 export interface FinancialSummary {
   totalIncome: number;
   totalExpenses: number;
@@ -53,6 +59,9 @@ export interface FinancialSummary {
   netProfit: number;
   cashBalance: number;
   income: number;
+  expenses: number; // Added field
+  netIncome: number; // Added field
+  expensesByCategory: CategoryExpense[]; // Added field
 }
 
 export interface AIAnalysisResult {

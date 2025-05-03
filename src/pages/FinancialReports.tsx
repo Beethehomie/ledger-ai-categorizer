@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';

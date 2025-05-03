@@ -1,9 +1,9 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { FinancialSummary, Transaction } from '@/types';
+import { useState, useCallback } from 'react';
+import { Transaction, Category, FinancialSummary, CategoryExpense } from '@/types';
 
 export const useFinancialSummary = (transactions: Transaction[]) => {
-  const initialFinancialSummary: FinancialSummary = {
+  const [financialSummary, setFinancialSummary] = useState<FinancialSummary>({
     totalIncome: 0,
     totalExpenses: 0,
     totalAssets: 0,
@@ -11,63 +11,70 @@ export const useFinancialSummary = (transactions: Transaction[]) => {
     totalEquity: 0,
     netProfit: 0,
     cashBalance: 0,
-    income: 0, // Add this line
-  };
-
-  const [financialSummary, setFinancialSummary] = useState<FinancialSummary>(initialFinancialSummary);
-
-  const calculateFinancialSummary = useCallback((): FinancialSummary => {
-    const summary: FinancialSummary = { ...initialFinancialSummary };
+    income: 0,
+    expenses: 0,
+    netIncome: 0,
+    expensesByCategory: []
+  });
+  
+  const calculateFinancialSummary = useCallback(() => {
+    // Only include verified transactions in financial calculations
+    const verifiedTransactions = transactions.filter(t => t.isVerified);
     
-    // Get the most recent balance from transactions with a balance property
-    const transactionsWithBalance = transactions
-      .filter(t => t.balance !== undefined)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    let totalIncome = 0;
+    let totalExpenses = 0;
+    let totalAssets = 0;
+    let totalLiabilities = 0;
+    let totalEquity = 0;
     
-    // If we have any transactions with a balance, use the most recent one as the starting point
-    if (transactionsWithBalance.length > 0) {
-      summary.cashBalance = transactionsWithBalance[0].balance || 0;
-    }
+    // For expense categories breakdown
+    const expensesByCategory: Record<string, number> = {};
     
-    // Calculate other financial metrics
-    transactions.forEach(transaction => {
-      if (!transaction.isVerified) return;
-
-      const amount = Math.abs(transaction.amount);
+    verifiedTransactions.forEach(transaction => {
+      const amount = Math.abs(transaction.amount || 0);
       
-      switch(transaction.type) {
-        case 'income':
-          summary.totalIncome += amount;
-          summary.income += amount; // Add this line
-          break;
-        case 'expense':
-          summary.totalExpenses += amount;
-          break;
-        case 'asset':
-          summary.totalAssets += amount;
-          break;
-        case 'liability':
-          summary.totalLiabilities += amount;
-          break;
-        case 'equity':
-          summary.totalEquity += amount;
-          break;
+      if (transaction.type === 'income') {
+        totalIncome += amount;
+      } else if (transaction.type === 'expense') {
+        totalExpenses += amount;
+        
+        // Aggregate expenses by category
+        const category = transaction.category || 'Uncategorized';
+        expensesByCategory[category] = (expensesByCategory[category] || 0) + amount;
+      } else if (transaction.type === 'asset') {
+        totalAssets += amount;
+      } else if (transaction.type === 'liability') {
+        totalLiabilities += amount;
+      } else if (transaction.type === 'equity') {
+        totalEquity += amount;
       }
     });
-
-    summary.netProfit = summary.totalIncome - summary.totalExpenses;
+    
+    // Convert expense categories to array format
+    const expensesByCategoryArray: CategoryExpense[] = Object.entries(expensesByCategory)
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount);
+    
+    const netIncome = totalIncome - totalExpenses;
+    const cashBalance = totalAssets - totalLiabilities + totalEquity;
+    
+    const summary: FinancialSummary = {
+      totalIncome,
+      totalExpenses,
+      totalAssets,
+      totalLiabilities,
+      totalEquity,
+      netProfit: netIncome,
+      cashBalance,
+      income: totalIncome,
+      expenses: totalExpenses,
+      netIncome,
+      expensesByCategory: expensesByCategoryArray
+    };
     
     setFinancialSummary(summary);
     return summary;
   }, [transactions]);
-
-  // Make sure to recalculate whenever transactions change
-  useEffect(() => {
-    calculateFinancialSummary();
-  }, [transactions, calculateFinancialSummary]);
-
-  return {
-    financialSummary,
-    calculateFinancialSummary
-  };
+  
+  return { financialSummary, calculateFinancialSummary };
 };

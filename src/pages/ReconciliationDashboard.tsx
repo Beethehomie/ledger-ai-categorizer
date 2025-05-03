@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { Transaction } from '@/types';
@@ -14,6 +13,11 @@ import DateRangeSelector from '@/components/DateRangeSelector';
 import { toast } from '@/utils/toast';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+
+interface DateRange {
+  startDate: Date | undefined;
+  endDate: Date | undefined;
+}
 
 const ReconciliationDashboard: React.FC = () => {
   const { 
@@ -153,6 +157,11 @@ const ReconciliationDashboard: React.FC = () => {
   const filteredTransactions = getFilteredTransactions();
   const selectedBank = bankConnections.find(bank => bank.id === selectedBankId);
   
+  const handleDateRangeChange = (range: DateRange) => {
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+  };
+  
   return (
     <div className="container mx-auto py-8">
       <div className="flex items-center justify-between mb-6">
@@ -195,10 +204,7 @@ const ReconciliationDashboard: React.FC = () => {
                 <DateRangeSelector
                   startDate={startDate}
                   endDate={endDate}
-                  onRangeChange={({ startDate, endDate }) => {
-                    setStartDate(startDate);
-                    setEndDate(endDate);
-                  }}
+                  onRangeChange={handleDateRangeChange}
                 />
               </div>
             </div>
