@@ -7,16 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, Check } from 'lucide-react';
 import { toast } from '@/utils/toast';
-import { generateVendorEmbeddings, findSimilarVendorsByDescription } from '@/utils/embeddingUtils';
-
-interface VendorMatch {
-  vendor_name: string;
-  category: string;
-  confidence: number;
-  type: string;
-  statement_type: string;
-  sample_description?: string;
-}
+import { generateVendorEmbeddings, findSimilarVendorsByDescription, VendorMatch } from '@/utils/embeddingUtils';
 
 // Define a more accurate type for the results returned by the generateVendorEmbeddings function
 interface EmbeddingGenerationResults {
@@ -188,12 +179,13 @@ const VendorEmbeddings = () => {
                       <h4 className="font-medium">{result.vendor_name}</h4>
                       <Badge 
                         className={
-                          result.confidence > 80 ? "bg-green-500" : 
+                          result.confidence ? 
+                          (result.confidence > 80 ? "bg-green-500" : 
                           result.confidence > 50 ? "bg-amber-500" : 
-                          "bg-red-500"
+                          "bg-red-500") : "bg-blue-500"
                         }
                       >
-                        {result.confidence}% match
+                        {result.confidence || Math.round(result.similarity * 100)}% match
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">Category: {result.category}</p>

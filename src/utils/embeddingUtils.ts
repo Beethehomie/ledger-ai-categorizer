@@ -14,7 +14,7 @@ interface EmbeddingGenerationResult {
   };
 }
 
-interface VendorMatch {
+export interface VendorMatch {
   id: string;
   vendor_name: string;
   category: string;
@@ -22,6 +22,7 @@ interface VendorMatch {
   sample_description?: string;
   statement_type: string;
   similarity: number;
+  confidence?: number; // Adding this to make it compatible with VendorEmbeddings component
 }
 
 export const generateTransactionEmbeddings = async (
@@ -127,10 +128,17 @@ export const findSimilarVendorsByDescription = async (
       };
     }
     
+    // Transform results to include confidence (for compatibility with VendorEmbeddings component)
+    const vendors = (data as VendorMatch[]) || [];
+    const transformedResults = vendors.map(vendor => ({
+      ...vendor,
+      confidence: Math.round(vendor.similarity * 100) // Convert similarity to percentage confidence
+    }));
+    
     return {
       success: true,
-      results: data as VendorMatch[] || [],
-      count: data ? data.length : 0
+      results: transformedResults,
+      count: transformedResults.length
     };
   } catch (err) {
     console.error('Error in findSimilarVendorsByDescription:', err);
