@@ -136,19 +136,21 @@ export const getBankAccountIdFromConnection = async (bankConnectionId: string): 
   try {
     console.log('Looking up account ID for bank connection:', bankConnectionId);
     
-    // First check if there's a direct link in the bank_accounts table
-    const { data: accountData, error: accountError } = await supabase
-      .from('bank_accounts')
+    // First check if there are transactions with this connection ID
+    // and extract the account ID from there
+    const { data: transactionData, error: transactionError } = await supabase
+      .from('bank_transactions')
       .select('account_id')
       .eq('bank_connection_id', bankConnectionId)
-      .single();
-    
-    if (!accountError && accountData?.account_id) {
-      console.log('Found account ID from bank_accounts table:', accountData.account_id);
-      return accountData.account_id;
+      .order('created_at', { ascending: false })
+      .limit(1);
+      
+    if (!transactionError && transactionData && transactionData.length > 0 && transactionData[0].account_id) {
+      console.log('Found account ID from transactions:', transactionData[0].account_id);
+      return transactionData[0].account_id;
     }
     
-    // If not found in bank_accounts, check if the connection has an account_id field
+    // If not found in transactions, check if the connection has an account_id field
     const { data: connectionData, error: connectionError } = await supabase
       .from('bank_connections')
       .select('id')

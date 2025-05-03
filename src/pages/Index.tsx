@@ -1,12 +1,13 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { exportToCSV } from '@/utils/csvParser';
 
 const Index: React.FC = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { session } = useAuth();
   
   return (
@@ -20,17 +21,17 @@ const Index: React.FC = () => {
         {session ? (
           <>
             <p className="text-lg">You are logged in. Go to your dashboard to manage your finances.</p>
-            <Button onClick={() => router.push('/dashboard')} className="bg-finance-green hover:bg-finance-green-light hover-scale">
+            <Button onClick={() => navigate('/dashboard')} className="bg-finance-green hover:bg-finance-green-light hover-scale">
               Go to Dashboard <ArrowRight className="ml-2" />
             </Button>
           </>
         ) : (
           <>
             <p className="text-lg">Create an account or log in to start tracking your finances.</p>
-            <Button onClick={() => router.push('/auth/sign-up')} className="bg-finance-green hover:bg-finance-green-light hover-scale">
+            <Button onClick={() => navigate('/auth/sign-up')} className="bg-finance-green hover:bg-finance-green-light hover-scale">
               Sign Up <ArrowRight className="ml-2" />
             </Button>
-            <Button onClick={() => router.push('/auth/sign-in')} variant="outline" className="hover-scale">
+            <Button onClick={() => navigate('/auth/sign-in')} variant="outline" className="hover-scale">
               Log In <ArrowRight className="ml-2" />
             </Button>
           </>
