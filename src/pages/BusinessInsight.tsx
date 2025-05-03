@@ -101,6 +101,7 @@ const BusinessInsightPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [generatingInsight, setGeneratingInsight] = useState(false);
   const [aiInsight, setAIInsight] = useState<AIInsight | null>(null);
+  const [databaseError, setDatabaseError] = useState<string | null>(null);
   
   const form = useForm<BusinessContextFormValues>({
     defaultValues: {
@@ -171,6 +172,8 @@ const BusinessInsightPage: React.FC = () => {
       
       try {
         setLoading(true);
+        setDatabaseError(null);
+        
         const { data, error } = await supabase
           .from('user_profiles')
           .select('business_context, business_insight')
@@ -182,27 +185,23 @@ const BusinessInsightPage: React.FC = () => {
           
           // Check if the error is due to the column not existing
           if (error.message?.includes("column 'business_insight' does not exist")) {
-            // Just continue without data, a migration will be needed to add this column
+            setDatabaseError("The database is missing required columns. A database migration is needed.");
             toast.error("Missing business_insight column. A database migration is needed.");
+          } else {
+            toast.error('Failed to load business data: ' + error.message);
           }
           return;
         }
         
-        // Only proceed with the data if it's not null or undefined
-        // TypeScript now knows data is not an error object here
+        // Now we know data is not an error object
         if (data) {
-          // Check if business_context exists and is not null
-          const businessContext = data.business_context;
-          if (businessContext) {
-            // Cast to the form values type
-            form.reset(businessContext as unknown as BusinessContextFormValues);
+          // Access data properties safely
+          if ('business_context' in data && data.business_context) {
+            form.reset(data.business_context as unknown as BusinessContextFormValues);
           }
           
-          // Check if business_insight exists and is not null
-          const businessInsight = data.business_insight;
-          if (businessInsight) {
-            // Cast to the AIInsight type
-            setAIInsight(businessInsight as unknown as AIInsight);
+          if ('business_insight' in data && data.business_insight) {
+            setAIInsight(data.business_insight as unknown as AIInsight);
           }
         }
       } catch (error) {
@@ -290,6 +289,22 @@ const BusinessInsightPage: React.FC = () => {
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
         <span className="ml-2 text-lg">Loading business data...</span>
+      </div>
+    );
+  }
+  
+  // Show error alert if there was a database issue
+  if (databaseError) {
+    return (
+      <div className="container max-w-5xl mx-auto px-4 py-8">
+        <Alert variant="destructive" className="mb-8">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Database Error</AlertTitle>
+          <AlertDescription>
+            {databaseError}
+            <p className="mt-2">Please contact your administrator to run the required database migrations.</p>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
