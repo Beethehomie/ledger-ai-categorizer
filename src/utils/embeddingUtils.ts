@@ -112,14 +112,13 @@ export const findSimilarVendorsByDescription = async (
     
     // Search for similar vendors using the database function
     // Fix the typing issue by using a type assertion for the RPC call
-    const { data, error } = await supabase.rpc(
-      'match_vendors_by_embedding',
-      {
-        query_embedding: embedding,
-        match_threshold: 0.5,
-        match_count: 5
-      }
-    );
+    const { data, error } = await supabase
+  .rpc<VendorMatch[]>('match_vendors_by_embedding', {
+    query_embedding: embedding,
+    match_threshold: 0.5,
+    match_count: 5
+  });
+
     
     if (error) {
       console.error('Error finding similar vendors:', error);
