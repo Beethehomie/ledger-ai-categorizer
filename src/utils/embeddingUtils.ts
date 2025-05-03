@@ -22,7 +22,7 @@ export interface VendorMatch {
   sample_description?: string;
   statement_type: string;
   similarity: number;
-  confidence?: number; // Adding this to make it compatible with VendorEmbeddings component
+  confidence?: number; // Added for compatibility with VendorEmbeddings component
 }
 
 export const generateTransactionEmbeddings = async (
@@ -114,7 +114,7 @@ export const findSimilarVendorsByDescription = async (
     const { data, error } = await supabase.rpc(
       'match_vendors_by_embedding',
       {
-        query_embedding: embedding,
+        query_embedding: embedding, // This was causing the error - embedding is now properly typed
         match_threshold: 0.5,
         match_count: 5
       }
