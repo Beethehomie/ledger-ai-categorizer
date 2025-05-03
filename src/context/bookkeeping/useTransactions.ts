@@ -10,7 +10,12 @@ import {
   processTransactions 
 } from './transactionUtils';
 import { BankConnectionRow } from '@/types/supabase';
-import { findDuplicatesInDatabase, reconcileAccountBalance, updateTransactionBalances } from '@/services/bookkeepingService';
+import { 
+  findDuplicatesInDatabase, 
+  reconcileAccountBalance, 
+  updateTransactionBalances,
+  getBankAccountIdFromConnection 
+} from '@/services/bookkeepingService';
 
 export const useTransactions = (
   bankConnections: BankConnectionRow[]
@@ -632,8 +637,7 @@ export const useTransactions = (
   // Export getBankAccountIdFromConnection for use in context
   const getBankAccountIdFromConnection = async (bankConnectionId: string): Promise<string | null> => {
     try {
-      // This function is imported from bookkeepingService.ts
-      return await getAccountIdFromConnection(bankConnectionId);
+      return await getBankAccountIdFromConnection(bankConnectionId);
     } catch (err) {
       console.error('Error in getBankAccountIdFromConnection:', err);
       return null;

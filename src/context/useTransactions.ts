@@ -14,7 +14,7 @@ import {
   findDuplicatesInDatabase, 
   reconcileAccountBalance, 
   updateTransactionBalances,
-  getBankAccountIdFromConnection as getAccountIdFromConnection 
+  getBankAccountIdFromConnection 
 } from '@/services/bookkeepingService';
 
 export const useTransactions = (
@@ -242,7 +242,7 @@ export const useTransactions = (
       // If we have a bank connection ID, try to get the corresponding account ID
       let accountId: string | null = null;
       if (bankConnectionId) {
-        accountId = await getAccountIdFromConnection(bankConnectionId);
+        accountId = await getBankAccountIdFromConnection(bankConnectionId);
         if (!accountId) {
           console.warn('Could not find account ID for bank connection:', bankConnectionId);
           // Continue anyway, we'll try to upload without account_id
