@@ -13,9 +13,12 @@ import {
   Home,
   Settings,
   CreditCard,
-  BarChart2,
+  BarChart3,
   Users,
-  Lightbulb
+  Lightbulb,
+  FileText,
+  Upload,
+  Store
 } from 'lucide-react';
 import { useAuth } from '@/hooks/auth';
 
@@ -28,6 +31,26 @@ const MainNavigation = () => {
       name: 'Dashboard',
       path: '/',
       icon: <Home className="w-4 h-4 mr-2" />,
+    },
+    {
+      name: 'Upload Transactions',
+      path: '/transaction-upload',
+      icon: <Upload className="w-4 h-4 mr-2" />,
+    },
+    {
+      name: 'Reconciliation',
+      path: '/reconciliation',
+      icon: <BarChart3 className="w-4 h-4 mr-2" />,
+    },
+    {
+      name: 'Vendors',
+      path: '/vendors',
+      icon: <Store className="w-4 h-4 mr-2" />,
+    },
+    {
+      name: 'Reports',
+      path: '/reports',
+      icon: <FileText className="w-4 h-4 mr-2" />,
     },
     {
       name: 'Business Insight',
