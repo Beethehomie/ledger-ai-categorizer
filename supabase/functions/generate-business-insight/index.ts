@@ -1,11 +1,7 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import 'https://deno.land/x/xhr@0.1.0/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,214 +13,138 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-  
-  // Create a Supabase client
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  
+
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const openAiKey = Deno.env.get('OPENAI_API_KEY') || '';
+
+    if (!supabaseUrl || !supabaseServiceKey || !openAiKey) {
+      throw new Error('Missing environment variables');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { businessContext, userId } = await req.json();
-    
-    if (!userId) {
-      throw new Error('No user ID provided');
-    }
-    
-    // Get existing business insight or create a new one
-    const { data: existingInsight, error: fetchError } = await supabase
-      .from('business_insights')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-    
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "no rows found"
-      throw fetchError;
-    }
-    
-    // Prepare the prompt for OpenAI
-    const prompt = `
-Based on the following business context, create a 1-2 sentence insight about this business from an accounting or financial perspective. 
-Focus on relevant accounting needs, business structure implications, or financial planning considerations.
 
-Business information:
-${businessContext.entityType ? `- Entity Type: ${businessContext.entityType}` : ''}
-${businessContext.country ? `- Country: ${businessContext.country}` : ''}
-${businessContext.industry ? `- Industry: ${businessContext.industry}` : ''}
-${businessContext.businessModel ? `- Business Model: ${businessContext.businessModel}` : ''}
-${businessContext.businessSize ? `- Business Size: ${businessContext.businessSize}` : ''}
-${businessContext.hasEmployees ? `- Team: ${businessContext.hasEmployees}` : ''}
-${businessContext.workspaceType ? `- Workspace: ${businessContext.workspaceType}` : ''}
-${businessContext.businessDescription ? `- Business Description: ${businessContext.businessDescription}` : ''}
-
-The business operates ${businessContext.mixedUseAccount ? 'with mixed business/personal accounts' : 'with business-only accounts'}.
-
-Provide a brief, insightful summary for the business owner about their accounting needs or financial considerations based on this information.
-`;
+    // Convert business context to a descriptive prompt
+    let prompt = 'Generate a concise 1-2 sentence summary describing this business based on the following context:\n\n';
     
-    // Set processing status
-    let insightId;
-    if (existingInsight) {
-      const { error: updateError } = await supabase
-        .from('business_insights')
-        .update({
-          industry: businessContext.industry,
-          business_model: businessContext.businessModel,
-          description: businessContext.businessDescription,
-          ai_processing_status: 'processing',
-          version: existingInsight.version + 1,
-          previous_versions: existingInsight.previous_versions
-            ? [...(existingInsight.previous_versions || []), {
-                version: existingInsight.version,
-                industry: existingInsight.industry,
-                business_model: existingInsight.business_model,
-                description: existingInsight.description,
-                ai_summary: existingInsight.ai_summary,
-                updated_at: existingInsight.updated_at
-              }]
-            : [{
-                version: existingInsight.version,
-                industry: existingInsight.industry,
-                business_model: existingInsight.business_model,
-                description: existingInsight.description,
-                ai_summary: existingInsight.ai_summary,
-                updated_at: existingInsight.updated_at
-              }]
-        })
-        .eq('id', existingInsight.id);
-      
-      if (updateError) throw updateError;
-      insightId = existingInsight.id;
-    } else {
-      const { data: newInsight, error: insertError } = await supabase
-        .from('business_insights')
-        .insert({
-          user_id: userId,
-          industry: businessContext.industry,
-          business_model: businessContext.businessModel,
-          description: businessContext.businessDescription,
-          ai_processing_status: 'processing'
-        })
-        .select()
-        .single();
-      
-      if (insertError) throw insertError;
-      if (!newInsight) throw new Error('Failed to create insight record');
-      insightId = newInsight.id;
+    if (businessContext.entityType) {
+      prompt += `Entity Type: ${businessContext.entityType === 'business' ? 'Business' : 'Individual'}\n`;
     }
     
-    // Log usage stats
-    const usageStart = {
-      user_id: userId,
-      function_name: 'generate-business-insight',
-      request_type: 'insight_generation',
-      model: 'gpt-4o-mini',
-      status: 'processing',
-    };
-    
-    const { data: usageData, error: usageError } = await supabase
-      .from('ai_usage_stats')
-      .insert(usageStart)
-      .select()
-      .single();
-      
-    if (usageError) {
-      console.error('Error logging usage start:', usageError);
+    if (businessContext.country) {
+      prompt += `Country: ${businessContext.country}\n`;
     }
     
-    try {
-      // Call OpenAI API
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
+    if (businessContext.industry) {
+      prompt += `Industry: ${businessContext.industry}\n`;
+    }
+    
+    if (businessContext.businessModel) {
+      prompt += `Business Model: ${businessContext.businessModel}\n`;
+    }
+    
+    if (businessContext.businessDescription) {
+      prompt += `Description: ${businessContext.businessDescription}\n`;
+    }
+    
+    if (businessContext.revenueChannels) {
+      prompt += `Revenue Channels: ${businessContext.revenueChannels}\n`;
+    }
+
+    if (businessContext.hasEmployees) {
+      prompt += `Employees: ${businessContext.hasEmployees}\n`;
+    }
+
+    if (businessContext.mixedUseAccount !== undefined) {
+      prompt += `Mixed Use Account: ${businessContext.mixedUseAccount ? 'Yes' : 'No'}\n`;
+    }
+
+    if (businessContext.incomeTypes && businessContext.incomeTypes.length > 0) {
+      prompt += `Income Types: ${businessContext.incomeTypes.join(', ')}\n`;
+    }
+
+    if (businessContext.costsOfSales) {
+      prompt += `Costs of Sales: ${businessContext.costsOfSales}\n`;
+    }
+
+    if (businessContext.workspaceType) {
+      prompt += `Workspace Type: ${businessContext.workspaceType}\n`;
+    }
+
+    // Generate AI insight using OpenAI
+    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openAiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an AI assistant specialized in business analytics. Generate concise, insightful summaries (1-2 sentences) about businesses based on contextual information.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 150,
+        temperature: 0.5,
+      }),
+    });
+
+    if (!openAIResponse.ok) {
+      const errorData = await openAIResponse.text();
+      throw new Error(`OpenAI API error: ${errorData}`);
+    }
+
+    const openAIData = await openAIResponse.json();
+    const insight = openAIData.choices[0].message.content.trim();
+    const timestamp = new Date().toISOString();
+
+    // Update user profile with the AI insight and timestamp
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update({
+        business_insight: {
+          summary: insight,
+          generated_at: timestamp,
+          context_snapshot: businessContext
+        }
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      throw new Error(`Error updating user profile: ${updateError.message}`);
+    }
+
+    return new Response(
+      JSON.stringify({
+        insight,
+        timestamp
+      }),
+      {
         headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
+          ...corsHeaders,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: 'You are a financial advisor specializing in small business needs.' },
-            { role: 'user', content: prompt }
-          ],
-          max_tokens: 150,
-          temperature: 0.7,
-        }),
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${responseData.error?.message || 'Unknown error'}`);
       }
-      
-      const generatedInsight = responseData.choices[0].message.content.trim();
-      const tokensUsed = responseData.usage.total_tokens;
-      
-      // Update the insight record with the AI response
-      const { error: updateError } = await supabase
-        .from('business_insights')
-        .update({
-          ai_summary: generatedInsight,
-          ai_processing_status: 'completed'
-        })
-        .eq('id', insightId);
-        
-      if (updateError) throw updateError;
-      
-      // Update the usage stats
-      if (usageData) {
-        await supabase
-          .from('ai_usage_stats')
-          .update({
-            status: 'success',
-            tokens_used: tokensUsed
-          })
-          .eq('id', usageData.id);
-      }
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          message: 'Business insight generated successfully',
-          insight: generatedInsight
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
-        }
-      );
-    } catch (openaiError) {
-      console.error('OpenAI error:', openaiError);
-      
-      // Update insight with error status
-      await supabase
-        .from('business_insights')
-        .update({
-          ai_processing_status: 'error',
-          error_log: { message: openaiError.message }
-        })
-        .eq('id', insightId);
-        
-      // Update usage stats with error
-      if (usageData) {
-        await supabase
-          .from('ai_usage_stats')
-          .update({
-            status: 'error',
-            error_message: openaiError.message
-          })
-          .eq('id', usageData.id);
-      }
-      
-      throw openaiError;
-    }
+    );
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in generate-business-insight function:', error);
+    
     return new Response(
-      JSON.stringify({ 
-        success: false,
-        message: error.message || 'An error occurred'
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
       }
     );
   }

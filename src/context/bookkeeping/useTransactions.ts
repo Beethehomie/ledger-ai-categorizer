@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import { Transaction } from '@/types';
@@ -14,13 +13,12 @@ import { BankConnectionRow } from '@/types/supabase';
 import { findDuplicatesInDatabase, reconcileAccountBalance, updateTransactionBalances } from '@/services/bookkeepingService';
 
 export const useTransactions = (
-  initialBankConnections: BankConnectionRow[]
+  bankConnections: BankConnectionRow[]
 ) => {
   const { session } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [aiAnalyzeLoading, setAiAnalyzeLoading] = useState<boolean>(false);
-  const [bankConnections, setBankConnections] = useState<BankConnectionRow[]>(initialBankConnections);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -40,7 +38,7 @@ export const useTransactions = (
         }
         
         if (data) {
-          const fetchedTransactions: Transaction[] = data.map((t: any) => ({
+          const fetchedTransactions: Transaction[] = data.map((t) => ({
             id: t.id,
             date: t.date,
             description: t.description,
@@ -56,13 +54,12 @@ export const useTransactions = (
             bankAccountId: t.bank_connection_id || undefined,
             bankAccountName: undefined,
             balance: t.balance || undefined,
-            isReconciled: t.is_reconciled || false,
           }));
           
           if (fetchedTransactions.length > 0) {
             for (const transaction of fetchedTransactions) {
               if (transaction.bankAccountId) {
-                const bankConnection = initialBankConnections.find(conn => conn.id === transaction.bankAccountId);
+                const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
                 if (bankConnection) {
                   transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
                 }
@@ -80,7 +77,7 @@ export const useTransactions = (
     };
     
     fetchTransactions();
-  }, [session, initialBankConnections]);
+  }, [session, bankConnections]);
 
   const addTransactions = async (newTransactions: Transaction[]) => {
     if (!session) {
@@ -120,8 +117,7 @@ export const useTransactions = (
           vendor: updatedTransaction.vendor || null,
           vendor_verified: updatedTransaction.vendorVerified || false,
           confidence_score: updatedTransaction.confidenceScore || null,
-          balance: updatedTransaction.balance || null,
-          is_reconciled: updatedTransaction.isReconciled || false
+          balance: updatedTransaction.balance || null
         })
         .eq('id', updatedTransaction.id);
         
@@ -227,7 +223,7 @@ export const useTransactions = (
     try {
       let bankConnection: BankConnectionRow | undefined;
       if (bankConnectionId) {
-        bankConnection = initialBankConnections.find(conn => conn.id === bankConnectionId);
+        bankConnection = bankConnections.find(conn => conn.id === bankConnectionId);
       }
       
       const processCSVTransactions = async () => {
@@ -356,7 +352,7 @@ export const useTransactions = (
       }
       
       if (data) {
-        const bankTransactions: Transaction[] = data.map((t: any) => ({
+        const bankTransactions: Transaction[] = data.map((t) => ({
           id: t.id,
           date: t.date,
           description: t.description,
@@ -372,10 +368,9 @@ export const useTransactions = (
           bankAccountId: t.bank_connection_id || undefined,
           bankAccountName: undefined,
           balance: t.balance || undefined,
-          isReconciled: t.is_reconciled || false,
         }));
         
-        const bankConnection = initialBankConnections.find(conn => conn.id === bankAccountId);
+        const bankConnection = bankConnections.find(conn => conn.id === bankAccountId);
         if (bankConnection) {
           for (const transaction of bankTransactions) {
             transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
@@ -393,9 +388,10 @@ export const useTransactions = (
     }
   };
 
-  const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
+  const deleteTransaction = async (id: string): Promise<boolean> => {
     if (!session) {
-      return { success: false, error: 'You must be logged in to delete transactions' };
+      toast.error('You must be logged in to delete transactions');
+      return false;
     }
     
     try {
@@ -405,16 +401,15 @@ export const useTransactions = (
         .eq('id', id);
         
       if (error) {
-        console.error('Error deleting transaction:', error);
-        return { success: false, error: error.message };
+        throw error;
       }
       
       setTransactions(prev => prev.filter(transaction => transaction.id !== id));
-      
-      return { success: true };
+      return true;
     } catch (err: any) {
       console.error('Error deleting transaction:', err);
-      return { success: false, error: err.message || 'Unknown error occurred' };
+      toast.error('Failed to delete transaction');
+      return false;
     }
   };
 
@@ -470,7 +465,7 @@ export const useTransactions = (
   };
 
   const getBankConnectionById = (id: string) => {
-    return initialBankConnections.find(conn => conn.id === id);
+    return bankConnections.find(conn => conn.id === id);
   };
 
   const fetchTransactions = async (): Promise<void> => {
@@ -493,7 +488,7 @@ export const useTransactions = (
       }
       
       if (data) {
-        const fetchedTransactions: Transaction[] = data.map((t: any) => ({
+        const fetchedTransactions: Transaction[] = data.map((t) => ({
           id: t.id,
           date: t.date,
           description: t.description,
@@ -509,13 +504,12 @@ export const useTransactions = (
           bankAccountId: t.bank_connection_id || undefined,
           bankAccountName: undefined,
           balance: t.balance || undefined,
-          isReconciled: t.is_reconciled || false,
         }));
         
         if (fetchedTransactions.length > 0) {
           for (const transaction of fetchedTransactions) {
             if (transaction.bankAccountId) {
-              const bankConnection = initialBankConnections.find(conn => conn.id === transaction.bankAccountId);
+              const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
               if (bankConnection) {
                 transaction.bankAccountName = bankConnection.display_name || bankConnection.bank_name;
               }
@@ -605,7 +599,6 @@ export const useTransactions = (
     transactions,
     loading,
     aiAnalyzeLoading,
-    bankConnections,
     addTransactions,
     updateTransaction,
     analyzeTransactionWithAI,
@@ -614,8 +607,9 @@ export const useTransactions = (
     filterTransactionsByDate,
     fetchTransactionsForBankAccount,
     getBankConnectionById,
-    deleteTransaction,
+    setTransactions,
     fetchTransactions,
+    deleteTransaction,
     recalculateRunningBalances
   };
 };

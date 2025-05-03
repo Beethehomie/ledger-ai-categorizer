@@ -10,11 +10,6 @@ import NotFound from "./pages/NotFound";
 import AdminPage from './pages/AdminPage';
 import Subscription from './pages/Subscription';
 import Settings from './pages/Settings';
-import BusinessInsight from './pages/BusinessInsight';
-import TransactionUpload from './pages/TransactionUpload';
-import ReconciliationDashboard from './pages/ReconciliationDashboard';
-import VendorManagement from './pages/VendorManagement';
-import FinancialReports from './pages/FinancialReports';
 import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { RequireAuth } from "./components/RequireAuth";
@@ -35,11 +30,6 @@ const App = () => (
               <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
               <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
               <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
-              <Route path="/business-insight" element={<RequireAuth><BusinessInsight /></RequireAuth>} />
-              <Route path="/transaction-upload" element={<RequireAuth><TransactionUpload /></RequireAuth>} />
-              <Route path="/reconciliation" element={<RequireAuth><ReconciliationDashboard /></RequireAuth>} />
-              <Route path="/vendors" element={<RequireAuth><VendorManagement /></RequireAuth>} />
-              <Route path="/reports" element={<RequireAuth><FinancialReports /></RequireAuth>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

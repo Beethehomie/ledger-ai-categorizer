@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UploadCloud, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react";
-import { useBookkeeping } from '@/context/bookkeeping/BookkeepingContext';
+import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
 import { validateCSVStructure, parseCSV, findDuplicateTransactions } from '@/utils/csvParser';
 import {
@@ -15,8 +15,6 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import UploadDialog from './UploadDialog';
-import TransactionReviewDialog from './TransactionReviewDialog';
-import { Transaction } from '@/types';
 
 const FileUpload: React.FC = () => {
   const { uploadCSV, loading, bankConnections, transactions } = useBookkeeping();
@@ -31,10 +29,6 @@ const FileUpload: React.FC = () => {
   const [selectedBankId, setSelectedBankId] = useState<string>('');
   const [warningMessages, setWarningMessages] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-  const [parsedTransactions, setParsedTransactions] = useState<Transaction[]>([]);
-  const [uploadInProgress, setUploadInProgress] = useState(false);
-  const [initialBalance, setInitialBalance] = useState<number>(0);
 
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
 
@@ -100,89 +94,7 @@ const FileUpload: React.FC = () => {
   };
 
   const processFile = () => {
-    if (!selectedFile || !csvValidation.isValid || !selectedBankId) {
-      toast.error('Please select a valid CSV file and bank account');
-      return;
-    }
-    
-    setUploadInProgress(true);
-    
-    try {
-      // Parse CSV content
-      const parseResult = parseCSV(csvContent);
-      
-      if (parseResult.warnings.length > 0) {
-        setWarningMessages(parseResult.warnings);
-      }
-      
-      if (parseResult.transactions.length === 0) {
-        toast.error('No valid transactions found in the CSV file');
-        setUploadInProgress(false);
-        return;
-      }
-      
-      // Add bankAccountId to transactions
-      const transactionsWithBankId = parseResult.transactions.map(t => ({
-        ...t,
-        bankAccountId: selectedBankId
-      }));
-      
-      // Check for duplicates
-      const potentialDuplicates = findDuplicateTransactions(transactions, transactionsWithBankId);
-      if (potentialDuplicates.length > 0) {
-        setWarningMessages(prev => [
-          ...prev, 
-          `Found ${potentialDuplicates.length} potential duplicates with existing transactions.`
-        ]);
-      }
-      
-      setParsedTransactions(transactionsWithBankId);
-      setIsReviewDialogOpen(true);
-      setUploadInProgress(false);
-    } catch (error) {
-      console.error('Error processing CSV:', error);
-      toast.error('Failed to process CSV file');
-      setUploadInProgress(false);
-    }
-  };
-
-  const handleConfirmUpload = async (selectedTransactions: Transaction[]) => {
-    if (selectedTransactions.length === 0) {
-      toast.error('No transactions selected for upload');
-      return;
-    }
-
-    setUploadInProgress(true);
-    
-    try {
-      // Get the bank connection details
-      const bankConnection = bankConnections.find(conn => conn.id === selectedBankId);
-      let balance = initialBalance;
-      
-      // If this is a first upload for this account, use the initial balance
-      if (bankConnection) {
-        const existingTransactions = transactions.filter(t => t.bankAccountId === selectedBankId);
-        if (existingTransactions.length === 0) {
-          balance = initialBalance;
-        }
-      }
-      
-      await uploadCSV(
-        selectedTransactions, 
-        selectedBankId, 
-        balance
-      );
-      
-      setIsReviewDialogOpen(false);
-      resetForm();
-      
-      toast.success(`Successfully uploaded ${selectedTransactions.length} transactions`);
-    } catch (error) {
-      console.error('Error uploading transactions:', error);
-      toast.error('Failed to upload transactions');
-    } finally {
-      setUploadInProgress(false);
-    }
+    openUploadDialog();
   };
 
   const resetForm = () => {
@@ -191,8 +103,6 @@ const FileUpload: React.FC = () => {
     setCsvValidation({ isValid: false, headers: [] });
     setSelectedBankId('');
     setWarningMessages([]);
-    setParsedTransactions([]);
-    setUploadInProgress(false);
   };
 
   return (
@@ -256,7 +166,11 @@ const FileUpload: React.FC = () => {
                     {(selectedFile.size / 1024).toFixed(1)} KB
                   </p>
                 </div>
-                <Button variant="secondary" size="sm" onClick={resetForm} className="hover-scale">
+                <Button variant="secondary" size="sm" onClick={() => {
+                  setSelectedFile(null);
+                  setCsvContent("");
+                  setCsvValidation({ isValid: false, headers: [] });
+                }} className="hover-scale">
                   Remove
                 </Button>
               </div>
@@ -319,10 +233,10 @@ const FileUpload: React.FC = () => {
         <CardFooter className="flex justify-end">
           <Button
             onClick={processFile}
-            disabled={!selectedFile || !selectedBankId || !csvValidation.isValid || uploadInProgress}
+            disabled={!selectedFile || !selectedBankId || !csvValidation.isValid || loading}
             className="bg-finance-green hover:bg-finance-green-light hover-scale"
           >
-            {uploadInProgress ? 'Processing...' : 'Process Transactions'}
+            {loading ? 'Processing...' : 'Process Transactions'}
           </Button>
         </CardFooter>
       </Card>
@@ -332,20 +246,6 @@ const FileUpload: React.FC = () => {
         onClose={closeUploadDialog} 
         bankConnections={bankConnections}
       />
-      
-      {isReviewDialogOpen && (
-        <TransactionReviewDialog
-          isOpen={isReviewDialogOpen}
-          onClose={() => {
-            setIsReviewDialogOpen(false);
-            setUploadInProgress(false);
-          }}
-          transactions={parsedTransactions}
-          onConfirm={handleConfirmUpload}
-          warnings={warningMessages}
-          existingTransactions={transactions}
-        />
-      )}
     </>
   );
 };

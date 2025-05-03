@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Transaction } from "@/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Edit2, Save, X, DollarSign } from "lucide-react";
-import { format, isValid, parse } from 'date-fns';
-import { Label } from "@/components/ui/label";
+import { AlertTriangle, Edit2, Save, X } from "lucide-react";
+import { format } from 'date-fns';
 
 interface TransactionReviewDialogProps {
   isOpen: boolean;
@@ -31,8 +30,6 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
   const [editableTransactions, setEditableTransactions] = useState<Transaction[]>([]);
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<Transaction[]>([]);
-  const [initialBalance, setInitialBalance] = useState<string>("0");
-  const [showBalanceInput, setShowBalanceInput] = useState<boolean>(false);
 
   // Initialize when transactions change
   useEffect(() => {
@@ -49,27 +46,10 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
     );
     
     setDuplicates(potentialDuplicates);
-
-    // Check if we should show the initial balance input
-    // Only ask for initial balance if this is a first upload for this account
-    if (transactions.length > 0) {
-      const bankAccountId = transactions[0].bankAccountId;
-      if (bankAccountId) {
-        const existingForAccount = existingTransactions.filter(tx => tx.bankAccountId === bankAccountId);
-        setShowBalanceInput(existingForAccount.length === 0);
-      }
-    }
   }, [transactions, existingTransactions]);
 
   const handleConfirm = () => {
-    // Sort transactions by date before submitting
-    const sortedTransactions = [...selectedTransactions].sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return dateA - dateB;
-    });
-
-    onConfirm(sortedTransactions);
+    onConfirm(selectedTransactions);
   };
 
   const toggleSelectTransaction = (transaction: Transaction) => {
@@ -98,18 +78,6 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
 
   const saveEdits = (id: string) => {
     setEditingRow(null);
-    
-    // Update selected transactions if this one is selected
-    if (selectedTransactions.some(t => t.id === id)) {
-      setSelectedTransactions(prev => 
-        prev.map(t => {
-          if (t.id === id) {
-            return editableTransactions.find(et => et.id === id) || t;
-          }
-          return t;
-        })
-      );
-    }
   };
 
   const cancelEdits = (id: string) => {
@@ -128,24 +96,6 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
     setEditableTransactions(prev => 
       prev.map(t => {
         if (t.id === id) {
-          // For date field, ensure it's a valid date format
-          if (field === 'date' && typeof value === 'string') {
-            try {
-              // Try to parse as ISO first
-              let date = new Date(value);
-              if (!isValid(date)) {
-                // Try to parse as MM/DD/YYYY
-                date = parse(value, 'MM/dd/yyyy', new Date());
-              }
-              if (isValid(date)) {
-                return { ...t, [field]: format(date, 'yyyy-MM-dd') };
-              }
-              // If not valid, keep the original value
-              return t;
-            } catch (err) {
-              return t;
-            }
-          }
           return { ...t, [field]: value };
         }
         return t;
@@ -189,29 +139,6 @@ const TransactionReviewDialog: React.FC<TransactionReviewDialogProps> = ({
               </ul>
             </AlertDescription>
           </Alert>
-        )}
-        
-        {showBalanceInput && (
-          <div className="mb-4 p-4 border rounded-lg bg-muted/30">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="h-4 w-4 text-finance-green" />
-              <Label htmlFor="initial-balance" className="font-medium">Initial Account Balance</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                id="initial-balance"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={initialBalance}
-                onChange={(e) => setInitialBalance(e.target.value)}
-                className="max-w-[200px]"
-              />
-              <p className="text-sm text-muted-foreground">
-                Enter the starting balance before these transactions for accurate reconciliation
-              </p>
-            </div>
-          </div>
         )}
         
         <div className="max-h-[400px] overflow-y-auto">

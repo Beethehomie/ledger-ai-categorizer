@@ -1,3 +1,5 @@
+
+// Update the import section at the top
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -33,9 +35,6 @@ import { exportToCSV } from '@/utils/csvParser';
 import ConfidenceScore from './ConfidenceScore';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorLogger';
-import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/utils/formatters';
-import { CheckCircle } from 'lucide-react';
 
 interface TransactionTableProps {
   filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor' | 'review';
@@ -73,50 +72,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const [reconciliationBalance, setReconciliationBalance] = useState<number | undefined>(expectedEndBalance);
   const [allVendors, setAllVendors] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
-  const [runningBalances, setRunningBalances] = useState<Record<string, number>>({});
 
   const { sortField, sortDirection, handleSort, sortTransactions } = useTableSort();
   const { filterTransactions } = useTransactionFilter();
-
-  // Calculate running balances for transactions
-  useEffect(() => {
-    if (!transactions || transactions.length === 0) return;
-    
-    // Group transactions by bank account
-    const accountGroups: Record<string, Transaction[]> = {};
-    transactions.forEach(t => {
-      const accountId = t.bankAccountId || 'unknown';
-      if (!accountGroups[accountId]) {
-        accountGroups[accountId] = [];
-      }
-      accountGroups[accountId].push(t);
-    });
-    
-    // Calculate running balance for each account
-    const newRunningBalances: Record<string, number> = {};
-    
-    for (const accountId in accountGroups) {
-      const accountTransactions = accountGroups[accountId];
-      
-      // Sort by date
-      const sortedTransactions = [...accountTransactions].sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return dateA - dateB;
-      });
-      
-      // Find starting balance
-      let balance = 0;
-      
-      // Calculate running balance
-      sortedTransactions.forEach(t => {
-        balance += t.amount;
-        newRunningBalances[t.id] = balance;
-      });
-    }
-    
-    setRunningBalances(newRunningBalances);
-  }, [transactions]);
 
   useEffect(() => {
     const vendorNames = vendors.map(v => v.name);
@@ -358,32 +316,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     }
   };
 
-  const renderRunningBalance = (transaction: Transaction) => {
-    const balance = runningBalances[transaction.id];
-    if (balance === undefined) return null;
-    
-    return (
-      <div className="text-right font-medium">
-        {formatCurrency(balance, currency)}
-      </div>
-    );
-  };
-
-  const renderReconciliationStatus = () => {
-    if (reconciliationBalance === undefined) return null;
-    
-    if (isAccountReconciled) {
-      return (
-        <div className="flex items-center space-x-1 text-green-600">
-          <CheckCircle className="h-4 w-4" />
-          <span>Reconciled</span>
-        </div>
-      );
-    }
-    
-    return <Badge variant="outline">Not Reconciled</Badge>;
-  };
-
   return (
     <TooltipProvider>
       <div className="space-y-4 animate-fade-in">
@@ -401,7 +333,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           }}
           onToggleColumn={handleToggleColumn}
           columns={mapTableColumnsToColumnSelector()}
-          reconciliationStatus={renderReconciliationStatus()}
         />
         
         {selectedTransactions.length > 0 && (
@@ -469,13 +400,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                     {sortField === column.id && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
                   </TableCell>
                 ))}
-                <TableCell className="text-right">Running Balance</TableCell>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={tableColumns.filter(col => col.visible).length + 3} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={tableColumns.filter(col => col.visible).length + 2} className="text-center py-6 text-muted-foreground">
                     No transactions to display
                   </TableCell>
                 </TableRow>
@@ -494,11 +424,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                     )}
                     isSelected={selectedTransactions.includes(transaction.id)}
                     onSelectChange={handleSelectTransaction}
-                    extraCells={[
-                      <TableCell key="running-balance" className="text-right font-medium">
-                        {renderRunningBalance(transaction)}
-                      </TableCell>
-                    ]}
                   />
                 ))
               )}

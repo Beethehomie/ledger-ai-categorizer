@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import { toast } from '@/utils/toast';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BankConnectionRow } from '@/types/supabase';
 import { Transaction } from '@/types';
-import { parseCSV, validateCSVStructure, findDuplicateTransactions, isBalanceReconciled } from '@/utils/csvParser';
+import { parseCSV, validateCSVStructure, findDuplicateTransactions } from '@/utils/csvParser';
 import TransactionReviewDialog from './TransactionReviewDialog';
 import { format } from 'date-fns';
 
@@ -41,8 +40,6 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   const [hasUploaded, setHasUploaded] = useState(false);
   const [parsedTransactions, setParsedTransactions] = useState<Transaction[]>([]);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
-  const [uploadInProgress, setUploadInProgress] = useState(false);
-  const [showInitialBalancePrompt, setShowInitialBalancePrompt] = useState(false);
 
   // Get CSV-type bank connections
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
@@ -65,14 +62,6 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       }
     }
   }, [csvContent]);
-
-  // Check if we need to show initial balance prompt when bank account changes
-  useEffect(() => {
-    if (selectedBankId) {
-      const existingForSelectedBank = transactions.filter(t => t.bankAccountId === selectedBankId);
-      setShowInitialBalancePrompt(existingForSelectedBank.length === 0);
-    }
-  }, [selectedBankId, transactions]);
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -208,60 +197,32 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       ]);
     }
     
-    // Sort transactions by date
-    const sortedTransactions = [...transactionsWithBankId].sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return dateA - dateB;
-    });
-    
-    setParsedTransactions(sortedTransactions);
+    setParsedTransactions(transactionsWithBankId);
     setIsReviewDialogOpen(true);
   };
 
-  const handleConfirmUpload = async (editedTransactions: Transaction[]) => {
+  const handleConfirmUpload = (editedTransactions: Transaction[]) => {
     if (editedTransactions.length === 0) {
       toast.error('No transactions selected for upload');
       return;
     }
 
-    setUploadInProgress(true);
+    const initialBalanceValue = parseFloat(initialBalance) || 0;
+    const endBalanceValue = endBalance ? parseFloat(endBalance) : undefined;
     
-    try {
-      const initialBalanceValue = parseFloat(initialBalance) || 0;
-      const endBalanceValue = endBalance ? parseFloat(endBalance) : undefined;
-      
-      // Call the uploadCSV function directly with the processed transactions
-      await uploadCSV(
-        editedTransactions, 
-        selectedBankId, 
-        initialBalanceValue, 
-        new Date(balanceDate), 
-        endBalanceValue
-      );
-      
-      setHasUploaded(true);
-      setIsReviewDialogOpen(false);
-      resetDialog();
-      onClose();
-      
-      toast.success(`Successfully uploaded ${editedTransactions.length} transactions`);
-      
-      // Check reconciliation if end balance is provided
-      if (endBalanceValue !== undefined) {
-        const isReconciled = isBalanceReconciled(editedTransactions, endBalanceValue);
-        if (isReconciled) {
-          toast.success('🎉 Account successfully reconciled!');
-        } else {
-          toast.warning('⚠️ Account reconciliation failed. Please check your transactions.');
-        }
-      }
-    } catch (error) {
-      console.error('Error uploading transactions:', error);
-      toast.error('Failed to upload transactions');
-    } finally {
-      setUploadInProgress(false);
-    }
+    // Call the uploadCSV function directly with the processed transactions
+    uploadCSV(
+      editedTransactions, 
+      selectedBankId, 
+      initialBalanceValue, 
+      new Date(balanceDate), 
+      endBalanceValue
+    );
+    
+    setHasUploaded(true);
+    setIsReviewDialogOpen(false);
+    resetDialog();
+    onClose();
   };
 
   const nextStep = () => {
@@ -286,7 +247,6 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
     setWarningMessages([]);
     setHasUploaded(false);
     setParsedTransactions([]);
-    setUploadInProgress(false);
   };
 
   const handleClose = () => {
@@ -453,46 +413,42 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
                   )}
                 </div>
                 
-                {showInitialBalancePrompt && (
-                  <div className="space-y-2">
-                    <Label htmlFor="balance-date">Balance Date</Label>
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="balance-date"
-                        type="date"
-                        value={balanceDate}
-                        onChange={(e) => setBalanceDate(e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      <Info className="inline h-3 w-3 mr-1" />
-                      Date associated with the initial balance
-                    </p>
+                <div className="space-y-2">
+                  <Label htmlFor="balance-date">Balance Date</Label>
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="balance-date"
+                      type="date"
+                      value={balanceDate}
+                      onChange={(e) => setBalanceDate(e.target.value)}
+                      className="w-full"
+                    />
                   </div>
-                )}
+                  <p className="text-xs text-muted-foreground">
+                    <Info className="inline h-3 w-3 mr-1" />
+                    Date associated with the initial balance
+                  </p>
+                </div>
 
-                {showInitialBalancePrompt && (
-                  <div className="space-y-2">
-                    <Label htmlFor="initial-balance">Initial Balance</Label>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        id="initial-balance"
-                        type="number"
-                        step="0.01"
-                        value={initialBalance}
-                        onChange={(e) => setInitialBalance(e.target.value)}
-                        placeholder="0.00"
-                        className="w-full"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      <Info className="inline h-3 w-3 mr-1" />
-                      Starting balance for calculating running balances
-                    </p>
+                <div className="space-y-2">
+                  <Label htmlFor="initial-balance">Initial Balance</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="initial-balance"
+                      type="number"
+                      step="0.01"
+                      value={initialBalance}
+                      onChange={(e) => setInitialBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full"
+                    />
                   </div>
-                )}
+                  <p className="text-xs text-muted-foreground">
+                    <Info className="inline h-3 w-3 mr-1" />
+                    Starting balance for calculating running balances
+                  </p>
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="end-balance">Ending Balance (Optional)</Label>
@@ -520,10 +476,10 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
                 </Button>
                 <Button
                   onClick={processFile}
-                  disabled={!selectedBankId || uploadInProgress}
+                  disabled={!selectedBankId || loading}
                   className="bg-finance-green hover:bg-finance-green-light"
                 >
-                  {uploadInProgress ? 'Processing...' : 'Review Transactions'}
+                  {loading ? 'Processing...' : 'Review Transactions'}
                 </Button>
               </DialogFooter>
             </>
@@ -531,16 +487,14 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
         </DialogContent>
       </Dialog>
 
-      {isReviewDialogOpen && (
-        <TransactionReviewDialog 
-          isOpen={isReviewDialogOpen}
-          onClose={() => setIsReviewDialogOpen(false)}
-          transactions={parsedTransactions}
-          onConfirm={handleConfirmUpload}
-          warnings={warningMessages}
-          existingTransactions={transactions}
-        />
-      )}
+      <TransactionReviewDialog 
+        isOpen={isReviewDialogOpen}
+        onClose={() => setIsReviewDialogOpen(false)}
+        transactions={parsedTransactions}
+        onConfirm={handleConfirmUpload}
+        warnings={warningMessages}
+        existingTransactions={transactions}
+      />
     </>
   );
 };

@@ -156,10 +156,6 @@ export function calculateVendorCounts(transactions: Transaction[], vendors: Vend
 }
 
 export function calculateFinancialSummary(transactions: Transaction[]): FinancialSummary {
-  // Create categorized expense map
-  const expensesByCategory: Record<string, number> = {};
-  let totalExpenses = 0;
-  
   const summary: FinancialSummary = {
     totalIncome: 0,
     totalExpenses: 0,
@@ -169,9 +165,6 @@ export function calculateFinancialSummary(transactions: Transaction[]): Financia
     netProfit: 0,
     cashBalance: 0,
     income: 0,
-    expenses: 0,
-    netIncome: 0,
-    expensesByCategory: []
   };
   
   // Only include verified transactions in financial calculations
@@ -184,12 +177,7 @@ export function calculateFinancialSummary(transactions: Transaction[]): Financia
       summary.totalIncome += amount;
       summary.income += amount;
     } else if (transaction.type === 'expense') {
-      summary.totalExpenses += Math.abs(amount);
-      summary.expenses += Math.abs(amount);
-      
-      // Track expenses by category
-      const category = transaction.category || 'Uncategorized';
-      expensesByCategory[category] = (expensesByCategory[category] || 0) + Math.abs(amount);
+      summary.totalExpenses += amount;
     } else if (transaction.type === 'asset') {
       summary.totalAssets += amount;
     } else if (transaction.type === 'liability') {
@@ -199,13 +187,7 @@ export function calculateFinancialSummary(transactions: Transaction[]): Financia
     }
   });
   
-  // Convert expense categories to array format for the summary
-  summary.expensesByCategory = Object.entries(expensesByCategory).map(
-    ([category, amount]) => ({ category, amount })
-  ).sort((a, b) => b.amount - a.amount);
-  
   summary.netProfit = summary.totalIncome - summary.totalExpenses;
-  summary.netIncome = summary.income - summary.expenses; 
   summary.cashBalance = summary.totalAssets - summary.totalLiabilities + summary.totalEquity;
   
   return summary;
