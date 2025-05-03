@@ -110,19 +110,11 @@ export const findSimilarVendorsByDescription = async (
       };
     }
     
-    // Fix the TypeScript error by properly typing the RPC call with both params and return types
-    // Define the expected parameters type for the match_vendors_by_embedding function
-    interface MatchVendorsParams {
-      query_embedding: number[];
-      match_threshold: number;
-      match_count: number;
-    }
+    // The issue is with the type parameters of the RPC call
+    // Instead of using generic type parameters, we'll use a properly typed approach
     
-    // Define the expected return type for the RPC call
-    type MatchVendorsResult = VendorMatch[];
-    
-    // Use explicit typing for the RPC call with both type parameters
-    const { data, error } = await supabase.rpc<MatchVendorsResult, MatchVendorsParams>(
+    // Call the RPC function (without explicit generic parameters)
+    const { data, error } = await supabase.rpc(
       'match_vendors_by_embedding',
       {
         query_embedding: embedding,
