@@ -14,6 +14,16 @@ interface EmbeddingGenerationResult {
   };
 }
 
+interface VendorMatch {
+  id: string;
+  vendor_name: string;
+  category: string;
+  type: string;
+  sample_description?: string;
+  statement_type: string;
+  similarity: number;
+}
+
 export const generateTransactionEmbeddings = async (
   limit: number = 50
 ): Promise<EmbeddingGenerationResult> => {
@@ -84,7 +94,7 @@ export const findSimilarVendorsByDescription = async (
   description: string
 ): Promise<{
   success: boolean;
-  results?: any[];
+  results?: VendorMatch[];
   count?: number;
   error?: string;
 }> => {
@@ -119,7 +129,7 @@ export const findSimilarVendorsByDescription = async (
     
     return {
       success: true,
-      results: data || [],
+      results: data as VendorMatch[] || [],
       count: data ? data.length : 0
     };
   } catch (err) {
