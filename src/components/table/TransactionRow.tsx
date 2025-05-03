@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,7 +15,7 @@ import { cn } from '@/lib/utils';
 
 interface TransactionRowProps {
   transaction: Transaction;
-  currency: string;
+  currency: string | Currency; // Updated to accept string or Currency
   tableColumns: { id: string; name: string; visible: boolean }[];
   uniqueVendors: string[];
   onVendorChange: (transaction: Transaction, vendorName: string) => void;
