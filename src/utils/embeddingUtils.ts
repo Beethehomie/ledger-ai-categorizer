@@ -111,11 +111,11 @@ export const findSimilarVendorsByDescription = async (
     }
     
     // Handle the RPC call
-    // The embedding needs to be passed as-is without type casting, as the RPC function expects a vector type
+    // The embedding is a number[] but needs to be treated as a vector type in Supabase
     const { data, error } = await supabase.rpc(
       'match_vendors_by_embedding', 
       {
-        query_embedding: embedding as any, // Use 'any' to bypass the TypeScript check since Supabase backend handles the vector type properly
+        query_embedding: embedding as unknown as any, // Use type assertion to bypass TypeScript type checking
         match_threshold: 0.5,
         match_count: 5
       }
