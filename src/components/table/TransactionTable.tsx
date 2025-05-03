@@ -1,5 +1,3 @@
-
-// Update the import section at the top
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -35,6 +33,7 @@ import { exportToCSV } from '@/utils/csvParser';
 import ConfidenceScore from './ConfidenceScore';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/utils/errorLogger';
+import { useAuth } from '@/hooks/auth';
 
 interface TransactionTableProps {
   filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor' | 'review';
@@ -177,42 +176,88 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     setProcessing(true);
     
     try {
+      // Collect all selected transactions
+      const selectedTxs = transactions.filter(t => selectedTransactions.includes(t.id));
+      
+      if (selectedTxs.length === 0) {
+        throw new Error('No valid transactions selected');
+      }
+      
+      let businessContext = {};
+      let country = "ZA";
+      
+      // Get business context for better categorization
+      if (session?.user) {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('business_context')
+          .eq('id', session.user.id)
+          .maybeSingle();
+          
+        if (!error && data?.business_context) {
+          businessContext = data.business_context;
+          country = data.business_context.country || "ZA";
+        }
+      }
+      
+      // Process transactions in batches to avoid timeouts
+      const BATCH_SIZE = 10;
       let successCount = 0;
       let failCount = 0;
       
-      for (const id of selectedTransactions) {
-        const transaction = transactions.find(t => t.id === id);
-        if (!transaction) continue;
-
+      for (let i = 0; i < selectedTxs.length; i += BATCH_SIZE) {
+        const batchTxs = selectedTxs.slice(i, i + BATCH_SIZE);
+        
         try {
+          // Call the edge function with batch processing
           const { data, error } = await supabase.functions.invoke('analyze-transaction-vendor', {
             body: { 
-              description: transaction.description,
-              existingVendors: allVendors
+              transactions: batchTxs,
+              existingVendors: allVendors,
+              country: country,
+              context: businessContext
             }
           });
           
           if (error) throw error;
           
-          if (!data || !data.vendor) {
-            throw new Error('No vendor data returned from analysis');
+          if (!data || !Array.isArray(data)) {
+            throw new Error('Invalid response from analyze-transaction-vendor');
           }
           
-          const vendorName = data.vendor;
-          const updatedTransaction = { ...transaction, vendor: vendorName };
-          
-          if (!data.isExisting && data.category) {
-            updatedTransaction.category = data.category;
-            updatedTransaction.confidenceScore = data.confidence;
-            updatedTransaction.type = data.type;
-            updatedTransaction.statementType = data.statementType;
+          // Process each result
+          for (const result of data) {
+            if (result.error) {
+              console.error(`Error processing transaction ${result.transactionId}:`, result.error);
+              failCount++;
+              continue;
+            }
+            
+            const transaction = transactions.find(t => t.id === result.transactionId);
+            if (!transaction) {
+              failCount++;
+              continue;
+            }
+            
+            const vendorName = result.vendor;
+            const updatedTransaction = { 
+              ...transaction,
+              vendor: vendorName
+            };
+            
+            if (!result.isExisting && result.category) {
+              updatedTransaction.category = result.category;
+              updatedTransaction.confidenceScore = result.confidence;
+              updatedTransaction.type = result.type;
+              updatedTransaction.statementType = result.statementType;
+            }
+            
+            await updateTransaction(updatedTransaction);
+            successCount++;
           }
-          
-          await updateTransaction(updatedTransaction);
-          successCount++;
         } catch (err) {
-          logError("batchExtractVendors", err);
-          failCount++;
+          logError("batchProcessTransactions", err);
+          failCount += batchTxs.length;
         }
       }
       

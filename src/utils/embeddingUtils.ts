@@ -114,7 +114,7 @@ export const findSimilarVendorsByDescription = async (
     const { data, error } = await supabase.rpc(
       'match_vendors_by_embedding',
       {
-        query_embedding: embedding, // This was causing the error - embedding is now properly typed
+        query_embedding: embedding as any, // Type casting to resolve the TypeScript error
         match_threshold: 0.5,
         match_count: 5
       }

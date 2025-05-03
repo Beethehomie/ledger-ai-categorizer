@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -66,9 +65,10 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
           }
         }
         
+        // Use batch processing with a single transaction
         const { data, error } = await supabase.functions.invoke('analyze-transaction-vendor', {
           body: { 
-            description: transaction.description,
+            transactions: [transaction], // Wrap in an array for batch processing
             existingVendors: uniqueVendors,
             country: country,
             context: businessContext
@@ -79,20 +79,27 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
           throw error;
         }
         
-        if (!data || !data.vendor) {
+        if (!data || !Array.isArray(data) || data.length === 0) {
           throw new Error('No vendor data returned from analysis');
         }
         
-        const vendorName = data.vendor;
+        // Get the first (and only) result
+        const result = data[0];
+        
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        const vendorName = result.vendor;
         const updatedTransaction = { ...transaction, vendor: vendorName };
         
-        if (!data.isExisting && data.category) {
-          updatedTransaction.category = data.category;
-          updatedTransaction.confidenceScore = data.confidence;
-          updatedTransaction.type = data.type;
-          updatedTransaction.statementType = data.statementType;
+        if (!result.isExisting && result.category) {
+          updatedTransaction.category = result.category;
+          updatedTransaction.confidenceScore = result.confidence;
+          updatedTransaction.type = result.type;
+          updatedTransaction.statementType = result.statementType;
           
-          toast.success(`Vendor extracted: ${vendorName} (Category: ${data.category})`);
+          toast.success(`Vendor extracted: ${vendorName} (Category: ${result.category})`);
         } else {
           toast.success(`Vendor extracted: ${vendorName}`);
         }
