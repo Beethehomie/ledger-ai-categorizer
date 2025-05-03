@@ -1,22 +1,99 @@
-// Add missing import at the top (keeping existing imports)
+
+// Import statements
 import { parseDate, formatDateYYYYMMDD } from '@/utils/dateUtils';
 import Papa from 'papaparse';
 import { Transaction } from '@/types';
 import { toast } from '@/utils/toast';
 
 /**
- * Parse CSV data into Transaction objects
- * @param csvData Raw CSV data as string
- * @returns Array of Transaction objects
+ * Result of CSV parsing with transactions and any warnings
  */
-export const parseCSV = (csvData: string): Transaction[] => {
+export interface CSVParseResult {
+  transactions: Transaction[];
+  warnings: string[];
+}
+
+/**
+ * Validate CSV structure to ensure it has necessary columns
+ */
+export const validateCSVStructure = (csvData: string) => {
+  try {
+    const { data, meta } = Papa.parse(csvData, {
+      header: true,
+      skipEmptyLines: true,
+      preview: 5, // Only validate the first 5 rows
+    });
+    
+    const headers = meta.fields || [];
+    
+    // Check if we have at least some rows
+    if (data.length === 0) {
+      return {
+        isValid: false,
+        headers: [],
+        errorMessage: 'CSV file is empty or has no valid data rows'
+      };
+    }
+    
+    // Check for required column types (date, amount, description)
+    let hasDateColumn = false;
+    let hasAmountColumn = false;
+    let hasDescriptionColumn = false;
+    
+    const dateColumnNames = ['Date', 'date', 'DATE', 'TransactionDate', 'Transaction Date', 'Posting Date'];
+    const amountColumnNames = ['Amount', 'amount', 'AMOUNT', 'Value', 'value', 'Debit', 'Credit'];
+    const descColumnNames = ['Description', 'description', 'DESC', 'Narrative', 'Reference', 'Memo', 'Payee'];
+    
+    for (const header of headers) {
+      if (dateColumnNames.includes(header)) hasDateColumn = true;
+      if (amountColumnNames.includes(header)) hasAmountColumn = true;
+      if (descColumnNames.includes(header)) hasDescriptionColumn = true;
+    }
+    
+    // Check if we have the minimum required columns
+    if (!hasDateColumn || !hasAmountColumn || !hasDescriptionColumn) {
+      const missing = [];
+      if (!hasDateColumn) missing.push('date');
+      if (!hasAmountColumn) missing.push('amount');
+      if (!hasDescriptionColumn) missing.push('description');
+      
+      return {
+        isValid: false,
+        headers,
+        errorMessage: `CSV is missing required columns: ${missing.join(', ')}`
+      };
+    }
+    
+    return {
+      isValid: true,
+      headers
+    };
+    
+  } catch (error) {
+    console.error('Error validating CSV:', error);
+    return {
+      isValid: false,
+      headers: [],
+      errorMessage: `Failed to validate CSV: ${error}`
+    };
+  }
+};
+
+/**
+ * Parse CSV data into Transaction objects and return a CSVParseResult
+ * @param csvData Raw CSV data as string
+ * @returns CSVParseResult with transactions and warnings
+ */
+export const parseCSV = (csvData: string): CSVParseResult => {
+  const warnings: string[] = [];
+  
   try {
     const { data } = Papa.parse(csvData, {
       header: true,
       skipEmptyLines: true,
     });
 
-    return data.map((row: any, index: number) => {
+    const transactions: Transaction[] = data.map((row: any, index: number) => {
       // Find date column - try common names
       const dateValue = row.Date || row.date || row.DATE || row.TransactionDate || row['Transaction Date'] || row['Posting Date'] || '';
       
@@ -44,6 +121,14 @@ export const parseCSV = (csvData: string): Transaction[] => {
       // Parse amount
       const amount = parseFloat(amountValue);
       
+      if (!parsedDate) {
+        warnings.push(`Row ${index + 1}: Could not parse date "${dateValue}", using current date`);
+      }
+      
+      if (isNaN(amount)) {
+        warnings.push(`Row ${index + 1}: Could not parse amount "${amountValue}", using 0`);
+      }
+      
       return {
         id: `temp-${index}`,
         date: formattedDate,
@@ -52,10 +137,61 @@ export const parseCSV = (csvData: string): Transaction[] => {
         isVerified: false,
       };
     });
+
+    return { transactions, warnings };
   } catch (error) {
     console.error('Error parsing CSV:', error);
-    return [];
+    warnings.push(`CSV parsing error: ${error}`);
+    return { transactions: [], warnings };
   }
+};
+
+/**
+ * Check for duplicate transactions in a transaction array
+ */
+export const findDuplicateTransactions = (transactions: Transaction[]): Transaction[] => {
+  const duplicates: Transaction[] = [];
+  const seen = new Map<string, Transaction>();
+  
+  transactions.forEach(transaction => {
+    // Create a key combining date, amount, and description
+    const key = `${transaction.date}-${transaction.amount}-${transaction.description}`;
+    if (seen.has(key)) {
+      duplicates.push(transaction);
+    } else {
+      seen.set(key, transaction);
+    }
+  });
+  
+  return duplicates;
+};
+
+/**
+ * Calculate running balance for each transaction in the array
+ */
+export const calculateRunningBalance = (
+  transactions: Transaction[], 
+  initialBalance: number = 0,
+  balanceDate: Date = new Date()
+): Transaction[] => {
+  // Sort transactions by date
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateA - dateB;
+  });
+  
+  let runningBalance = initialBalance;
+  
+  return sortedTransactions.map(transaction => {
+    // Update running balance based on transaction amount
+    runningBalance += transaction.amount;
+    
+    return {
+      ...transaction,
+      balance: Number(runningBalance.toFixed(2))
+    };
+  });
 };
 
 /**
@@ -75,11 +211,11 @@ export const isBalanceReconciled = (currentBalance: number, statementBalance: nu
  * @param transactions Array of transactions to export
  * @param filename Name of the file to download
  */
-export const exportToCSV = (transactions: Transaction[], filename = 'transactions.csv'): void => {
+export const exportToCSV = (transactions: Transaction[], filename = 'transactions.csv'): string => {
   try {
     if (!transactions || transactions.length === 0) {
       toast.error('No transactions to export');
-      return;
+      return '';
     }
 
     // Prepare data for CSV export
@@ -98,25 +234,12 @@ export const exportToCSV = (transactions: Transaction[], filename = 'transaction
     // Generate CSV string
     const csv = Papa.unparse(data);
     
-    // Create a blob and download link
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    toast.success(`Prepared ${transactions.length} transactions for export`);
     
-    // Set up download
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    
-    // Append to document, trigger download and clean up
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    toast.success(`Exported ${transactions.length} transactions to ${filename}`);
+    return csv;
   } catch (error) {
     console.error('Error exporting to CSV:', error);
     toast.error('Failed to export transactions');
+    return '';
   }
 };

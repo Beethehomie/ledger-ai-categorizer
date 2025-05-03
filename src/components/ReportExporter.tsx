@@ -1,132 +1,69 @@
-import React, { useState, useEffect } from 'react';
-import { Download, FileText, Printer } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Transaction } from '@/types';
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Download } from "lucide-react";
+import { toast } from "@/utils/toast";
 import { exportToCSV } from '@/utils/csvParser';
-import { toast } from '@/utils/toast';
-import { useBookkeeping } from '@/context/BookkeepingContext';
+import { useSettings } from "@/context/SettingsContext";
 
 interface ReportExporterProps {
-  transactions: Transaction[];
-  currency: string;
+  transactions: any[];
+  defaultFilename?: string;
 }
 
-const ReportExporter: React.FC<ReportExporterProps> = ({ transactions, currency }) => {
-  const { financialSummary, calculateFinancialSummary } = useBookkeeping();
-  const [isExporting, setIsExporting] = useState(false);
-
-  useEffect(() => {
-    calculateFinancialSummary();
-  }, [transactions, calculateFinancialSummary]);
-
-  const downloadCSV = () => {
+const ReportExporter: React.FC<ReportExporterProps> = ({ transactions, defaultFilename = 'transactions.csv' }) => {
+  const [filename, setFilename] = useState(defaultFilename);
+  const { currency } = useSettings();
+  
+  const handleExport = () => {
     try {
-      setIsExporting(true);
+      const csvData = exportToCSV(transactions, filename);
       
-      const csvData = exportToCSV(transactions);
+      if (!csvData) {
+        toast.error('Failed to generate CSV data');
+        return;
+      }
+      
+      // Create a blob and download link
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      
       const link = document.createElement('a');
-      const date = new Date().toISOString().split('T')[0];
+      
+      // Set up download
+      const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `transactions_${date}.csv`);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      
+      // Append to document, trigger download and clean up
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(url);
       
-      toast.success('Transactions exported to CSV successfully');
+      toast.success(`Exported ${transactions.length} transactions to ${filename}`);
     } catch (error) {
-      console.error('Error exporting CSV:', error);
-      toast.error('Failed to export transactions');
-    } finally {
-      setIsExporting(false);
+      console.error('Error in handleExport:', error);
+      toast.error('Failed to export file');
     }
   };
-
-  const generatePDF = (reportType: 'summary' | 'detailed') => {
-    setIsExporting(true);
-    
-    setTimeout(() => {
-      toast.success(`${reportType === 'summary' ? 'Summary' : 'Detailed'} report generated successfully`);
-      setIsExporting(false);
-      
-      const link = document.createElement('a');
-      const date = new Date().toISOString().split('T')[0];
-      link.setAttribute('href', '#');
-      link.setAttribute('download', `${reportType}_report_${date}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }, 1000);
-  };
-
-  const printReport = () => {
-    window.print();
-  };
-
+  
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
-          <Download className="h-4 w-4" />
-          Export / Download
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-56" align="end">
-        <div className="space-y-2">
-          <h4 className="font-medium text-sm">Export Options</h4>
-          <div className="flex flex-col gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={downloadCSV} 
-              className="justify-start"
-              disabled={isExporting || transactions.length === 0}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Export as CSV
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => generatePDF('summary')}
-              className="justify-start"
-              disabled={isExporting}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Summary PDF
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => generatePDF('detailed')}
-              className="justify-start"
-              disabled={isExporting}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Detailed PDF
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={printReport}
-              className="justify-start"
-              disabled={isExporting}
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Print Report
-            </Button>
-          </div>
-          {transactions.length === 0 && (
-            <p className="text-xs text-muted-foreground mt-2">
-              No transactions available to export
-            </p>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <div className="flex items-center space-x-4">
+      <div className="flex-1">
+        <Label htmlFor="filename">Filename</Label>
+        <Input
+          id="filename"
+          type="text"
+          value={filename}
+          onChange={(e) => setFilename(e.target.value)}
+          placeholder="Enter filename"
+        />
+      </div>
+      <Button onClick={handleExport} className="bg-finance-green hover:bg-finance-green-light hover-scale">
+        Export CSV <Download className="ml-2" />
+      </Button>
+    </div>
   );
 };
 

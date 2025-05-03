@@ -93,17 +93,30 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   };
 
   const handleExportCSV = () => {
-    const csvData = exportToCSV(transactions); 
-    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    const date = new Date().toISOString().split('T')[0];
-    link.setAttribute('href', url);
-    link.setAttribute('download', `transactions_${date}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const csvData = exportToCSV(transactions);
+      
+      if (!csvData) {
+        toast.error('Failed to generate CSV data');
+        return;
+      }
+      
+      // Create a blob and download link
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      const date = new Date().toISOString().split('T')[0];
+      link.setAttribute('href', url);
+      link.setAttribute('download', `transactions_${date}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting to CSV:', error);
+      toast.error('Failed to export transactions');
+    }
   };
 
   const handleRefresh = () => {
@@ -439,7 +452,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           isOpen={isReconcileDialogOpen}
           onClose={() => setIsReconcileDialogOpen(false)}
           transactions={transactions}
-          onReconcile={handleReconcile}
+          onReconcile={(endBalance) => handleReconcile(endBalance)}
         />
         
         <VendorNameEditor

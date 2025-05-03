@@ -88,7 +88,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
             // Parse CSV
             const parseResult = parseCSV(event.target.result);
             
-            if (parseResult.warnings.length > 0) {
+            if (parseResult.warnings && parseResult.warnings.length > 0) {
               // Show warnings but continue
               parseResult.warnings.forEach(warning => {
                 console.warn('CSV parse warning:', warning);

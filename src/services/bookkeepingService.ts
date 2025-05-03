@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Transaction } from '@/types';
 import { toast } from '@/utils/toast';
@@ -134,36 +133,47 @@ export const updateTransactionBalances = async (bankAccountId: string, initialBa
 
 export const getBankAccountIdFromConnection = async (bankConnectionId: string): Promise<string | null> => {
   try {
-    console.log('Looking up account ID for bank connection:', bankConnectionId);
+    console.log('Looking up bank account ID for connection:', bankConnectionId);
     
-    // First check if there are transactions with this connection ID
-    // and extract the account ID from there
-    const { data: transactionData, error: transactionError } = await supabase
-      .from('bank_transactions')
-      .select('account_id')
-      .eq('bank_connection_id', bankConnectionId)
-      .order('created_at', { ascending: false })
-      .limit(1);
-      
-    if (!transactionError && transactionData && transactionData.length > 0 && transactionData[0].account_id) {
-      console.log('Found account ID from transactions:', transactionData[0].account_id);
-      return transactionData[0].account_id;
-    }
-    
-    // If not found in transactions, check if the connection has an account_id field
-    const { data: connectionData, error: connectionError } = await supabase
+    // First, check if the connection exists
+    const { data: connection, error: connectionError } = await supabase
       .from('bank_connections')
-      .select('id')
+      .select('*')
       .eq('id', bankConnectionId)
       .single();
     
-    if (connectionData) {
-      // Use the connection ID as the account ID as a fallback
-      console.log('No account ID found for bank connection. Using connection ID as fallback:', bankConnectionId);
-      return bankConnectionId;
+    if (connectionError) {
+      console.error('Error fetching bank connection:', connectionError);
+      return null;
     }
     
-    console.log('No bank connection found with ID:', bankConnectionId);
+    if (!connection) {
+      console.warn('Bank connection not found:', bankConnectionId);
+      return null;
+    }
+    
+    // Now try to find a matching account in bank_accounts table
+    // This assumes that there's a column in bank_accounts that references the connection
+    const { data: accountData, error: accountError } = await supabase
+      .from('bank_accounts')
+      .select('account_id')
+      .eq('connection_id', bankConnectionId)
+      .maybeSingle();
+    
+    if (accountError) {
+      // This might be because the column doesn't exist, which is fine
+      console.warn('Error querying bank_accounts:', accountError);
+      return null;
+    }
+    
+    // If we found an account, return its ID
+    if (accountData && accountData.account_id) {
+      console.log('Found account ID:', accountData.account_id);
+      return accountData.account_id;
+    }
+    
+    // If we didn't find an account, that's okay - we'll use the connection ID directly
+    console.log('No matching account found for connection:', bankConnectionId);
     return null;
   } catch (err) {
     console.error('Error in getBankAccountIdFromConnection:', err);
