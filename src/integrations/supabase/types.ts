@@ -156,6 +156,7 @@ export type Database = {
       user_profiles: {
         Row: {
           business_context: Json | null
+          business_insight: Json | null
           created_at: string | null
           email: string | null
           full_name: string | null
@@ -166,6 +167,7 @@ export type Database = {
         }
         Insert: {
           business_context?: Json | null
+          business_insight?: Json | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
@@ -176,6 +178,7 @@ export type Database = {
         }
         Update: {
           business_context?: Json | null
+          business_insight?: Json | null
           created_at?: string | null
           email?: string | null
           full_name?: string | null
