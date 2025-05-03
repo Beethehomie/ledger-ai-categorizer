@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useBookkeeping } from '@/context/BookkeepingContext';
+import { useBookkeeping, BookkeepingProvider } from '@/context/bookkeeping/BookkeepingContext';
 import { Transaction } from '@/types';
 import { format } from 'date-fns';
 import { ArrowDown, ArrowUp, Check, AlertCircle } from 'lucide-react';
@@ -14,12 +14,8 @@ import { toast } from '@/utils/toast';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 
-interface DateRange {
-  startDate: Date | undefined;
-  endDate: Date | undefined;
-}
-
-const ReconciliationDashboard: React.FC = () => {
+// Content component that uses the hook
+const ReconciliationDashboardContent: React.FC = () => {
   const { 
     transactions, 
     bankConnections, 
@@ -352,6 +348,15 @@ const ReconciliationDashboard: React.FC = () => {
         </Card>
       </div>
     </div>
+  );
+};
+
+// Main component that wraps the content with the provider
+const ReconciliationDashboard: React.FC = () => {
+  return (
+    <BookkeepingProvider>
+      <ReconciliationDashboardContent />
+    </BookkeepingProvider>
   );
 };
 

@@ -7,13 +7,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useBookkeeping } from '@/context/BookkeepingContext';
+import { useBookkeeping, BookkeepingProvider } from '@/context/bookkeeping/BookkeepingContext';
 import { toast } from '@/utils/toast';
 import { BackToDashboard } from '@/components/header/BackToDashboard';
 import { Transaction } from '@/types';
 import { parseCSV, CSVParseResult } from '@/utils/csvParser';
 
-const TransactionUpload: React.FC = () => {
+// Create a wrapper component that uses the hook
+const TransactionUploadContent: React.FC = () => {
   const navigate = useNavigate();
   const { uploadCSV, loading, bankConnections } = useBookkeeping();
   const [parsedData, setParsedData] = useState<CSVParseResult | null>(null);
@@ -254,6 +255,15 @@ const TransactionUpload: React.FC = () => {
         )}
       </div>
     </div>
+  );
+};
+
+// Main component that wraps the content with the provider
+const TransactionUpload: React.FC = () => {
+  return (
+    <BookkeepingProvider>
+      <TransactionUploadContent />
+    </BookkeepingProvider>
   );
 };
 
