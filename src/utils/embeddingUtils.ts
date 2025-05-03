@@ -110,14 +110,12 @@ export const findSimilarVendorsByDescription = async (
       };
     }
     
-    // The issue is with the type parameters of the RPC call
-    // Instead of using generic type parameters, we'll use a properly typed approach
-    
-    // Call the RPC function (without explicit generic parameters)
+    // Call the RPC function without type parameters - fix for the TS error
     const { data, error } = await supabase.rpc(
       'match_vendors_by_embedding',
       {
-        query_embedding: embedding,
+        // Convert the embedding to any to avoid the type error
+        query_embedding: embedding as any,
         match_threshold: 0.5,
         match_count: 5
       }
