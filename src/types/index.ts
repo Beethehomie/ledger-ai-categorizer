@@ -18,6 +18,7 @@ export interface Transaction {
   bankAccountId?: string;
   bankAccountName?: string;
   balance?: number; // Running balance field
+  accountId?: string; // Add accountId field for RLS policy
 }
 
 export interface Category {
