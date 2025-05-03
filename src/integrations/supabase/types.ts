@@ -125,6 +125,7 @@ export type Database = {
           created_at: string | null
           date: string
           description: string
+          embedding: string | null
           id: string
           is_verified: boolean | null
           statement_type: string | null
@@ -144,6 +145,7 @@ export type Database = {
           created_at?: string | null
           date: string
           description: string
+          embedding?: string | null
           id?: string
           is_verified?: boolean | null
           statement_type?: string | null
@@ -163,6 +165,7 @@ export type Database = {
           created_at?: string | null
           date?: string
           description?: string
+          embedding?: string | null
           id?: string
           is_verified?: boolean | null
           statement_type?: string | null

@@ -2,16 +2,33 @@
 import { Transaction } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { processTransactionsWithAI } from '@/services/vendorService';
 
 // Process transactions before saving
-export const processTransactions = (transactions: Transaction[]): Transaction[] => {
-  return transactions.map(transaction => ({
+export const processTransactions = async (transactions: Transaction[]): Promise<Transaction[]> => {
+  // First, add the basic processing (IDs, defaults, etc.)
+  const basicProcessed = transactions.map(transaction => ({
     ...transaction,
     id: transaction.id || uuidv4(),
     isVerified: transaction.isVerified || false,
     type: transaction.type || determineTxnType(transaction),
     statementType: transaction.statementType || determineStatementType(transaction)
   }));
+  
+  // Then run AI processing if there are any transactions without vendors
+  const needsAiProcessing = basicProcessed.some(t => !t.vendor);
+  
+  if (needsAiProcessing) {
+    try {
+      return await processTransactionsWithAI(basicProcessed);
+    } catch (err) {
+      console.error('Error in AI processing:', err);
+      // Fall back to basic processing if AI fails
+      return basicProcessed;
+    }
+  }
+  
+  return basicProcessed;
 };
 
 // Determine transaction type based on amount
@@ -35,15 +52,18 @@ export const saveTransactionsToSupabase = async (
 ): Promise<{ transactions: Transaction[]; errors: any[] }> => {
   const savedTransactions: Transaction[] = [];
   const errors: any[] = [];
+  
+  // Process transactions with AI to get vendors
+  const processedTransactions = await processTransactions(transactions);
 
   // Process in batches to avoid timeouts
   const batchSize = 20;
-  const batches = Math.ceil(transactions.length / batchSize);
+  const batches = Math.ceil(processedTransactions.length / batchSize);
   
   for (let i = 0; i < batches; i++) {
     const start = i * batchSize;
-    const end = Math.min(start + batchSize, transactions.length);
-    const batch = transactions.slice(start, end);
+    const end = Math.min(start + batchSize, processedTransactions.length);
+    const batch = processedTransactions.slice(start, end);
     
     const transactionsToInsert = batch.map(txn => ({
       description: txn.description,
@@ -59,7 +79,6 @@ export const saveTransactionsToSupabase = async (
       bank_connection_id: txn.bankAccountId || null,
       balance: txn.balance || null,
       user_id: userId,
-      // Handle the accountId field properly
       account_id: txn.accountId || txn.bankAccountId || null, // Use accountId if available, fallback to bankAccountId
     }));
     
@@ -90,6 +109,22 @@ export const saveTransactionsToSupabase = async (
           accountId: t.account_id || undefined,
         }));
         savedTransactions.push(...mapped);
+      }
+      
+      // Generate embeddings for the saved transactions
+      if (data && data.length > 0) {
+        try {
+          await supabase.functions.invoke('generate-embeddings', {
+            body: {
+              table: 'bank_transactions',
+              textField: 'description',
+              limit: batch.length
+            }
+          });
+        } catch (embeddingError) {
+          console.error('Error generating embeddings:', embeddingError);
+          // Non-blocking error - we can continue even if embedding fails
+        }
       }
     } catch (err) {
       console.error('Error in saveTransactionsToSupabase:', err);
