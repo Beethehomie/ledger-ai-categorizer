@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, AlertCircle } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
 import { parseCSV } from '@/utils/csvParser';
@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface UploadDialogProps {
   isOpen: boolean;
@@ -41,17 +42,20 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   const [balanceDate, setBalanceDate] = useState<Date | undefined>(undefined);
   const [endingBalance, setEndingBalance] = useState<number | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
+      setError(null);
     }
   };
 
   const handleFormSubmit = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    setError(null);
     
     try {
       console.log('Form submission data:', {
@@ -63,11 +67,13 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       });
       
       if (!selectedFile) {
+        setError('Please select a file to upload');
         toast.error('Please select a file to upload');
         return;
       }
       
       if (!selectedBankId) {
+        setError('Please select a bank account');
         toast.error('Please select a bank account');
         return;
       }
@@ -91,6 +97,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
             }
             
             if (parseResult.transactions.length === 0) {
+              setError('No valid transactions found in the CSV file');
               toast.error('No valid transactions found in the CSV file');
               setSubmitting(false);
               return;
@@ -105,14 +112,22 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
               console.log('For bank connection ID:', selectedBankId);
               console.log('Found bank account ID:', bankAccountId || 'NOT FOUND');
               
+              // Set accountId on all transactions
+              const transactionsWithAccountId = parseResult.transactions.map(transaction => ({
+                ...transaction,
+                accountId: bankAccountId || selectedBankId // Fallback to connection ID if no account ID
+              }));
+              
+              console.log('Transaction with accountId:', transactionsWithAccountId[0]);
+              
               // Show warning if no account ID was found
               if (!bankAccountId) {
-                toast.warning('No bank account found for this connection. Transactions may not be saved correctly.');
+                toast.warning('No bank account found for this connection. Using connection ID as fallback.');
               }
               
-              // Upload the transactions
+              // Upload the transactions with accountId
               await bookkeeping.uploadCSV(
-                parseResult.transactions,
+                transactionsWithAccountId,
                 selectedBankId,
                 initialBalance,
                 balanceDate,
@@ -121,25 +136,34 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
               
               // Close the dialog on successful upload
               onClose();
-              toast.success('Transaction upload complete');
+              
+              // Refresh transactions to show the newly uploaded ones
+              await bookkeeping.fetchTransactions();
+              
+              toast.success(`Successfully uploaded ${transactionsWithAccountId.length} transactions. Please check the Transactions tab.`);
               
             } catch (uploadError: any) {
               // Add detailed error handling for the upload process
               console.error('Transaction upload error details:', uploadError);
               
               if (uploadError.message?.includes('violates row level security policy')) {
+                setError('Security error: You may not have permission to add transactions to this account.');
                 toast.error('Security error: You may not have permission to add transactions to this account.');
               } else if (uploadError.code === '23503') {
+                setError('Database constraint error: A related record was not found.');
                 toast.error('Database constraint error: A related record was not found.');
               } else if (uploadError.code === '23502') {
+                setError('Required field missing: Please make sure all required fields are populated.');
                 toast.error('Required field missing: Please make sure all required fields are populated.');
                 console.error('Missing field details:', uploadError.detail);
               } else {
+                setError(`Upload failed: ${uploadError.message || 'Unknown error'}`);
                 toast.error(`Upload failed: ${uploadError.message || 'Unknown error'}`);
               }
             }
           } catch (parseError) {
             console.error('CSV parsing error:', parseError);
+            setError('Failed to parse the CSV file. Please check the file format.');
             toast.error('Failed to parse the CSV file. Please check the file format.');
           }
         }
@@ -147,6 +171,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       };
       
       reader.onerror = () => {
+        setError('Error reading the file');
         toast.error('Error reading the file');
         setSubmitting(false);
       };
@@ -155,6 +180,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
       
     } catch (err) {
       console.error('Form submission error:', err);
+      setError('An unexpected error occurred');
       toast.error('An unexpected error occurred');
       setSubmitting(false);
     }
@@ -169,6 +195,12 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
             Upload a CSV file containing bank statement data to categorize transactions
           </DialogDescription>
         </DialogHeader>
+        {error && (
+          <Alert variant="destructive" className="my-2">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="file" className="text-right">

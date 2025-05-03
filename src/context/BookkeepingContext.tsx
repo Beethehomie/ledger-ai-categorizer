@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
@@ -82,6 +83,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getBankConnectionById,
     setTransactions,
     fetchTransactions: fetchTransactionsFromHook,
+    deleteTransaction,
     getBankAccountIdFromConnection
   } = useTransactions(bankConnections);
   
@@ -104,6 +106,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const loading = transactionsLoading || vendorsLoading || loadingCategories;
   
   const fetchTransactions = async (): Promise<void> => {
+    console.log('BookkeepingContext: Fetching transactions...');
     if (!session) {
       toast.error('You must be logged in to fetch transactions');
       return;
@@ -121,6 +124,8 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return;
       }
       
+      console.log('Retrieved transactions from database:', data?.length || 0);
+      
       const fetchedTransactions: Transaction[] = data.map((t) => ({
         id: t.id,
         date: t.date,
@@ -137,6 +142,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         bankAccountId: t.bank_connection_id || undefined,
         bankAccountName: undefined,
         balance: t.balance || undefined,
+        accountId: t.account_id || undefined,
       }));
       
       if (fetchedTransactions.length > 0) {
@@ -161,16 +167,13 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Add a wrapper for deleteTransaction to match the signature in the interface
-  const deleteTransaction = async (id: string): Promise<{ success: boolean; error?: string }> => {
+  // Helper function to get account ID from connection, exporting for the interface
+  const getBankAccountIdFromConnectionHelper = async (bankConnectionId: string): Promise<string | null> => {
     try {
-      const success = await deleteTransactionService(id);
-      if (success) {
-        return { success: true };
-      }
-      return { success: false, error: 'Failed to delete transaction' };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return await getAccountIdFromConnection(bankConnectionId);
+    } catch (err) {
+      console.error('Error in getBankAccountIdFromConnection:', err);
+      return null;
     }
   };
   
@@ -199,7 +202,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     fetchTransactions,
     findSimilarTransactions,
     deleteTransaction,
-    getBankAccountIdFromConnection,
+    getBankAccountIdFromConnection: getBankAccountIdFromConnectionHelper,
   };
 
   return (

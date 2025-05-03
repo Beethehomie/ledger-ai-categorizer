@@ -30,6 +30,8 @@ export const saveTransactionsToSupabase = async (
       user_id: userId
     }));
     
+    console.log('Supabase insert transactions sample:', supabaseTransactions[0]);
+    
     const { data, error } = await supabase
       .from('bank_transactions')
       .insert(supabaseTransactions)
