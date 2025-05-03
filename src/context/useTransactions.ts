@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from 'react';
-import { useAuth } from '../AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { Transaction } from '@/types';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { 
   saveTransactionsToSupabase, 
   processTransactions 
-} from './transactionUtils';
+} from '@/context/bookkeeping/transactionUtils';
 import { BankConnectionRow } from '@/types/supabase';
 import { findDuplicatesInDatabase, reconcileAccountBalance, updateTransactionBalances } from '@/services/bookkeepingService';
 
