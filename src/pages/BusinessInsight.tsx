@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Info, 
+  ArrowLeft,
   RefreshCw, 
   AlertTriangle, 
   CheckCircle, 
@@ -18,6 +18,7 @@ import {
   Lightbulb,
   BarChart2,
   Settings,
+  Users,
 } from "lucide-react";
 import { toast } from '@/utils/toast';
 import { format } from 'date-fns';
@@ -26,6 +27,7 @@ import { useAuth } from '@/hooks/auth';
 import { BusinessContextFormValues } from '@/components/business/BusinessContextQuestionnaire';
 import OnboardingQuestionnaire from '@/components/OnboardingQuestionnaire';
 import { BusinessInsightData, AIUsageStats } from '@/types/business';
+import BusinessInsightTabs from '@/components/business/BusinessInsightTabs';
 
 const BusinessInsightPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
@@ -83,7 +85,7 @@ const BusinessInsightPage: React.FC = () => {
       }
       
       if (insightData) {
-        // TypeScript doesn't know insightData is BusinessInsightData, we need to cast it
+        // We need to cast it to BusinessInsightData
         const typedInsightData = insightData as unknown as BusinessInsightData;
         setBusinessInsight(typedInsightData);
         
@@ -128,7 +130,7 @@ const BusinessInsightPage: React.FC = () => {
       }
       
       if (stats && stats.length > 0) {
-        // TypeScript doesn't know the type, so we'll type the stats array
+        // We need to type the stats array
         const typedStats = stats as unknown as AIUsageStats[];
         
         const totalCalls = typedStats.length;
@@ -158,7 +160,7 @@ const BusinessInsightPage: React.FC = () => {
           model: null,
           status: null,
           error_message: null,
-          created_at: ''
+          created_at: '',
         } as unknown as AIUsageStats);
       }
     } catch (err) {
@@ -220,6 +222,10 @@ const BusinessInsightPage: React.FC = () => {
     }
   };
 
+  const handleBackToDashboard = () => {
+    navigate('/');
+  };
+
   const renderBusinessInfo = () => {
     if (isLoading) {
       return (
@@ -257,7 +263,7 @@ const BusinessInsightPage: React.FC = () => {
           <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
             <div className="flex justify-between items-center">
               <CardTitle className="flex items-center">
-                <Info className="h-5 w-5 mr-2" />
+                <Users className="h-5 w-5 mr-2" />
                 Business Profile
               </CardTitle>
               <Button 
@@ -303,7 +309,7 @@ const BusinessInsightPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Business Size</h3>
-                  <p className="font-medium">Small</p>
+                  <p className="font-medium">{businessContext.businessSize || "Small"}</p>
                 </div>
                 
                 {businessContext.hasEmployees && (
@@ -416,6 +422,12 @@ const BusinessInsightPage: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Expanded Business Context - This will be displayed in tabs */}
+        <BusinessInsightTabs 
+          businessContext={businessContext}
+          onEditContext={handleEditContext}
+        />
         
         {/* Version History (if available) */}
         {businessInsight?.version > 1 && businessInsight.previous_versions && businessInsight.previous_versions.length > 0 && (
@@ -521,10 +533,20 @@ const BusinessInsightPage: React.FC = () => {
   return (
     <div className="container mx-auto py-8 px-4 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <h1 className="text-3xl font-bold flex items-center mb-4 md:mb-0">
-          <Lightbulb className="h-7 w-7 mr-3 text-primary" />
-          Business Insight
-        </h1>
+        <div className="flex items-center mb-4 md:mb-0">
+          <Button 
+            variant="ghost"
+            size="icon"
+            onClick={handleBackToDashboard}
+            className="mr-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-3xl font-bold flex items-center">
+            <Lightbulb className="h-7 w-7 mr-3 text-primary" />
+            Business Insight
+          </h1>
+        </div>
         
         <div className="flex flex-col sm:flex-row gap-4">
           <Button

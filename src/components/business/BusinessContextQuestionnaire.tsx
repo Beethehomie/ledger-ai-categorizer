@@ -35,6 +35,7 @@ import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/utils/toast";
+import { ExtendedBusinessContextFormValues } from '@/types/business';
 
 // Country options for the form
 const COUNTRIES = [
@@ -79,6 +80,9 @@ const BUSINESS_MODELS = [
   { label: "Hospitality", value: "hospitality" },
   { label: "Retail (physical store)", value: "retail" },
   { label: "Agency/Freelance", value: "agency_freelance" },
+  { label: "Consulting", value: "consulting" },
+  { label: "Content Creator", value: "content_creator" },
+  { label: "Wholesaler", value: "wholesaler" },
   { label: "Other", value: "other" },
 ];
 
@@ -100,6 +104,7 @@ const formSchema = z.object({
   country: z.string().min(1, {
     message: "Please select your country",
   }),
+  businessName: z.string().optional(),
   businessModel: z.string().optional(),
   industry: z.string().min(1, {
     message: "Please select your industry",
@@ -127,6 +132,16 @@ const formSchema = z.object({
   }).optional(),
   topMonthlyExpenses: z.string().optional(),
   additionalInfo: z.string().optional(),
+  offerType: z.enum(["physical", "digital", "both"], {
+    required_error: "Please select what type of products/services you offer",
+  }).optional(),
+  customerSegments: z.string().optional(),
+  valueProposition: z.string().optional(),
+  keyActivities: z.string().optional(),
+  keyResources: z.string().optional(),
+  keyPartnerships: z.string().optional(),
+  costStructure: z.string().optional(),
+  businessSize: z.string().optional(),
 });
 
 // Type for the form values
@@ -157,6 +172,7 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
       entityType: "business",
       country: "ZA",
       industry: "",
+      businessName: "",
       businessModel: "",
       businessDescription: "",
       revenueChannels: "",
@@ -171,6 +187,14 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
       workspaceType: "office",
       topMonthlyExpenses: "",
       additionalInfo: "",
+      offerType: "both",
+      businessSize: "small",
+      customerSegments: "",
+      valueProposition: "",
+      keyActivities: "",
+      keyResources: "",
+      keyPartnerships: "",
+      costStructure: "",
     },
   });
 
@@ -228,7 +252,7 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            {/* Step 1: Entity Definition */}
+            {/* Step 1: Entity Definition with simplified questions */}
             {currentStep === 1 && (
               <div className="space-y-6">
                 <div className="mb-4">
@@ -361,13 +385,10 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {watchEntityType === "business" 
-                          ? "Briefly describe what your business sells or does" 
-                          : "Briefly describe your financial goals"
-                        }
+                        Briefly describe what your {watchEntityType === "business" ? "business does and who your typical customer is" : "financial goals are"}
                       </FormLabel>
                       <FormDescription>
-                        This helps us customize the experience for you (optional)
+                        This helps us customize the experience and categorize your transactions better
                       </FormDescription>
                       <FormControl>
                         <Textarea
@@ -386,13 +407,13 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
               </div>
             )}
 
-            {/* Step 2: Operational & Financial Structure */}
+            {/* Step 2: Revenue & Operations (simplified) */}
             {currentStep === 2 && (
               <div className="space-y-6">
                 <div className="mb-4">
-                  <h3 className="text-lg font-medium">Operational & Financial Structure</h3>
+                  <h3 className="text-lg font-medium">Revenue & Operations</h3>
                   <p className="text-sm text-muted-foreground">
-                    These help distinguish between COGS, operating expenses, owner drawings, and personal spending.
+                    These help us understand how your business operates and generates income.
                   </p>
                 </div>
 
@@ -401,10 +422,13 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
                   name="revenueChannels"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>How do you receive revenue?</FormLabel>
+                      <FormLabel>What are your primary income streams and how do you get paid?</FormLabel>
+                      <FormDescription>
+                        E.g., platforms, direct clients, subscriptions, etc.
+                      </FormDescription>
                       <FormControl>
                         <Textarea
-                          placeholder="Direct deposit, payment platforms, checks..."
+                          placeholder="Direct deposit, Stripe, PayPal, Upwork, subscriptions..."
                           className="resize-none"
                           {...field}
                         />
@@ -416,10 +440,65 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
 
                 <FormField
                   control={form.control}
+                  name="topMonthlyExpenses"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>What are your most common monthly or recurring expenses?</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Software subscriptions, rent, marketing, contractors..."
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="offerType"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Do you sell physical products, digital services, or both—and do you hold inventory?</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="physical" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Physical products (with inventory)</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="digital" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Digital products/services (no inventory)</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="both" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Both physical and digital</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="hasEmployees"
                   render={({ field }) => (
                     <FormItem className="space-y-3">
-                      <FormLabel>Do you have employees or contractors?</FormLabel>
+                      <FormLabel>Do you use contractors, freelancers, or staff—and how do you pay them?</FormLabel>
                       <FormControl>
                         <RadioGroup
                           onValueChange={field.onChange}
@@ -430,19 +509,19 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
                             <FormControl>
                               <RadioGroupItem value="employees" />
                             </FormControl>
-                            <FormLabel className="font-normal">Yes, employees</FormLabel>
+                            <FormLabel className="font-normal">Yes, employees (payroll)</FormLabel>
                           </FormItem>
                           <FormItem className="flex items-center space-x-3 space-y-0">
                             <FormControl>
                               <RadioGroupItem value="contractors" />
                             </FormControl>
-                            <FormLabel className="font-normal">Yes, contractors/freelancers</FormLabel>
+                            <FormLabel className="font-normal">Yes, contractors/freelancers (invoices)</FormLabel>
                           </FormItem>
                           <FormItem className="flex items-center space-x-3 space-y-0">
                             <FormControl>
                               <RadioGroupItem value="none" />
                             </FormControl>
-                            <FormLabel className="font-normal">No</FormLabel>
+                            <FormLabel className="font-normal">No team members</FormLabel>
                           </FormItem>
                         </RadioGroup>
                       </FormControl>
@@ -450,28 +529,18 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
                     </FormItem>
                   )}
                 />
+              </div>
+            )}
 
-                {(form.watch("hasEmployees") === "employees" || form.watch("hasEmployees") === "contractors") && (
-                  <FormField
-                    control={form.control}
-                    name="runsPayroll"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>
-                            Do you run payroll through this account?
-                          </FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                )}
+            {/* Step 3: Account Usage & Preferences (simplified) */}
+            {currentStep === 3 && (
+              <div className="space-y-6">
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium">Account Usage & Preferences</h3>
+                  <p className="text-sm text-muted-foreground">
+                    These help us understand how you use your accounts and categorize transactions.
+                  </p>
+                </div>
 
                 <FormField
                   control={form.control}
@@ -498,100 +567,35 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
 
                 <FormField
                   control={form.control}
-                  name="receivesPaymentsInAccount"
+                  name="workspaceType"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormItem className="space-y-3">
+                      <FormLabel>Where do you primarily work from?</FormLabel>
                       <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Do you receive client/customer payments in this account?
-                        </FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="incomeTypes"
-                  render={() => (
-                    <FormItem>
-                      <div className="mb-4">
-                        <FormLabel>What types of regular income do you receive?</FormLabel>
-                        <FormDescription>
-                          Select all that apply.
-                        </FormDescription>
-                      </div>
-                      {INCOME_TYPES.map((type) => (
-                        <FormField
-                          key={type.id}
-                          control={form.control}
-                          name="incomeTypes"
-                          render={({ field }) => {
-                            return (
-                              <FormItem
-                                key={type.id}
-                                className="flex flex-row items-start space-x-3 space-y-0"
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(type.id)}
-                                    onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([...field.value, type.id])
-                                        : field.onChange(
-                                            field.value?.filter(
-                                              (value) => value !== type.id
-                                            )
-                                          )
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="font-normal">
-                                  {type.label}
-                                </FormLabel>
-                              </FormItem>
-                            )
-                          }}
-                        />
-                      ))}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
-
-            {/* Step 3: Categorization Context */}
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-medium">Categorization Context</h3>
-                  <p className="text-sm text-muted-foreground">
-                    These refine how transactions like "Uber", "Takealot", or "Woolworths" should be handled.
-                  </p>
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="costsOfSales"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>What would you typically consider a 'Cost of Sales' (direct costs)?</FormLabel>
-                      <FormDescription>
-                        Examples: raw ingredients, packaging, freelancers
-                      </FormDescription>
-                      <FormControl>
-                        <Textarea
-                          placeholder="List your typical direct costs..."
-                          className="resize-none"
-                          {...field}
-                        />
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="office" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Office/retail space</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="home" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Home office</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="hybrid" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Hybrid/multiple locations</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -637,100 +641,24 @@ const BusinessContextQuestionnaire: React.FC<BusinessContextQuestionnaireProps> 
 
                 <FormField
                   control={form.control}
-                  name="softwareSubscriptionsForBusiness"
+                  name="additionalInfo"
                   render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>Are software subscriptions (e.g., Zoom, Google Workspace) business-related?</FormLabel>
+                    <FormItem>
+                      <FormLabel>Any additional information that could help with transaction categorization?</FormLabel>
+                      <FormDescription>
+                        Special expenses, unique business arrangements, etc.
+                      </FormDescription>
                       <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          className="flex flex-col space-y-1"
-                        >
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="yes" />
-                            </FormControl>
-                            <FormLabel className="font-normal">Yes</FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="no" />
-                            </FormControl>
-                            <FormLabel className="font-normal">No</FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="depends" />
-                            </FormControl>
-                            <FormLabel className="font-normal">Depends (you'll classify case-by-case)</FormLabel>
-                          </FormItem>
-                        </RadioGroup>
+                        <Textarea
+                          placeholder="For example: Car expenses are for delivery only, not commuting"
+                          className="resize-none"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="workspaceType"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>Do you rent office space or work from home?</FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          className="flex flex-col space-y-1"
-                        >
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="office" />
-                            </FormControl>
-                            <FormLabel className="font-normal">Rent office</FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="home" />
-                            </FormControl>
-                            <FormLabel className="font-normal">Work from home</FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="hybrid" />
-                            </FormControl>
-                            <FormLabel className="font-normal">Hybrid</FormLabel>
-                          </FormItem>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {watchEntityType === "individual" && (
-                  <FormField
-                    control={form.control}
-                    name="topMonthlyExpenses"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>What are your top 3 recurring monthly expenses?</FormLabel>
-                        <FormDescription>
-                          This is useful for pattern recognition
-                        </FormDescription>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Rent, utilities, groceries..."
-                            className="resize-none"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
               </div>
             )}
 

@@ -33,6 +33,10 @@ export interface AIUsageStats {
   tokens_used: number | null;
   error_message: string | null;
   created_at: string;
+  total_calls?: number;
+  successful_calls?: number;
+  failed_calls?: number;
+  last_call_time?: string | null;
 }
 
 export interface BusinessInsight {
@@ -48,4 +52,60 @@ export interface UserProfileWithBusinessContext {
   created_at?: string;
   updated_at?: string;
   [key: string]: any;
+}
+
+// Extended Business Context Model
+export interface ExtendedBusinessContextFormValues extends BusinessContextFormValues {
+  // 🏢 General Business Information
+  businessName?: string;
+  operationRegions?: string;
+  
+  // 🧍‍♂️ Customer Segments
+  customerSegments?: string;  
+  targetAudience?: 'b2b' | 'b2c' | 'both';
+  customerLocation?: 'local' | 'regional' | 'global';
+  
+  // 🎁 Value Propositions
+  valueProposition?: string;
+  uniqueValue?: string;
+  
+  // 📡 Channels
+  marketingChannels?: string;
+  salesChannels?: string;
+  discoveryPlatforms?: string;
+  
+  // 💬 Customer Relationships
+  customerRelationship?: string;
+  supportType?: 'personalized' | 'self-service' | 'community';
+  salesType?: 'one-time' | 'recurring' | 'both';
+  
+  // 💵 Revenue Streams (extends existing revenue props)
+  revenueSources?: string;
+  paymentCollectionMethod?: string;
+  salesTaxSubject?: boolean;
+  
+  // 🧱 Key Resources
+  keyResources?: string;
+  physicalSpace?: boolean;
+  techPlatforms?: string;
+  
+  // 🔧 Key Activities
+  keyActivities?: string;
+  offerType?: 'physical' | 'digital' | 'both';
+  marketingActivities?: string;
+  
+  // 🤝 Key Partnerships
+  keyPartnerships?: string;
+  outsourcedOperations?: string;
+  
+  // 💰 Cost Structure (extends existing costs props)
+  costStructure?: string;
+  
+  // 📈 AI & Categorization Preferences
+  categorizePreference?: 'separate' | 'together';
+  flagMixedTransactions?: boolean;
+  mealsCategorization?: 'cost_of_sales' | 'expense';
+  softwareCategorization?: 'overhead' | 'cost_of_sales' | 'depends';
+  customCategorizationRules?: string;
+  aiAutoCorrect?: boolean;
 }
