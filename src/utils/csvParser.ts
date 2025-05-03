@@ -27,6 +27,7 @@ export const parseCSV = (csvData: string): Promise<CSVParseResult> => {
                 date: row.date || row.Date || new Date().toISOString().split('T')[0],
                 description: row.description || row.Description || row.memo || row.Memo || 'Unknown',
                 amount: parseFloat(row.amount || row.Amount || 0),
+                isVerified: false,
                 // Add other fields as needed
               };
               transactions.push(transaction);
@@ -49,7 +50,6 @@ export const parseCSV = (csvData: string): Promise<CSVParseResult> => {
 
 export const exportToCSV = (transactions: Transaction[], filename?: string): string => {
   try {
-    const fields = ['date', 'description', 'amount', 'category', 'vendor', 'type', 'statementType', 'balance'];
     const rows = transactions.map(transaction => {
       return {
         date: transaction.date,
@@ -64,7 +64,6 @@ export const exportToCSV = (transactions: Transaction[], filename?: string): str
     });
     
     return Papa.unparse(rows, {
-      fields,
       quotes: true
     });
   } catch (error) {

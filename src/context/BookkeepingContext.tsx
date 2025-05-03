@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';
@@ -22,29 +21,29 @@ const BookkeepingContext = createContext<BookkeepingContextType>({
     totalExpenses: 0,
     totalAssets: 0,
     totalLiabilities: 0,
-    netWorth: 0,
-    cashFlow: 0,
+    totalEquity: 0,
+    netProfit: 0,
     cashBalance: 0,
     income: 0
   },
   loading: false,
   aiAnalyzeLoading: false,
   bankConnections: [],
-  addTransactions: async () => [],
-  updateTransaction: async () => false,
-  verifyTransaction: async () => {},
-  verifyVendor: async () => {},
-  uploadCSV: async () => {},
+  addTransactions: async () => Promise.resolve([]),
+  updateTransaction: async () => Promise.resolve(false),
+  verifyTransaction: async () => Promise.resolve(),
+  verifyVendor: async () => Promise.resolve(),
+  uploadCSV: async () => Promise.resolve(),
   getFilteredTransactions: () => [],
   filterTransactionsByDate: () => [],
   getVendorsList: () => [],
   calculateFinancialSummary: () => {},
-  analyzeTransactionWithAI: async () => null,
+  analyzeTransactionWithAI: async () => Promise.resolve(null),
   getBankConnectionById: (id: string) => undefined,
-  removeDuplicateVendors: async () => {},
-  fetchTransactionsForBankAccount: async () => [],
-  batchVerifyVendorTransactions: async () => {},
-  fetchTransactions: async () => {},
+  removeDuplicateVendors: async () => Promise.resolve(),
+  fetchTransactionsForBankAccount: async () => Promise.resolve([]),
+  batchVerifyVendorTransactions: async () => Promise.resolve(),
+  fetchTransactions: async () => Promise.resolve(),
   findSimilarTransactions: () => [],
   deleteTransaction: async () => ({ success: false }),
   getBankAccountIdFromConnection: async () => null,
@@ -185,7 +184,7 @@ export const BookkeepingProvider: React.FC<BookkeepingProviderProps> = ({
               bankAccountId: t.bank_connection_id || undefined,
               bankAccountName: undefined,
               balance: t.balance || undefined,
-              accountId: t.account_id || undefined
+              accountId: t.bank_connection_id || undefined // Using bank_connection_id as a fallback
             };
           });
           

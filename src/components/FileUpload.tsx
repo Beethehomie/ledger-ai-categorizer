@@ -2,7 +2,6 @@
 import React, { useRef, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Upload, File } from "lucide-react";
-import { validateCSVStructure, findDuplicateTransactions } from '@/utils/csvParser';
 
 interface FileUploadProps {
   onFileSelected: (file: File) => void;

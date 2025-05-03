@@ -7,11 +7,12 @@ import { Download } from "lucide-react";
 import { toast } from "@/utils/toast";
 import { exportToCSV } from '@/utils/csvParser';
 import { useSettings } from "@/context/SettingsContext";
+import { Currency } from '@/types';
 
 interface ReportExporterProps {
   transactions: any[];
   defaultFilename?: string;
-  currency?: string;
+  currency?: Currency;
 }
 
 const ReportExporter: React.FC<ReportExporterProps> = ({ 

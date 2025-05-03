@@ -71,7 +71,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({
       
       if (result.warnings && result.warnings.length > 0) {
         toast({
-          variant: "warning",
+          variant: "default",
           title: "CSV Warning",
           description: `${result.warnings.length} issues found. Check the import preview.`
         });
