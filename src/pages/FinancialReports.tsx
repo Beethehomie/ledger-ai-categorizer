@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useBookkeeping } from '@/context/BookkeepingContext';
+import { useBookkeeping, BookkeepingProvider } from '@/context/BookkeepingContext';
 import { useSettings } from '@/context/SettingsContext';
 import { FileText, Download, BarChart3, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
@@ -12,7 +12,8 @@ import { toast } from '@/utils/toast';
 import { FinancialSummary } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const FinancialReports: React.FC = () => {
+// Create a wrapper component that uses the hook
+const FinancialReportsContent: React.FC = () => {
   const { transactions, financialSummary, calculateFinancialSummary } = useBookkeeping();
   const { currency } = useSettings();
   
@@ -576,6 +577,15 @@ const FinancialReports: React.FC = () => {
         </Tabs>
       </div>
     </div>
+  );
+};
+
+// Main component that wraps the content with the provider
+const FinancialReports: React.FC = () => {
+  return (
+    <BookkeepingProvider>
+      <FinancialReportsContent />
+    </BookkeepingProvider>
   );
 };
 
