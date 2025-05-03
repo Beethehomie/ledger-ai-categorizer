@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useTransactions } from './bookkeeping/useTransactions';
 import { useVendors } from './bookkeeping/useVendors';

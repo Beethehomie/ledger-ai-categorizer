@@ -145,7 +145,7 @@ export const useTransactions = (
     }
   };
 
-  const analyzeTransactionWithAI = async (transaction: Transaction): Promise<any> => {
+  const analyzeTransactionWithAI = async (transaction: Transaction) => {
     if (!session) {
       toast.error('You must be logged in to use AI categorization');
       return null;
@@ -477,7 +477,7 @@ export const useTransactions = (
     return bankConnections.find(conn => conn.id === id);
   };
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (): Promise<void> => {
     if (!session) {
       toast.error('You must be logged in to fetch transactions');
       return;
@@ -610,7 +610,7 @@ export const useTransactions = (
     aiAnalyzeLoading,
     addTransactions,
     updateTransaction,
-    analyzeTransactionWithAI,
+    analyzeTransactionWithAI: analyzeTransactionWithAI,
     uploadCSV,
     getFilteredTransactions,
     filterTransactionsByDate,

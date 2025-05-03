@@ -16,8 +16,8 @@ export interface BookkeepingContextType {
   loading: boolean;
   aiAnalyzeLoading: boolean;
   bankConnections: BankConnectionRow[];
-  addTransactions: (transactions: Transaction[]) => Promise<void>;
-  updateTransaction: (transaction: Transaction) => Promise<void>;
+  addTransactions: (transactions: Transaction[]) => Promise<Transaction[] | void>;
+  updateTransaction: (transaction: Transaction) => Promise<boolean | void>;
   verifyTransaction: (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => Promise<void>;
   verifyVendor: (vendorName: string, approved: boolean) => Promise<void>;
   uploadCSV: (preparedTransactions: Transaction[], bankConnectionId?: string, initialBalance?: number, balanceDate?: Date, endBalance?: number) => Promise<void>;
