@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -19,13 +20,7 @@ import { CalendarIcon } from "lucide-react";
 import { useBookkeeping } from '@/context/BookkeepingContext';
 import { toast } from '@/utils/toast';
 import { parseCSV } from '@/utils/csvParser';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import BankSelector from './BankSelector';
 
 interface UploadDialogProps {
   isOpen: boolean;
@@ -41,8 +36,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
   const [balanceDate, setBalanceDate] = useState<Date | undefined>(undefined);
   const [endingBalance, setEndingBalance] = useState<number | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
-
-  const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -180,27 +174,13 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
             <Label htmlFor="bankId" className="text-right">
               Bank Account
             </Label>
-            <Select
-              value={selectedBankId}
-              onValueChange={setSelectedBankId}
-            >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select a bank account" />
-              </SelectTrigger>
-              <SelectContent>
-                {csvBankConnections.length === 0 ? (
-                  <SelectItem value="no-accounts" disabled>
-                    No CSV Bank Accounts Available
-                  </SelectItem>
-                ) : (
-                  csvBankConnections.map((conn) => (
-                    <SelectItem key={conn.id} value={conn.id}>
-                      {conn.display_name || conn.bank_name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            <div className="col-span-3">
+              <BankSelector
+                selectedBankId={selectedBankId}
+                onSelectBank={setSelectedBankId}
+                bankConnections={bankConnections}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="initialBalance" className="text-right">
@@ -218,7 +198,7 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
             <Label htmlFor="balanceDate" className="text-right">
               Balance Date
             </Label>
-            <Popover>
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant={"outline"}
@@ -237,7 +217,10 @@ const UploadDialog: React.FC<UploadDialogProps> = ({ isOpen, onClose, bankConnec
                 <Calendar
                   mode="single"
                   selected={balanceDate}
-                  onSelect={setBalanceDate}
+                  onSelect={(date) => {
+                    setBalanceDate(date);
+                    setDatePickerOpen(false);
+                  }}
                   disabled={(date) =>
                     date > new Date() || date < new Date("1900-01-01")
                   }

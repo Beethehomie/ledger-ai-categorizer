@@ -1,131 +1,103 @@
 
 import { Transaction } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/utils/toast';
-import { extractVendorName } from '@/utils/vendorExtractor';
+import { v4 as uuidv4 } from 'uuid';
 
-export const saveTransactionsToSupabase = async (
-  transactions: Transaction[], 
-  userId: string
-) => {
-  try {
-    // Log the data being sent to help with debugging
-    console.log('Saving transactions to Supabase:', transactions.length, 'transactions');
-    console.log('Sample transaction:', transactions[0]);
-    
-    const supabaseTransactions = transactions.map(t => ({
-      date: t.date,
-      description: t.description,
-      amount: t.amount,
-      category: t.category || null,
-      type: t.type || null,
-      statement_type: t.statementType || null,
-      is_verified: t.isVerified || false,
-      vendor: t.vendor || null,
-      vendor_verified: t.vendorVerified || false,
-      confidence_score: t.confidenceScore || null,
-      bank_connection_id: t.bankAccountId || null,
-      balance: t.balance || null,
-      account_id: t.accountId || null, // Use accountId for RLS policy compliance
-      user_id: userId
-    }));
-    
-    const { data, error } = await supabase
-      .from('bank_transactions')
-      .insert(supabaseTransactions)
-      .select();
-      
-    if (error) {
-      console.error('Supabase insert error:', error);
-      throw error;
-    }
-    
-    console.log('Supabase insert successful, returned data:', data?.length, 'rows');
-    
-    if (data) {
-      // Update the transactions with the IDs from the database
-      for (let i = 0; i < transactions.length; i++) {
-        if (data[i]) {
-          transactions[i].id = data[i].id;
-        }
-      }
-    }
-    
-    return { data, transactions };
-  } catch (err: any) {
-    console.error('Error saving transactions to Supabase:', err);
-    toast.error('Failed to save transactions to database');
-    throw err;
+// Process transactions before saving
+export const processTransactions = (transactions: Transaction[]): Transaction[] => {
+  return transactions.map(transaction => ({
+    ...transaction,
+    id: transaction.id || uuidv4(),
+    isVerified: transaction.isVerified || false,
+    type: transaction.type || determineTxnType(transaction),
+    statementType: transaction.statementType || determineStatementType(transaction)
+  }));
+};
+
+// Determine transaction type based on amount
+const determineTxnType = (transaction: Transaction): Transaction['type'] => {
+  if (transaction.amount > 0) {
+    return 'income';
+  } else {
+    return 'expense';
   }
 };
 
-export const calculateRunningBalance = (
-  parsedTransactions: Transaction[], 
-  initialBalance: number,
-  balanceDate: Date
-): Transaction[] => {
-  const sortedTransactions = [...parsedTransactions].sort((a, b) => {
-    const dateA = new Date(a.date).getTime();
-    const dateB = new Date(b.date).getTime();
-    return dateA - dateB;
-  });
-  
-  let runningBalance = initialBalance;
-  
-  return sortedTransactions.map(transaction => {
-    // Adjust balance based on transaction type and amount
-    if (transaction.type === 'income') {
-      runningBalance += Math.abs(transaction.amount);
-    } else if (transaction.type === 'expense') {
-      runningBalance -= Math.abs(transaction.amount);
-    } else if (transaction.type === 'asset') {
-      runningBalance -= Math.abs(transaction.amount);
-    } else if (transaction.type === 'liability') {
-      runningBalance += Math.abs(transaction.amount);
-    } else {
-      // Default behavior for unspecified types - assume expense if negative, income if positive
-      if (transaction.amount < 0) {
-        runningBalance += transaction.amount; // Amount is already negative
-      } else {
-        runningBalance += transaction.amount;
-      }
-    }
-    
-    return {
-      ...transaction,
-      balance: Number(runningBalance.toFixed(2))
-    };
-  });
+// Determine statement type
+const determineStatementType = (transaction: Transaction): Transaction['statementType'] => {
+  return 'profit_loss'; // Default to profit/loss statement
 };
 
-export const processTransactions = (
-  transactions: Transaction[]
-): Transaction[] => {
-  return transactions.map(transaction => {
-    // Extract vendor name, always ensuring we have a value (will return "Unknown" if nothing found)
-    const vendorName = transaction.vendor || extractVendorName(transaction.description);
-    const vendor = vendorName || "Unknown";
+// Save transactions to Supabase
+export const saveTransactionsToSupabase = async (
+  transactions: Transaction[],
+  userId: string
+): Promise<{ transactions: Transaction[]; errors: any[] }> => {
+  const savedTransactions: Transaction[] = [];
+  const errors: any[] = [];
+
+  // Process in batches to avoid timeouts
+  const batchSize = 20;
+  const batches = Math.ceil(transactions.length / batchSize);
+  
+  for (let i = 0; i < batches; i++) {
+    const start = i * batchSize;
+    const end = Math.min(start + batchSize, transactions.length);
+    const batch = transactions.slice(start, end);
     
-    // Ensure amounts are properly handled
-    const amount = Number(transaction.amount);
+    const transactionsToInsert = batch.map(txn => ({
+      description: txn.description,
+      amount: txn.amount,
+      date: txn.date,
+      category: txn.category || null,
+      type: txn.type || null,
+      statement_type: txn.statementType || null,
+      is_verified: txn.isVerified || false,
+      vendor: txn.vendor || null,
+      vendor_verified: txn.vendorVerified || false,
+      confidence_score: txn.confidenceScore || null,
+      bank_connection_id: txn.bankAccountId || null,
+      balance: txn.balance || null,
+      user_id: userId,
+      account_id: txn.accountId || txn.bankAccountId || null, // Use accountId if available, fallback to bankAccountId
+    }));
     
-    // Determine transaction type based on amount if not already set
-    const type = transaction.type || (amount < 0 ? 'expense' : 'income');
-    
-    // Determine statement type if not already set
-    const statementType = transaction.statementType || 'profit_loss';
-    
-    return {
-      ...transaction,
-      amount: amount,
-      type: type,
-      statementType: statementType,
-      vendor,
-      vendorVerified: Boolean(transaction.vendorVerified),
-      // Set confidence score - lower for unknown vendors, higher for known ones
-      confidenceScore: vendor === "Unknown" ? 0.3 : transaction.confidenceScore || Math.random() * 0.5 + 0.5,
-      isVerified: transaction.isVerified || false,
-      accountId: transaction.accountId // Ensure accountId is passed through
-    };
-  });
+    try {
+      const { data, error } = await supabase
+        .from('bank_transactions')
+        .insert(transactionsToInsert)
+        .select();
+        
+      if (error) {
+        console.error('Error batch saving transactions:', error);
+        errors.push(error);
+      } else if (data) {
+        const mapped = data.map(t => ({
+          id: t.id,
+          date: t.date,
+          description: t.description,
+          amount: Number(t.amount),
+          category: t.category || undefined,
+          type: t.type as Transaction['type'] || undefined,
+          statementType: t.statement_type as Transaction['statementType'] || undefined,
+          isVerified: t.is_verified || false,
+          vendor: t.vendor || undefined,
+          vendorVerified: t.vendor_verified || false,
+          confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
+          bankAccountId: t.bank_connection_id || undefined,
+          balance: t.balance || undefined,
+          accountId: t.account_id || undefined,
+        }));
+        savedTransactions.push(...mapped);
+      }
+    } catch (err) {
+      console.error('Error in saveTransactionsToSupabase:', err);
+      errors.push(err);
+      
+      // Log more details for debugging
+      console.error('Failed batch data:', transactionsToInsert);
+    }
+  }
+  
+  return { transactions: savedTransactions, errors };
 };

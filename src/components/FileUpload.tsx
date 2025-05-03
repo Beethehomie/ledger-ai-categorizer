@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import UploadDialog from './UploadDialog';
+import BankSelector from './BankSelector';
 
 const FileUpload: React.FC = () => {
   const { uploadCSV, loading, bankConnections, transactions } = useBookkeeping();
@@ -29,8 +30,6 @@ const FileUpload: React.FC = () => {
   const [selectedBankId, setSelectedBankId] = useState<string>('');
   const [warningMessages, setWarningMessages] = useState<string[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const csvBankConnections = bankConnections.filter(conn => conn.connection_type === 'csv');
 
   useEffect(() => {
     if (csvContent) {
@@ -93,8 +92,50 @@ const FileUpload: React.FC = () => {
     setIsDialogOpen(false);
   };
 
-  const processFile = () => {
-    openUploadDialog();
+  const processFile = async () => {
+    if (!selectedFile || !selectedBankId || !csvValidation.isValid) {
+      toast.error('Please select a valid CSV file and bank account');
+      return;
+    }
+    
+    try {
+      // Read the file content
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        if (event.target && typeof event.target.result === 'string') {
+          const parseResult = parseCSV(event.target.result);
+          
+          if (parseResult.warnings.length > 0) {
+            parseResult.warnings.forEach(warning => {
+              console.warn('CSV parse warning:', warning);
+              toast.warning(warning, { duration: 3000 });
+            });
+          }
+          
+          if (parseResult.transactions.length === 0) {
+            toast.error('No valid transactions found in the CSV file');
+            return;
+          }
+          
+          try {
+            await uploadCSV(parseResult.transactions, selectedBankId);
+            setSelectedFile(null);
+            setCsvContent("");
+            setCsvValidation({ isValid: false, headers: [] });
+            setSelectedBankId('');
+            toast.success('Transactions uploaded successfully');
+          } catch (err) {
+            console.error('Error uploading transactions:', err);
+            toast.error('Failed to upload transactions');
+          }
+        }
+      };
+      
+      reader.readAsText(selectedFile);
+    } catch (err) {
+      console.error('Error processing file:', err);
+      toast.error('Failed to process file');
+    }
   };
 
   const resetForm = () => {
@@ -200,27 +241,11 @@ const FileUpload: React.FC = () => {
               
               <div className="space-y-2">
                 <p className="text-sm font-medium">Select Bank Account</p>
-                <Select
-                  value={selectedBankId}
-                  onValueChange={setSelectedBankId}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a bank account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {csvBankConnections.length === 0 ? (
-                      <SelectItem value="no-accounts" disabled>
-                        No CSV Bank Accounts Available
-                      </SelectItem>
-                    ) : (
-                      csvBankConnections.map((conn) => (
-                        <SelectItem key={conn.id} value={conn.id}>
-                          {conn.display_name || conn.bank_name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <BankSelector 
+                  selectedBankId={selectedBankId}
+                  onSelectBank={setSelectedBankId}
+                  bankConnections={bankConnections}
+                />
               </div>
             </div>
           )}

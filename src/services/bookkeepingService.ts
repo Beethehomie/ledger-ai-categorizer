@@ -1,405 +1,169 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/utils/toast';
-import { Category, Transaction, Vendor, FinancialSummary } from '@/types';
-import { BankConnectionRow } from '@/types/supabase';
+import { Transaction } from '@/types';
 
-export async function fetchVendors(): Promise<Vendor[]> {
-  try {
-    const { data, error } = await supabase
-      .from('vendor_categorizations')
-      .select('*');
-      
-    if (error) {
-      console.error('Error fetching vendors:', error);
-      throw error;
-    }
-    
-    if (data) {
-      const vendorsFromDB: Vendor[] = data.map((v) => {
-        // Convert any 'operating' statementType to 'profit_loss' for backward compatibility
-        let statementType: 'profit_loss' | 'balance_sheet' = 'profit_loss';
-        if (v.statement_type === 'balance_sheet') {
-          statementType = 'balance_sheet';
-        }
-        
-        return {
-          name: v.vendor_name || '',
-          category: v.category || '',
-          type: (v.type as Transaction['type']) || 'expense',
-          statementType: statementType,
-          occurrences: v.occurrences || 1,
-          verified: v.verified || false
-        };
-      });
-      
-      return vendorsFromDB;
-    }
-    
-    return [];
-  } catch (err) {
-    console.error('Error in fetchVendors:', err);
-    throw err;
-  }
-}
-
-export async function fetchTransactionsFromDatabase(): Promise<Transaction[]> {
-  try {
-    console.log('Fetching transactions from database');
+export const findDuplicatesInDatabase = async (
+  newTransactions: Transaction[]
+): Promise<Transaction[]> => {
+  if (newTransactions.length === 0) return [];
+  
+  const duplicates: Transaction[] = [];
+  
+  for (const transaction of newTransactions) {
+    // Check for existing transactions with same date, description, and amount
     const { data, error } = await supabase
       .from('bank_transactions')
       .select('*')
-      .order('date', { ascending: false });
+      .eq('date', transaction.date)
+      .eq('description', transaction.description)
+      .eq('amount', transaction.amount)
+      .limit(1);
       
     if (error) {
-      console.error('Error fetching transactions:', error);
-      throw error;
+      console.error('Error checking for duplicates:', error);
+      continue;
     }
     
-    if (data) {
-      console.log(`Fetched ${data.length} transactions from database`);
-      const fetchedTransactions: Transaction[] = data.map((t) => ({
-        id: t.id,
-        date: t.date,
-        description: t.description,
-        amount: Number(t.amount),
-        category: t.category || undefined,
-        type: t.type as Transaction['type'] || undefined,
-        statementType: t.statement_type as Transaction['statementType'] || undefined,
-        isVerified: t.is_verified || false,
-        aiSuggestion: undefined,
-        vendor: t.vendor || undefined,
-        vendorVerified: t.vendor_verified || false,
-        confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
-        bankAccountId: t.bank_connection_id || undefined,
-        bankAccountName: undefined,
-        balance: t.balance || undefined,
-      }));
-      
-      return fetchedTransactions;
+    if (data && data.length > 0) {
+      duplicates.push(transaction);
     }
-    
-    return [];
-  } catch (err) {
-    console.error('Error fetching transactions:', err);
-    throw err;
   }
-}
+  
+  return duplicates;
+};
 
-export async function updateTransactionInDatabase(transaction: Transaction): Promise<boolean> {
+export const reconcileAccountBalance = async (
+  bankAccountId: string,
+  targetBalance: number
+): Promise<boolean> => {
   try {
-    const { error } = await supabase
+    // Get most recent balance for the account
+    const { data, error } = await supabase
       .from('bank_transactions')
-      .update({
-        description: transaction.description,
-        amount: transaction.amount,
-        category: transaction.category,
-        type: transaction.type,
-        statement_type: transaction.statementType,
-        is_verified: transaction.isVerified,
-        vendor: transaction.vendor,
-        vendor_verified: transaction.vendorVerified,
-        confidence_score: transaction.confidenceScore,
-        balance: transaction.balance
-      })
-      .eq('id', transaction.id);
-
+      .select('balance')
+      .eq('bank_connection_id', bankAccountId)
+      .order('date', { ascending: false })
+      .limit(1);
+      
     if (error) {
-      console.error('Error updating transaction:', error);
+      console.error('Error fetching transaction balance:', error);
       return false;
     }
     
-    return true;
+    if (data && data.length > 0) {
+      const currentBalance = Number(data[0].balance);
+      // Allow for small rounding differences (2 cents or less)
+      return Math.abs(currentBalance - targetBalance) < 0.02;
+    }
+    
+    return false;
   } catch (err) {
-    console.error('Error in updateTransactionInDatabase:', err);
+    console.error('Error in reconcileAccountBalance:', err);
     return false;
   }
-}
+};
 
-export async function verifyVendorInDatabase(vendorName: string, approved: boolean): Promise<boolean> {
+export const updateTransactionBalances = async (
+  bankAccountId: string,
+  initialBalance: number
+): Promise<boolean> => {
   try {
-    const { error } = await supabase
-      .from('vendor_categorizations')
-      .update({ verified: approved })
-      .eq('vendor_name', vendorName);
-      
-    if (error) {
-      console.error('Error verifying vendor in database:', error);
-      return false;
-    }
-    
-    return true;
-  } catch (err) {
-    console.error('Error in verifyVendorInDatabase:', err);
-    return false;
-  }
-}
-
-export function calculateVendorCounts(transactions: Transaction[], vendors: Vendor[]): { name: string; count: number; verified: boolean }[] {
-  const vendorCounts: Record<string, { count: number; verified: boolean }> = {};
-  
-  transactions.forEach(transaction => {
-    if (transaction.vendor) {
-      if (!vendorCounts[transaction.vendor]) {
-        const vendorInfo = vendors.find(v => v.name === transaction.vendor);
-        vendorCounts[transaction.vendor] = { 
-          count: 1, 
-          verified: vendorInfo?.verified || false 
-        };
-      } else {
-        vendorCounts[transaction.vendor].count += 1;
-      }
-    }
-  });
-  
-  return Object.entries(vendorCounts)
-    .map(([name, { count, verified }]) => ({ name, count, verified }))
-    .sort((a, b) => b.count - a.count);
-}
-
-export function calculateFinancialSummary(transactions: Transaction[]): FinancialSummary {
-  const summary: FinancialSummary = {
-    totalIncome: 0,
-    totalExpenses: 0,
-    totalAssets: 0,
-    totalLiabilities: 0,
-    totalEquity: 0,
-    netProfit: 0,
-    cashBalance: 0,
-    income: 0,
-  };
-  
-  // Only include verified transactions in financial calculations
-  const verifiedTransactions = transactions.filter(t => t.isVerified);
-  
-  verifiedTransactions.forEach(transaction => {
-    const amount = transaction.amount || 0;
-    
-    if (transaction.type === 'income') {
-      summary.totalIncome += amount;
-      summary.income += amount;
-    } else if (transaction.type === 'expense') {
-      summary.totalExpenses += amount;
-    } else if (transaction.type === 'asset') {
-      summary.totalAssets += amount;
-    } else if (transaction.type === 'liability') {
-      summary.totalLiabilities += amount;
-    } else if (transaction.type === 'equity') {
-      summary.totalEquity += amount;
-    }
-  });
-  
-  summary.netProfit = summary.totalIncome - summary.totalExpenses;
-  summary.cashBalance = summary.totalAssets - summary.totalLiabilities + summary.totalEquity;
-  
-  return summary;
-}
-
-// New function to find duplicates between existing and new transactions
-export async function findDuplicatesInDatabase(newTransactions: Transaction[]): Promise<Transaction[]> {
-  try {
-    const duplicates: Transaction[] = [];
-    
-    for (const transaction of newTransactions) {
-      // Check if a similar transaction already exists
-      const { data, error } = await supabase
-        .from('bank_transactions')
-        .select('*')
-        .eq('date', transaction.date)
-        .eq('description', transaction.description)
-        .eq('amount', transaction.amount);
-        
-      if (error) {
-        console.error('Error checking for duplicates:', error);
-        continue;
-      }
-      
-      if (data && data.length > 0) {
-        duplicates.push(transaction);
-      }
-    }
-    
-    return duplicates;
-  } catch (err) {
-    console.error('Error in findDuplicatesInDatabase:', err);
-    return [];
-  }
-}
-
-// New function to update transaction balances
-export async function updateTransactionBalances(
-  transactions: Transaction[], 
-  initialBalance: number = 0
-): Promise<boolean> {
-  try {
-    // Sort transactions by date
-    const sortedTransactions = [...transactions].sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return dateA - dateB;
-    });
-    
-    let runningBalance = initialBalance;
-    
-    for (const transaction of sortedTransactions) {
-      runningBalance += transaction.amount;
-      
-      const { error } = await supabase
-        .from('bank_transactions')
-        .update({ balance: runningBalance })
-        .eq('id', transaction.id);
-        
-      if (error) {
-        console.error('Error updating balance:', error);
-        return false;
-      }
-    }
-    
-    return true;
-  } catch (err) {
-    console.error('Error in updateTransactionBalances:', err);
-    return false;
-  }
-}
-
-// New function to delete transactions in batch
-export async function deleteTransactionsInBatch(transactionIds: string[]): Promise<{ success: number; failed: number }> {
-  let success = 0;
-  let failed = 0;
-  
-  try {
-    for (const id of transactionIds) {
-      const { error } = await supabase
-        .from('bank_transactions')
-        .delete()
-        .eq('id', id);
-        
-      if (error) {
-        console.error(`Error deleting transaction ${id}:`, error);
-        failed++;
-      } else {
-        success++;
-      }
-    }
-    
-    return { success, failed };
-  } catch (err) {
-    console.error('Error in deleteTransactionsInBatch:', err);
-    return { success, failed: transactionIds.length - success };
-  }
-}
-
-// New function to reconcile account balance
-export async function reconcileAccountBalance(
-  bankAccountId: string, 
-  endingBalance: number
-): Promise<boolean> {
-  try {
-    // Get all transactions for the specified account
-    const { data: transactions, error } = await supabase
+    // Get all transactions for the bank account, ordered by date
+    const { data, error } = await supabase
       .from('bank_transactions')
       .select('*')
       .eq('bank_connection_id', bankAccountId)
       .order('date', { ascending: true });
       
     if (error) {
-      console.error('Error fetching transactions for reconciliation:', error);
+      console.error('Error fetching transactions:', error);
       return false;
     }
     
-    if (!transactions || transactions.length === 0) {
+    if (!data || data.length === 0) {
       return false;
     }
     
-    // Get the last transaction's balance
-    const lastTransaction = transactions[transactions.length - 1];
-    const lastBalance = lastTransaction.balance || 0;
+    let runningBalance = initialBalance;
+    let success = true;
     
-    // Check if the balance matches the expected ending balance
-    // We allow a small difference to account for rounding
-    const isReconciled = Math.abs(lastBalance - endingBalance) < 0.02;
-    
-    // Get the current bank connection to access its api_details
-    const { data: connectionData, error: connectionError } = await supabase
-      .from('bank_connections')
-      .select('api_details')
-      .eq('id', bankAccountId)
-      .single();
+    // Update balances in sequence
+    for (const transaction of data) {
+      runningBalance += Number(transaction.amount);
       
-    if (connectionError) {
-      console.error('Error fetching bank connection:', connectionError);
-      return false;
-    }
-    
-    // Ensure api_details is an object before spreading
-    const currentApiDetails = connectionData?.api_details || {};
-    
-    // Create the updated API details object without spreading potentially undefined values
-    const updatedApiDetails = {
-      ...(typeof currentApiDetails === 'object' ? currentApiDetails : {}),
-      reconciled: isReconciled,
-      expectedBalance: endingBalance,
-      actualBalance: lastBalance
-    };
-    
-    // Update the bank connection with reconciliation status
-    const { error: updateError } = await supabase
-      .from('bank_connections')
-      .update({
-        last_sync: new Date().toISOString(),
-        api_details: updatedApiDetails
-      })
-      .eq('id', bankAccountId);
-      
-    if (updateError) {
-      console.error('Error updating reconciliation status:', updateError);
-      return false;
-    }
-    
-    return isReconciled;
-  } catch (err) {
-    console.error('Error in reconcileAccountBalance:', err);
-    return false;
-  }
-}
-
-// New function to get account ID from bank connection ID
-export async function getBankAccountIdFromConnection(bankConnectionId: string): Promise<string | null> {
-  try {
-    // First, try to get the connection details to see if it has account_id stored in api_details
-    const { data: connectionData, error: connectionError } = await supabase
-      .from('bank_connections')
-      .select('api_details')
-      .eq('id', bankConnectionId)
-      .single();
-      
-    if (connectionError) {
-      console.error('Error fetching bank connection:', connectionError);
-      // Don't throw here, try the next approach
-    } else if (connectionData?.api_details) {
-      const apiDetails = connectionData.api_details as any;
-      if (apiDetails.account_id) {
-        // If the connection has the account_id in its api_details, use that
-        return apiDetails.account_id;
+      const { error: updateError } = await supabase
+        .from('bank_transactions')
+        .update({ balance: runningBalance })
+        .eq('id', transaction.id);
+        
+      if (updateError) {
+        console.error('Error updating transaction balance:', updateError);
+        success = false;
       }
     }
     
-    // Alternatively, check for connections in the bank_connections table
-    const { data: connectionData2 } = await supabase
-      .from('bank_connections')
-      .select('id')
-      .eq('id', bankConnectionId)
-      .single();
+    return success;
+  } catch (err) {
+    console.error('Error in updateTransactionBalances:', err);
+    return false;
+  }
+};
+
+export const getBankAccountIdFromConnection = async (
+  bankConnectionId: string
+): Promise<string | null> => {
+  try {
+    console.log('Getting bank account ID for connection:', bankConnectionId);
+    
+    // First try to find a direct mapping if it exists
+    const { data: mappingData, error: mappingError } = await supabase
+      .from('bank_accounts')
+      .select('account_id')
+      .eq('account_name', bankConnectionId)
+      .maybeSingle();
       
-    if (connectionData2?.id) {
-      // If we found a connection, use its ID as a fallback
-      return connectionData2.id;
+    if (!mappingError && mappingData?.account_id) {
+      console.log('Found direct mapping for bankConnectionId:', mappingData.account_id);
+      return mappingData.account_id;
     }
     
-    // If we couldn't find any connection or account, return null
-    console.error('Could not find any bank account for this connection');
-    return null;
+    // If no direct mapping, try to find the bank account by matching names
+    const { data: connectionData, error: connectionError } = await supabase
+      .from('bank_connections')
+      .select('bank_name, display_name')
+      .eq('id', bankConnectionId)
+      .maybeSingle();
+      
+    if (connectionError || !connectionData) {
+      console.error('Error or no data found for bank connection:', connectionError || 'No data');
+      return null;
+    }
+    
+    const bankName = connectionData.bank_name;
+    const displayName = connectionData.display_name || bankName;
+    
+    // Try to find bank account with matching name
+    const { data: accountData, error: accountError } = await supabase
+      .from('bank_accounts')
+      .select('account_id')
+      .or(`account_name.eq.${bankName},account_name.eq.${displayName}`)
+      .maybeSingle();
+      
+    if (accountError) {
+      console.error('Error finding bank account:', accountError);
+      return null;
+    }
+    
+    if (accountData?.account_id) {
+      console.log('Found account ID by name matching:', accountData.account_id);
+      return accountData.account_id;
+    }
+    
+    // As a fallback, just return the bankConnectionId itself
+    console.log('No matching bank account found, using connection ID as fallback');
+    return bankConnectionId;
   } catch (err) {
     console.error('Error in getBankAccountIdFromConnection:', err);
     return null;
   }
-}
+};

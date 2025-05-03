@@ -8,9 +8,9 @@ export interface Transaction {
   description: string;
   amount: number;
   category?: string;
-  type?: TransactionType;
-  statementType?: StatementType;
-  isVerified: boolean;
+  type?: 'income' | 'expense' | 'asset' | 'liability' | 'equity';
+  statementType?: 'profit_loss' | 'balance_sheet';
+  isVerified?: boolean;
   aiSuggestion?: string;
   vendor?: string;
   vendorVerified?: boolean;
@@ -18,7 +18,7 @@ export interface Transaction {
   bankAccountId?: string;
   bankAccountName?: string;
   balance?: number; // Running balance field
-  accountId?: string; // Add accountId field for RLS policy
+  accountId?: string; // Added accountId for bank account reference
 }
 
 export interface Category {

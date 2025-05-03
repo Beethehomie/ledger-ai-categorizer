@@ -59,6 +59,7 @@ export const useTransactions = (
             bankAccountId: t.bank_connection_id || undefined,
             bankAccountName: undefined,
             balance: t.balance || undefined,
+            accountId: t.account_id || undefined,  // Add accountId
           }));
           
           if (fetchedTransactions.length > 0) {
@@ -219,7 +220,7 @@ export const useTransactions = (
     }
   };
 
-  // Modified uploadCSV function to take in prepared transactions directly and set account_id
+  // Modified uploadCSV function to take in prepared transactions directly and properly handle account_id
   const uploadCSV = async (
     preparedTransactions: Transaction[],
     bankConnectionId?: string, 
@@ -243,13 +244,26 @@ export const useTransactions = (
       let accountId: string | null = null;
       if (bankConnectionId) {
         try {
+          // First try to get the account ID using our service
           accountId = await getBankAccountIdFromConnection(bankConnectionId);
+          console.log('Found account ID for bank connection:', accountId || 'NOT FOUND');
+          
+          // If not found, check if there's a matching bank_accounts record
           if (!accountId) {
-            console.warn('Could not find account ID for bank connection:', bankConnectionId);
-            // Continue anyway, we'll use bankConnectionId directly as a fallback
-            accountId = bankConnectionId;
-          } else {
-            console.log('Found account ID for bank connection:', accountId);
+            const { data, error } = await supabase
+              .from('bank_accounts')
+              .select('account_id')
+              .eq('account_name', bankConnection?.bank_name || '')
+              .maybeSingle();
+              
+            if (!error && data) {
+              accountId = data.account_id;
+              console.log('Found account ID from bank_accounts table:', accountId);
+            } else {
+              console.warn('Could not find account ID for bank connection:', bankConnectionId);
+              // As a last resort, use the bank connection ID itself
+              accountId = bankConnectionId;
+            }
           }
         } catch (err) {
           console.error('Error getting account ID:', err);
@@ -323,6 +337,7 @@ export const useTransactions = (
           } catch (err: any) {
             console.error('Error saving transactions to Supabase:', err);
             toast.error('Failed to save transactions to database');
+            throw err; // Re-throw to handle in calling function
           }
         } else {
           // No duplicates, process all transactions
@@ -358,6 +373,7 @@ export const useTransactions = (
           } catch (err: any) {
             console.error('Error saving transactions to Supabase:', err);
             toast.error('Failed to save transactions to database');
+            throw err; // Re-throw to handle in calling function
           }
         }
       };
@@ -366,7 +382,7 @@ export const useTransactions = (
       
     } catch (err: any) {
       console.error('Error in uploadCSV:', err);
-      toast.error('Failed to process CSV file');
+      throw err; // Re-throw to handle in calling function
     } finally {
       setLoading(false);
     }
@@ -634,7 +650,7 @@ export const useTransactions = (
   };
 
   // Export getBankAccountIdFromConnection for use in context
-  const getBankAccountIdFromConnection = async (bankConnectionId: string): Promise<string | null> => {
+  const getAccountIdFromConnection = async (bankConnectionId: string): Promise<string | null> => {
     try {
       return await getBankAccountIdFromConnection(bankConnectionId);
     } catch (err) {
@@ -659,6 +675,6 @@ export const useTransactions = (
     fetchTransactions,
     deleteTransaction,
     recalculateRunningBalances,
-    getBankAccountIdFromConnection
+    getBankAccountIdFromConnection: getAccountIdFromConnection
   };
 };
