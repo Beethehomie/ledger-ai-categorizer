@@ -1,4 +1,3 @@
-
 import { Transaction } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';

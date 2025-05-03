@@ -1,4 +1,5 @@
 
+
 import { Transaction, Vendor, Category, FinancialSummary } from "@/types";
 import { BankConnectionRow } from "@/types/supabase";
 
