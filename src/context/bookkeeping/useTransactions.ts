@@ -305,7 +305,8 @@ export const useTransactions = (
             
             // Check reconciliation if endBalance is provided
             if (endBalance !== undefined && bankConnectionId && savedTransactions.length > 0) {
-              const isReconciled = await reconcileAccountBalance(bankConnectionId, endBalance);
+              // Fix: Call reconcileAccountBalance with only the bankConnectionId
+              const isReconciled = await reconcileAccountBalance(bankConnectionId);
               
               if (isReconciled) {
                 toast.success('Bank statement successfully reconciled!');
@@ -341,7 +342,8 @@ export const useTransactions = (
             
             // Check reconciliation if endBalance is provided
             if (endBalance !== undefined && bankConnectionId && savedTransactions.length > 0) {
-              const isReconciled = await reconcileAccountBalance(bankConnectionId, endBalance);
+              // Fix: Call reconcileAccountBalance with only the bankConnectionId
+              const isReconciled = await reconcileAccountBalance(bankConnectionId);
               
               if (isReconciled) {
                 toast.success('Bank statement successfully reconciled!');

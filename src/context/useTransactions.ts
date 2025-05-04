@@ -305,6 +305,7 @@ export const useTransactions = (
             
             // Check reconciliation if endBalance is provided
             if (endBalance !== undefined && bankConnectionId && savedTransactions.length > 0) {
+              // Fix: Call reconcileAccountBalance with only the bankConnectionId
               const isReconciled = await reconcileAccountBalance(bankConnectionId);
               
               if (isReconciled) {
@@ -341,6 +342,7 @@ export const useTransactions = (
             
             // Check reconciliation if endBalance is provided
             if (endBalance !== undefined && bankConnectionId && savedTransactions.length > 0) {
+              // Fix: Call reconcileAccountBalance with only the bankConnectionId
               const isReconciled = await reconcileAccountBalance(bankConnectionId);
               
               if (isReconciled) {

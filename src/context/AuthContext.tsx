@@ -1,135 +1,112 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Session, User, AuthError } from '@supabase/supabase-js';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/utils/toast';
+import { Session, User } from '@supabase/supabase-js';
 
-// Define the shape of the auth context
-interface AuthContextType {
+type AuthContextType = {
   session: Session | null;
   user: User | null;
-  isAdmin: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signOut: () => Promise<void>;
   loading: boolean;
-}
+  signIn: (email: string, password: string) => Promise<any>;
+  signUp: (email: string, password: string) => Promise<any>;
+  signOut: () => Promise<void>;
+};
 
-// Create the auth context with default values
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Provider component to wrap around components that need auth
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // Initialize the auth state
   useEffect(() => {
-    // Set up auth state listener FIRST
+    const setData = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        setSession(session);
+        setUser(session?.user || null);
+      } catch (error) {
+        console.error('Error getting session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    setData();
+
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        
-        // Check if user has admin role
-        if (newSession?.user) {
-          checkAdminStatus(newSession.user.id);
-        } else {
-          setIsAdmin(false);
-        }
-        
+      (_event, session) => {
+        setSession(session);
+        setUser(session?.user || null);
         setLoading(false);
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      
-      // Check if user has admin role
-      if (initialSession?.user) {
-        checkAdminStatus(initialSession.user.id);
-      }
-      
-      setLoading(false);
-    });
-
-    // Clean up subscription on unmount
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Check if user is admin
-  const checkAdminStatus = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('is_admin')
-        .eq('id', userId)
-        .single();
-        
-      if (error) {
-        console.error("Error checking admin status:", error);
-        setIsAdmin(false);
-        return;
-      }
-      
-      setIsAdmin(data?.is_admin || false);
-    } catch (err) {
-      console.error("Exception checking admin status:", err);
-      setIsAdmin(false);
-    }
-  };
-
-  // Sign up function
-  const signUp = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signUp({ email, password });
-      return { error };
-    } catch (err) {
-      console.error('Error in signUp:', err);
-      toast.error('Sign up failed');
-      return { error: err as AuthError };
-    }
-  };
-
-  // Sign in function
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return { error };
-    } catch (err) {
-      console.error('Error in signIn:', err);
-      toast.error('Sign in failed');
-      return { error: err as AuthError };
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error logging in:', error);
+      throw error;
     }
   };
 
-  // Sign out function
+  const signUp = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error signing up:', error);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
-      toast.success('Signed out successfully');
-    } catch (err) {
-      console.error('Error in signOut:', err);
-      toast.error('Sign out failed');
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
     }
   };
 
-  // Provide the auth context to children
-  return (
-    <AuthContext.Provider value={{ session, user, isAdmin, signUp, signIn, signOut, loading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    session,
+    user,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Hook to use the auth context
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

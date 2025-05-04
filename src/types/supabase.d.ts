@@ -44,7 +44,7 @@ export interface VendorCategorizationRow {
   updated_at: string;
   sample_description?: string | null;
   embedding?: number[];
-  confidence?: number; // Adding this missing property
+  confidence?: number; // Adding the missing confidence property
 }
 
 export interface BankTransactionRow {
