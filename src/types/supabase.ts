@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -9,348 +10,136 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      bank_connections: {
-        Row: {
-          active: boolean | null
-          api_details: Json | null
-          bank_name: string
-          connection_type: string
-          created_at: string | null
-          display_name: string | null
-          id: string
-          last_sync: string | null
-          user_id: string | null
-        }
-        Insert: {
-          active?: boolean | null
-          api_details?: Json | null
-          bank_name: string
-          connection_type: string
-          created_at?: string | null
-          id?: string
-          last_sync?: string | null
-          user_id?: string | null
-          display_name?: string | null
-        }
-        Update: {
-          active?: boolean | null
-          api_details?: Json | null
-          bank_name?: string
-          connection_type?: string
-          created_at?: string | null
-          display_name?: string | null
-          id?: string
-          last_sync?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       bank_transactions: {
         Row: {
-          amount: number
-          balance: number | null
-          bank_connection_id: string | null
-          category: string | null
-          confidence_score: number | null
-          created_at: string | null
-          date: string
-          description: string
-          id: string
-          is_verified: boolean | null
-          statement_type: string | null
-          type: string | null
-          updated_at: string | null
-          user_id: string | null
-          vendor: string | null
-          vendor_verified: boolean | null
-          account_id: string | null
-        }
+          id: string;
+          user_id: string;
+          date: string;
+          description: string;
+          amount: number;
+          vendor: string | null;
+          category: string | null;
+          type: string | null;
+          statement_type: string | null;
+          is_verified: boolean | null;
+          vendor_verified: boolean | null;
+          confidence_score: number | null;
+          embedding: number[] | null;
+          bank_account_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
         Insert: {
-          amount: number
-          balance?: number | null
-          bank_connection_id?: string | null
-          category?: string | null
-          confidence_score?: number | null
-          created_at?: string | null
-          date: string
-          description: string
-          id?: string
-          is_verified?: boolean | null
-          statement_type?: string | null
-          type?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          vendor?: string | null
-          vendor_verified?: boolean | null
-          account_id?: string | null
-        }
+          id?: string;
+          user_id: string;
+          date: string;
+          description: string;
+          amount: number;
+          vendor?: string | null;
+          category?: string | null;
+          type?: string | null;
+          statement_type?: string | null;
+          is_verified?: boolean | null;
+          vendor_verified?: boolean | null;
+          confidence_score?: number | null;
+          embedding?: number[] | null;
+          bank_account_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
         Update: {
-          amount?: number
-          balance?: number | null
-          bank_connection_id?: string | null
-          category?: string | null
-          confidence_score?: number | null
-          created_at?: string | null
-          date?: string
-          description?: string
-          id?: string
-          is_verified?: boolean | null
-          statement_type?: string | null
-          type?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          vendor?: string | null
-          vendor_verified?: boolean | null
-          account_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bank_transactions_bank_connection_id_fkey"
-            columns: ["bank_connection_id"]
-            isOneToOne: false
-            referencedRelation: "bank_connections"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      transactions: {
-        Row: {
-          "Account Category": string | null
-          "Client Type": string | null
-          Vendor: string | null
-        }
-        Insert: {
-          "Account Category"?: string | null
-          "Client Type"?: string | null
-          Vendor?: string | null
-        }
-        Update: {
-          "Account Category"?: string | null
-          "Client Type"?: string | null
-          Vendor?: string | null
-        }
-        Relationships: []
-      }
+          id?: string;
+          user_id?: string;
+          date?: string;
+          description?: string;
+          amount?: number;
+          vendor?: string | null;
+          category?: string | null;
+          type?: string | null;
+          statement_type?: string | null;
+          is_verified?: boolean | null;
+          vendor_verified?: boolean | null;
+          confidence_score?: number | null;
+          embedding?: number[] | null;
+          bank_account_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       user_profiles: {
         Row: {
-          business_context: Json | null
-          created_at: string | null
-          email: string | null
-          full_name: string | null
-          id: string
-          is_admin: boolean | null
-          subscription_tier: string | null
-          updated_at: string | null
-        }
+          id: string;
+          email: string;
+          created_at: string;
+          updated_at: string;
+          subscription_tier: string;
+          is_admin: boolean;
+        };
         Insert: {
-          business_context?: Json | null
-          created_at?: string | null
-          email?: string | null
-          full_name?: string | null
-          id: string
-          is_admin?: boolean | null
-          subscription_tier?: string | null
-          updated_at?: string | null
-        }
+          id: string;
+          email: string;
+          created_at?: string;
+          updated_at?: string;
+          subscription_tier?: string;
+          is_admin?: boolean;
+        };
         Update: {
-          business_context?: Json | null
-          created_at?: string | null
-          email?: string | null
-          full_name?: string | null
-          id?: string
-          is_admin?: boolean | null
-          subscription_tier?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+          id?: string;
+          email?: string;
+          created_at?: string;
+          updated_at?: string;
+          subscription_tier?: string;
+          is_admin?: boolean;
+        };
+      };
       vendor_categorizations: {
         Row: {
-          category: string
-          confidence: number | null
-          created_at: string | null
-          id: string
-          last_used: string | null
-          occurrences: number | null
-          statement_type: string
-          type: string
-          vendor_name: string
-          verified: boolean | null
-          sample_description: string | null
-        }
+          id: string;
+          vendor_name: string;
+          category: string | null;
+          type: string | null;
+          statement_type: string | null;
+          sample_description: string | null;
+          occurrences: number | null;
+          verified: boolean | null;
+          embedding: number[] | null;
+          created_at: string;
+          updated_at: string;
+          last_used: string | null;
+        };
         Insert: {
-          category: string
-          confidence?: number | null
-          created_at?: string | null
-          id?: string
-          last_used?: string | null
-          occurrences?: number | null
-          statement_type: string
-          type: string
-          vendor_name: string
-          verified?: boolean | null
-          sample_description?: string | null
-        }
+          id?: string;
+          vendor_name: string;
+          category?: string | null;
+          type?: string | null;
+          statement_type?: string | null;
+          sample_description?: string | null;
+          occurrences?: number | null;
+          verified?: boolean | null;
+          embedding?: number[] | null;
+          created_at?: string;
+          updated_at?: string;
+          last_used?: string | null;
+        };
         Update: {
-          category?: string
-          confidence?: number | null
-          created_at?: string | null
-          id?: string
-          last_used?: string | null
-          occurrences?: number | null
-          statement_type?: string
-          type?: string
-          vendor_name?: string
-          verified?: boolean | null
-          sample_description?: string | null
-        }
-        Relationships: []
-      }
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      [_ in never]: never
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
+          id?: string;
+          vendor_name?: string;
+          category?: string | null;
+          type?: string | null;
+          statement_type?: string | null;
+          sample_description?: string | null;
+          occurrences?: number | null;
+          verified?: boolean | null;
+          embedding?: number[] | null;
+          created_at?: string;
+          updated_at?: string;
+          last_used?: string | null;
+        };
+      };
+    };
+  };
+};
 
-// Create type aliases to make it easier to work with these tables
+export type BankTransactionRow = Database['public']['Tables']['bank_transactions']['Row'];
 export type VendorCategorizationRow = Database['public']['Tables']['vendor_categorizations']['Row'];
-export type BankConnectionRow = Database['public']['Tables']['bank_connections']['Row'];
-export type BankTransactionRow = Database['public']['Tables']['bank_transactions']['Row'] & {
-  account_id?: string | null; // Add account_id property explicitly
-};
-
-// Define a BusinessContext interface to help with type safety
-export interface BusinessContext {
-  country?: string;
-  industry?: string;
-  businessSize?: string;
-  paymentMethods?: string[];
-  currency?: string;
-  additionalInfo?: string;
-}
-
-// Define UserProfileRow with business_context already typed
-export type UserProfileRow = Omit<Database['public']['Tables']['user_profiles']['Row'], 'business_context'> & {
-  business_context?: BusinessContext | null;
-};
-
-type DefaultSchema = Database[Extract<keyof Database, "public">]
-
-export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const
+export type UserProfileRow = Database['public']['Tables']['user_profiles']['Row'];

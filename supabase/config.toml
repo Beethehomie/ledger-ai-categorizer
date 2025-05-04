@@ -3,26 +3,41 @@ project_id = "vfzzjnpkqbljhfdbbrqn"
 
 [api]
 enabled = true
-port = 54321
-schemas = ["public", "storage"]
+port = 8080
+schemas = ["public", "storage", "graphql_public"]
 
 [db]
-port = 54322
+port = 5432
+shadow_port = 54320
+major_version = 15
 
 [studio]
-port = 54323
+enabled = true
+port = 8082
+api_url = "http://localhost"
 
 [inbucket]
-port = 54324
+enabled = true
+port = 9000
 
 [storage]
 enabled = true
+file_size_limit = "50MiB"
 
 [auth]
 enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_expiry = 604800
 
 [realtime]
 enabled = true
 
-[analytics]
-enabled = false
+[functions]
+[functions.generate-embeddings]
+verify_jwt = true
+
+[functions.find-similar-vendors]
+verify_jwt = true

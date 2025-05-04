@@ -5,10 +5,10 @@ import { toast } from './toast';
 export interface EmbeddingResult {
   id: string;
   similarity: number;
-  vendor?: string;
+  vendor_name?: string;
   category?: string;
   type?: string;
-  statementType?: string;
+  statement_type?: string;
 }
 
 export const generateEmbeddings = async (text: string): Promise<number[] | null> => {
@@ -73,7 +73,7 @@ export const findMatchingCategories = async (
     
     // Use the Supabase RPC function with properly typed parameters
     const { data, error } = await supabase.rpc('match_vendors_by_embedding', {
-      query_embedding: embedding as unknown as any[], // Fix the type issue with a proper type assertion
+      query_embedding: embedding as any,
       match_threshold: threshold,
       match_count: 10
     });

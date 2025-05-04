@@ -2,10 +2,9 @@
 import { useState } from 'react';
 import Papa from 'papaparse';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/auth';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/utils/toast';
 import { detectColumns } from '@/utils/csvParser/detectColumns';
-import { ParsedTransaction } from '@/utils/csvParser/types';
 import { parseDate } from '@/utils/csvParser/dateParser';
 import { parseAmount } from '@/utils/csvParser/amountParser';
 import { Transaction } from '@/types';
@@ -51,7 +50,7 @@ export const useTransactionUpload = () => {
         description: tx.description,
         amount: tx.amount,
         user_id: session.user.id,
-        bank_connection_id: tx.bankAccountId // Changed from bankConnectionId to bankAccountId to match the Transaction type
+        bank_connection_id: tx.bankAccountId
       }));
 
       // Insert transactions into database

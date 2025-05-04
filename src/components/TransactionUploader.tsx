@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, FileSpreadsheet, CheckCircle, AlertCircle } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { parseCSV } from '@/utils/csvParser';
 import { useTransactionUpload } from '@/hooks/useTransactionUpload';
 import { toast } from '@/utils/toast';

@@ -16,8 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/hooks/auth';
-import { RainbowButton } from '@/components/ui/rainbow-button';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/utils/toast';
 
 // Form schema for validation
@@ -121,13 +120,13 @@ export default function Auth() {
                 />
                 
                 <div className="pt-2">
-                  <RainbowButton 
-                    className="w-full" 
+                  <Button 
+                    className="w-full"
                     disabled={isLoading}
                     type="submit"
                   >
                     {activeTab === 'signin' ? 'Sign In' : 'Create Account'}
-                  </RainbowButton>
+                  </Button>
                 </div>
               </form>
             </Form>

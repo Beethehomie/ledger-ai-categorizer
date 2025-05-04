@@ -1,8 +1,15 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.1';
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
-// Get OpenAI API Key from environment variables
+// Get OpenAI API Key and Supabase URL/Key from environment variables
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+// Initialize Supabase client
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,16 +24,16 @@ serve(async (req) => {
 
   try {
     // Parse request body
-    const { text, generateOnly } = await req.json();
+    const { description, threshold = 0.7, limit = 5 } = await req.json();
 
-    if (!text || typeof text !== 'string') {
+    if (!description || typeof description !== 'string') {
       return new Response(
-        JSON.stringify({ error: 'Text is required and must be a string' }),
+        JSON.stringify({ error: 'Description is required and must be a string' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Generate embeddings using OpenAI's API
+    // Generate embedding for the description
     const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: {
@@ -35,7 +42,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'text-embedding-ada-002',
-        input: text
+        input: description
       })
     });
 
@@ -51,24 +58,28 @@ serve(async (req) => {
     const embeddings = await embeddingResponse.json();
     const embedding = embeddings.data[0].embedding;
 
-    // Return just the embedding if generateOnly is true
-    if (generateOnly) {
+    // Query similar vendors using the embedding
+    const { data: matches, error } = await supabase.rpc('match_vendors_by_embedding', {
+      query_embedding: embedding,
+      match_threshold: threshold,
+      match_count: limit
+    });
+
+    if (error) {
+      console.error('Database query error:', error);
       return new Response(
-        JSON.stringify({ embedding }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Failed to query similar vendors' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Otherwise, return both the embedding and the analyzed text
+    // Return the matches
     return new Response(
-      JSON.stringify({
-        embedding,
-        text
-      }),
+      JSON.stringify({ matches }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error in generate-embeddings function:', error);
+    console.error('Error in find-similar-vendors function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

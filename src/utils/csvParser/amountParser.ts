@@ -1,40 +1,27 @@
-
-/**
- * Parse and normalize amount values from different formats
- */
-export function parseAmount(
-  amountValue: string | undefined, 
-  debitValue?: string | undefined, 
-  creditValue?: string | undefined
-): number {
-  try {
-    // Handle separate debit/credit columns first
-    if ((debitValue && debitValue.trim() !== '0' && debitValue.trim() !== '0.00') || 
-        (creditValue && creditValue.trim() !== '0' && creditValue.trim() !== '0.00')) {
-      
-      if (debitValue && debitValue.trim() !== '0' && debitValue.trim() !== '0.00') {
-        // Debit is negative
-        const cleanDebit = String(debitValue).replace(/[^0-9.,]/g, '');
-        return -parseFloat(cleanDebit.replace(/,/g, '.'));
-      } else if (creditValue && creditValue.trim() !== '0' && creditValue.trim() !== '0.00') {
-        // Credit is positive
-        const cleanCredit = String(creditValue).replace(/[^0-9.,]/g, '');
-        return parseFloat(cleanCredit.replace(/,/g, '.'));
-      }
-    }
-    
-    // Handle single amount column if provided
-    if (amountValue !== undefined) {
-      // Normalize amount format
-      let amountStr = String(amountValue)
-        .replace(/[^0-9.,\-]/g, '') // Remove all except digits, dots, commas, and minus
-        .replace(/,/g, '.'); // Replace commas with dots for decimal
-      
-      return parseFloat(amountStr);
-    }
-    
-    throw new Error('Invalid amount format');
-  } catch (err) {
+export const parseAmount = (amountString: string): number => {
+  // Handle various amount formats
+  if (!amountString || typeof amountString !== 'string') {
     return 0;
   }
-}
+
+  try {
+    // Remove currency symbols and handle commas/spaces
+    let cleaned = amountString.replace(/[^-0-9.,]/g, '');
+    
+    // Convert comma as decimal separator
+    // If there's exactly one comma, and it seems to be a decimal separator
+    if ((cleaned.match(/,/g) || []).length === 1 && cleaned.indexOf(',') > cleaned.length - 4) {
+      cleaned = cleaned.replace(',', '.');
+    } else {
+      // Otherwise, remove commas (likely thousands separators)
+      cleaned = cleaned.replace(/,/g, '');
+    }
+    
+    // Parse the number
+    const amount = parseFloat(cleaned);
+    return isNaN(amount) ? 0 : amount;
+  } catch (error) {
+    console.error("Error parsing amount:", error);
+    return 0;
+  }
+};

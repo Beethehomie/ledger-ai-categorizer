@@ -3,19 +3,17 @@ export interface ParsedTransaction {
   date: string;
   description: string;
   amount: number;
-  vendor?: string;
-  category?: string;
-}
-
-export interface ParseResult {
-  transactions: ParsedTransaction[];
-  warnings: string[];
+  [key: string]: any;
 }
 
 export interface ColumnMapping {
-  dateColumn: string | null;
-  descriptionColumn: string | null;
-  amountColumn: string | null;
-  debitColumn: string | null;
-  creditColumn: string | null;
+  date: number;
+  description: number;
+  amount: number;
+  [key: string]: number;
+}
+
+export interface CSVParseResult {
+  transactions: ParsedTransaction[];
+  warnings: string[];
 }

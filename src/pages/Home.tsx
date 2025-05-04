@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TransactionUploader } from '@/components/TransactionUploader';
 import { UploadCloud, BarChart } from 'lucide-react';
-import { useAuth } from '@/hooks/auth';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Home() {
   const { user, signOut } = useAuth();

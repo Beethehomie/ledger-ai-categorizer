@@ -8,7 +8,7 @@ import { toast } from '@/utils/toast';
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  isAdmin: boolean; // Add isAdmin property
+  isAdmin: boolean;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false); // Add isAdmin state
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   // Initialize the auth state
@@ -33,9 +33,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
         
-        // Check if user has admin role (this is simplified, in a real app you'd check against a roles table)
-        if (newSession?.user?.email?.endsWith('@admin.com')) {
-          setIsAdmin(true);
+        // Check if user has admin role
+        if (newSession?.user) {
+          checkAdminStatus(newSession.user.id);
         } else {
           setIsAdmin(false);
         }
@@ -50,8 +50,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(initialSession?.user ?? null);
       
       // Check if user has admin role
-      if (initialSession?.user?.email?.endsWith('@admin.com')) {
-        setIsAdmin(true);
+      if (initialSession?.user) {
+        checkAdminStatus(initialSession.user.id);
       }
       
       setLoading(false);
@@ -60,6 +60,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Clean up subscription on unmount
     return () => subscription.unsubscribe();
   }, []);
+
+  // Check if user is admin
+  const checkAdminStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('is_admin')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error("Error checking admin status:", error);
+        setIsAdmin(false);
+        return;
+      }
+      
+      setIsAdmin(data?.is_admin || false);
+    } catch (err) {
+      console.error("Exception checking admin status:", err);
+      setIsAdmin(false);
+    }
+  };
 
   // Sign up function
   const signUp = async (email: string, password: string) => {
