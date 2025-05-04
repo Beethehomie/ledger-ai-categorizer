@@ -54,9 +54,9 @@ export async function findSimilarItems<T>(
       match_count: limit
     };
     
-    // Use type assertion to handle the dynamic procedure name
+    // Use explicit casting to fix the TypeScript error
     const { data, error } = await supabase
-      .rpc(procedure as any, params);
+      .rpc(procedure as string, params);
     
     if (error) {
       throw new Error(`Error finding similar items with ${procedure}: ${error.message}`);
