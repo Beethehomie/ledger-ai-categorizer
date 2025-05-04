@@ -73,7 +73,7 @@ export const findMatchingCategories = async (
     
     // Use the Supabase RPC function with properly typed parameters
     const { data, error } = await supabase.rpc('match_vendors_by_embedding', {
-      query_embedding: embedding as unknown as number[],
+      query_embedding: embedding as unknown as any[], // Fix the type issue with a proper type assertion
       match_threshold: threshold,
       match_count: 10
     });

@@ -8,6 +8,7 @@ import { toast } from '@/utils/toast';
 interface AuthContextType {
   session: Session | null;
   user: User | null;
+  isAdmin: boolean; // Add isAdmin property
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false); // Add isAdmin state
   const [loading, setLoading] = useState(true);
 
   // Initialize the auth state
@@ -30,6 +32,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       (event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
+        
+        // Check if user has admin role (this is simplified, in a real app you'd check against a roles table)
+        if (newSession?.user?.email?.endsWith('@admin.com')) {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+        
         setLoading(false);
       }
     );
@@ -38,6 +48,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
+      
+      // Check if user has admin role
+      if (initialSession?.user?.email?.endsWith('@admin.com')) {
+        setIsAdmin(true);
+      }
+      
       setLoading(false);
     });
 
@@ -82,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Provide the auth context to children
   return (
-    <AuthContext.Provider value={{ session, user, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ session, user, isAdmin, signUp, signIn, signOut, loading }}>
       {children}
     </AuthContext.Provider>
   );
