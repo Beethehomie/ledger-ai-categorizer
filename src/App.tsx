@@ -1,49 +1,16 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
-import AdminPage from './pages/AdminPage';
-import Subscription from './pages/Subscription';
-import Settings from './pages/Settings';
-import BusinessInsight from './pages/BusinessInsight';
-import { AuthProvider } from "@/context/AuthContext";
-import { SettingsProvider } from "@/context/SettingsContext";
-import { BookkeepingProvider } from "@/context/BookkeepingContext";
-import { RequireAuth } from "./components/RequireAuth";
-import { Demo } from "./components/ui/demo";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './pages/Home';
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <SettingsProvider>
-          <BookkeepingProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
-                <Route path="/demo" element={<Demo />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
-                <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
-                <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
-                <Route path="/business-insight" element={<RequireAuth><BusinessInsight /></RequireAuth>} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </BookkeepingProvider>
-        </SettingsProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        {/* Add more routes as needed */}
+      </Routes>
+    </Router>
+  );
+}
 
 export default App;

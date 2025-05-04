@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 
@@ -54,9 +53,8 @@ export async function findSimilarItems<T>(
       match_count: limit
     };
     
-    // Use explicit casting to fix the TypeScript error
-    const { data, error } = await supabase
-      .rpc(procedure as string, params);
+    // The TypeScript error occurs because we need to be explicit about the procedure parameter
+    const { data, error } = await supabase.rpc(procedure, params);
     
     if (error) {
       throw new Error(`Error finding similar items with ${procedure}: ${error.message}`);
