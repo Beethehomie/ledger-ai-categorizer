@@ -64,8 +64,12 @@ export const findMatchingCategories = async (
   threshold = 0.7
 ): Promise<EmbeddingResult[]> => {
   try {
-    // Cast the procedure name to string to satisfy TypeScript
+    // Generate embedding for the description
     const embedding = await generateEmbeddings(description);
+    
+    if (!embedding) {
+      return [];
+    }
     
     const { data, error } = await supabase.rpc('match_vendors_by_embedding', {
       query_embedding: embedding,

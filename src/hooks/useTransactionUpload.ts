@@ -51,11 +51,11 @@ export const useTransactionUpload = () => {
         description: tx.description,
         amount: tx.amount,
         user_id: session.user.id,
-        bank_connection_id: tx.bankConnectionId
+        bank_connection_id: tx.bankAccountId // Changed from bankConnectionId to bankAccountId to match the Transaction type
       }));
 
       // Insert transactions into database
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('bank_transactions')
         .insert(formattedTransactions);
 
