@@ -1,197 +1,97 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
-import { SubscriptionTier } from '@/types/subscription';
-import { logError } from '@/utils/errorLogger';
-import { BusinessContext } from '@/types/supabase';
 
-interface UserProfile {
-  id: string;
-  email: string;
-  subscription_tier: SubscriptionTier;
-  is_admin: boolean;
-  business_context?: BusinessContext;
-}
-
+// Define the shape of the auth context
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  userProfile: UserProfile | null;
-  loading: boolean;
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
-  isAdmin: boolean;
-  hasBusinessContext: boolean;
+  loading: boolean;
 }
 
+// Create the auth context with default values
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+// Provider component to wrap around components that need auth
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [hasBusinessContext, setHasBusinessContext] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Initialize the auth state
   useEffect(() => {
-    // Set up the auth state listener
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
         setLoading(false);
-        
-        // If user logs in, fetch their profile
-        if (session?.user) {
-          // Use setTimeout to avoid potential auth deadlocks
-          setTimeout(() => {
-            fetchUserProfile(session.user.id);
-          }, 0);
-        } else {
-          setUserProfile(null);
-          setIsAdmin(false);
-          setHasBusinessContext(false);
-        }
       }
     );
 
-    // Check for initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      // If user is logged in, fetch their profile
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      }
-      
-      setLoading(false);
-    }).catch(error => {
-      logError('AuthContext-getSession', error);
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
       setLoading(false);
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Clean up subscription on unmount
+    return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  // Sign up function
+  const signUp = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
-        logError('AuthContext-fetchUserProfile', error);
-        
-        // If the user profile doesn't exist, create it
-        if (error.code === 'PGRST116') {
-          await createUserProfile(userId);
-          return;
-        }
-        return;
-      }
-
-      if (!data) {
-        // Profile not found, create it
-        await createUserProfile(userId);
-        return;
-      }
-
-      // For now, hardcode the admin check to your specific email
-      // In a real app, this would be a role in the database
-      const adminStatus = user?.email === 'terramultaacc@gmail.com';
-      setIsAdmin(adminStatus || !!data.is_admin);
-      
-      // Check if the user has completed the business context questionnaire
-      // Type-check and safely convert from Json to BusinessContext
-      const businessContext = data.business_context ? 
-        (typeof data.business_context === 'object' ? data.business_context as BusinessContext : undefined) : 
-        undefined;
-      
-      setHasBusinessContext(!!businessContext && Object.keys(businessContext).length > 0);
-      
-      // Create the UserProfile object with proper type handling
-      const profile: UserProfile = {
-        id: data.id,
-        email: data.email || user?.email || '',
-        subscription_tier: (data.subscription_tier as SubscriptionTier) || 'free',
-        is_admin: data.is_admin || adminStatus,
-        business_context: businessContext
-      };
-      
-      setUserProfile(profile);
-    } catch (error) {
-      logError('AuthContext-fetchUserProfile', error);
+      const { error } = await supabase.auth.signUp({ email, password });
+      return { error };
+    } catch (err) {
+      console.error('Error in signUp:', err);
+      toast.error('Sign up failed');
+      return { error: err as AuthError };
     }
   };
 
-  // Add a function to create a user profile if it doesn't exist
-  const createUserProfile = async (userId: string) => {
+  // Sign in function
+  const signIn = async (email: string, password: string) => {
     try {
-      // Only set admin to true for specific email
-      const isUserAdmin = user?.email === 'terramultaacc@gmail.com';
-      
-      const { error } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: userId,
-          email: user?.email,
-          subscription_tier: 'free', // Always default to free
-          is_admin: isUserAdmin,
-          business_context: {}
-        });
-
-      if (error) {
-        logError('AuthContext-createUserProfile', error);
-        return;
-      }
-
-      // After creating the profile, fetch it
-      setTimeout(() => {
-        fetchUserProfile(userId);
-      }, 100);
-    } catch (error) {
-      logError('AuthContext-createUserProfile', error);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error };
+    } catch (err) {
+      console.error('Error in signIn:', err);
+      toast.error('Sign in failed');
+      return { error: err as AuthError };
     }
   };
 
+  // Sign out function
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
       toast.success('Signed out successfully');
-      setUserProfile(null);
-      setIsAdmin(false);
-      setHasBusinessContext(false);
-    } catch (error) {
-      logError('AuthContext-signOut', error);
-      toast.error('Error signing out');
+    } catch (err) {
+      console.error('Error in signOut:', err);
+      toast.error('Sign out failed');
     }
   };
 
+  // Provide the auth context to children
   return (
-    <AuthContext.Provider value={{ 
-      session, 
-      user, 
-      userProfile, 
-      loading, 
-      signOut,
-      isAdmin,
-      hasBusinessContext
-    }}>
+    <AuthContext.Provider value={{ session, user, signUp, signIn, signOut, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
+// Hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

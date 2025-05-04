@@ -1,206 +1,139 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/auth';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 import { toast } from '@/utils/toast';
-import { AuthForm } from '@/components/auth/AuthForm';
-import BusinessContextQuestionnaire from '@/components/business/BusinessContextQuestionnaire';
-import { BusinessContextFormValues } from '@/components/business/BusinessContextQuestionnaire';
 
-const Auth = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+// Form schema for validation
+const authSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+});
+
+type AuthFormValues = z.infer<typeof authSchema>;
+
+export default function Auth() {
+  const { signIn, signUp } = useAuth();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('signin');
   const navigate = useNavigate();
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const form = useForm<AuthFormValues>({
+    resolver: zodResolver(authSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
+  const onSubmit = async (data: AuthFormValues) => {
+    setIsLoading(true);
     
     try {
-      if (password !== confirmPassword) {
-        throw new Error('Passwords do not match');
-      }
-
-      // First, check if user already exists to provide better error message
-      const { data: existingUser } = await supabase.auth.signInWithPassword({ 
-        email, 
-        password: 'check-only' // We're just checking if the email exists
-      });
-      
-      if (existingUser?.user) {
-        throw new Error('An account with this email already exists');
-      }
-
-      const { data, error } = await supabase.auth.signUp({ 
-        email, 
-        password,
-        options: {
-          data: {
-            subscription_tier: 'free'  // Always set to 'free' for new users
-          },
-          emailRedirectTo: window.location.origin
-        }
-      });
-      
-      if (error) throw error;
-      
-      // Create the user profile directly if needed
-      try {
-        const userId = data.user?.id;
-        if (userId) {
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .upsert({
-              id: userId,
-              email: email,
-              subscription_tier: 'free',
-              is_admin: false
-            }, {
-              onConflict: 'id'
-            });
-            
-          if (profileError) {
-            console.error('Error creating user profile:', profileError);
-          }
-        }
-      } catch (profileError) {
-        console.error('Error in profile creation:', profileError);
-        // Continue with the flow even if profile creation fails
-      }
-      
-      // Show questionnaire before redirecting
-      setShowQuestionnaire(true);
-    } catch (error: any) {
-      const errorMsg = error.message || 'Error creating account';
-      toast.error(errorMsg);
-      console.error('Signup error:', error);
-      logError('Auth-SignUp', error);
-      setLoading(false);
-    }
-  };
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ 
-        email, 
-        password
-      });
-      
-      if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          toast.error('Please verify your email before logging in');
-        } else {
-          throw error;
-        }
-      } else {
+      if (activeTab === 'signin') {
+        const { error } = await signIn(data.email, data.password);
+        if (error) throw error;
         toast.success('Signed in successfully');
-        
-        // Check if user has completed business context questionnaire
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('business_context')
-          .eq('id', data.user.id)
-          .single();
-          
-        if (profile && (!profile.business_context || Object.keys(profile.business_context).length === 0)) {
-          setShowQuestionnaire(true);
-        } else {
-          navigate('/');
-        }
+        navigate('/');
+      } else {
+        const { error } = await signUp(data.email, data.password);
+        if (error) throw error;
+        toast.success('Account created! Please check your email to verify your account');
+        setActiveTab('signin');
       }
     } catch (error: any) {
-      const errorMsg = error.message || 'Error signing in';
-      toast.error(errorMsg);
-      console.error('Signin error:', error);
-      logError('Auth-SignIn', error);
+      toast.error(error.message || 'Authentication failed');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
-
-  const handleQuestionnaireComplete = async (data: BusinessContextFormValues) => {
-    toast.success('Thanks for providing your business context!');
-    navigate('/');
-  };
-
-  // Helper function to log errors with more context
-  const logError = (context: string, error: any) => {
-    // Import from errorLogger utility
-    import('@/utils/errorLogger').then(({ logError }) => {
-      logError(context, error);
-    });
   };
 
   return (
-    <>
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <Card className="w-full max-w-md animate-fade-in">
-          <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-3xl font-bold text-primary">Ledger AI</CardTitle>
-            <CardDescription>Enter your email to sign in or create an account</CardDescription>
-          </CardHeader>
-          <Tabs defaultValue="signin" className="w-full">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 p-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold">Financial Bookkeeper</CardTitle>
+          <CardDescription>
+            Enter your credentials to access your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="signin">
-              <CardContent>
-                <AuthForm
-                  email={email}
-                  password={password}
-                  showPassword={showPassword}
-                  loading={loading}
-                  onEmailChange={setEmail}
-                  onPasswordChange={setPassword}
-                  onShowPasswordToggle={() => setShowPassword(!showPassword)}
-                  onSubmit={handleSignIn}
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="email" 
+                          placeholder="your@email.com" 
+                          {...field} 
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </CardContent>
-            </TabsContent>
-
-            <TabsContent value="signup">
-              <CardContent>
-                <AuthForm
-                  email={email}
-                  password={password}
-                  confirmPassword={confirmPassword}
-                  showPassword={showPassword}
-                  loading={loading}
-                  isSignUp={true}
-                  onEmailChange={setEmail}
-                  onPasswordChange={setPassword}
-                  onConfirmPasswordChange={setConfirmPassword}
-                  onShowPasswordToggle={() => setShowPassword(!showPassword)}
-                  onSubmit={handleSignUp}
+                
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          placeholder="••••••••" 
+                          {...field} 
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </CardContent>
-            </TabsContent>
+                
+                <div className="pt-2">
+                  <RainbowButton 
+                    className="w-full" 
+                    disabled={isLoading}
+                    type="submit"
+                  >
+                    {activeTab === 'signin' ? 'Sign In' : 'Create Account'}
+                  </RainbowButton>
+                </div>
+              </form>
+            </Form>
           </Tabs>
-        </Card>
-      </div>
-
-      {/* Business Context Questionnaire Dialog */}
-      <BusinessContextQuestionnaire
-        isOpen={showQuestionnaire}
-        onClose={() => {
-          setShowQuestionnaire(false);
-          navigate('/');
-        }}
-        onComplete={handleQuestionnaireComplete}
-      />
-    </>
+        </CardContent>
+      </Card>
+    </div>
   );
-};
-
-export default Auth;
+}
