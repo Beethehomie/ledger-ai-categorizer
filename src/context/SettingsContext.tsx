@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Currency, CurrencySettings, FinancialGoal, TableColumn } from '@/types';
 import { currencySettings } from '@/utils/currencyUtils';
 
@@ -28,15 +27,15 @@ const defaultGoal: FinancialGoal = {
 };
 
 const defaultColumns: TableColumn[] = [
-  { id: 'date', name: 'Date', label: 'Date', visible: true },
-  { id: 'description', name: 'Description', label: 'Description', visible: true },
-  { id: 'vendor', name: 'Vendor', label: 'Vendor', visible: true },
-  { id: 'amount', name: 'Amount', label: 'Amount', visible: true },
-  { id: 'category', name: 'Category', label: 'Category', visible: true },
-  { id: 'statementType', name: 'Statement Type', label: 'Statement Type', visible: true },
-  { id: 'bankAccount', name: 'Bank Account', label: 'Bank Account', visible: true },
-  { id: 'status', name: 'Status', label: 'Status', visible: true },
-  { id: 'actions', name: 'Actions', label: 'Actions', visible: true },
+  { id: 'date', label: 'Date', visible: true },
+  { id: 'description', label: 'Description', visible: true },
+  { id: 'vendor', label: 'Vendor', visible: true },
+  { id: 'amount', label: 'Amount', visible: true },
+  { id: 'category', label: 'Category', visible: true },
+  { id: 'statementType', label: 'Statement Type', visible: true },
+  { id: 'bankAccount', label: 'Bank Account', visible: true },
+  { id: 'status', label: 'Status', visible: true },
+  { id: 'actions', label: 'Actions', visible: true },
 ];
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { FinancialSummary, Transaction } from '@/types';
 
@@ -10,7 +11,15 @@ export const useFinancialSummary = (transactions: Transaction[]) => {
     totalEquity: 0,
     netProfit: 0,
     cashBalance: 0,
-    income: 0, // Add this line
+    income: 0,
+    expenses: 0,
+    netIncome: 0,
+    assets: 0,
+    liabilities: 0,
+    equity: 0,
+    categorizedExpenses: {},
+    categorizedIncome: {},
+    monthlyData: []
   };
 
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary>(initialFinancialSummary);
@@ -37,24 +46,29 @@ export const useFinancialSummary = (transactions: Transaction[]) => {
       switch(transaction.type) {
         case 'income':
           summary.totalIncome += amount;
-          summary.income += amount; // Add this line
+          summary.income += amount;
           break;
         case 'expense':
           summary.totalExpenses += amount;
+          summary.expenses += amount;
           break;
         case 'asset':
           summary.totalAssets += amount;
+          summary.assets += amount;
           break;
         case 'liability':
           summary.totalLiabilities += amount;
+          summary.liabilities += amount;
           break;
         case 'equity':
           summary.totalEquity += amount;
+          summary.equity += amount;
           break;
       }
     });
 
     summary.netProfit = summary.totalIncome - summary.totalExpenses;
+    summary.netIncome = summary.income - summary.expenses;
     
     setFinancialSummary(summary);
     return summary;

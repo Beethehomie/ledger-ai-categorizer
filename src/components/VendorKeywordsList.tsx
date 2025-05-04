@@ -123,19 +123,8 @@ const VendorKeywordsList: React.FC = () => {
       
       // Transform the vendors to include all required properties
       const formattedVendors = allVendors.map(vendor => ({
-        id: vendor.id,
-        vendor_name: vendor.vendor_name,
-        category: vendor.category || '',
-        type: vendor.type || '',
-        statement_type: vendor.statement_type || '',
-        occurrences: vendor.occurrences || 0,
-        verified: vendor.verified || false,
-        created_at: vendor.created_at,
-        updated_at: vendor.updated_at,
-        last_used: vendor.last_used || vendor.created_at,
-        confidence: vendor.confidence || 0.7,
-        sample_description: vendor.sample_description || '',
-        embedding: vendor.embedding || []
+        ...vendor,
+        confidence: vendor.confidence || 0.7
       }));
       
       setVendors(formattedVendors);
@@ -186,7 +175,7 @@ const VendorKeywordsList: React.FC = () => {
         statement_type: v.statement_type,
         occurrences: v.occurrences,
         verified: v.verified ? 'Yes' : 'No',
-        confidence: v.confidence
+        confidence: v.confidence || 0
       }));
       
       const headers = Object.keys(vendorsForExport[0] || {}).join(',');

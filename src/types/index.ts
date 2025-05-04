@@ -1,6 +1,6 @@
 
 // Basic type definitions
-export type TransactionType = "income" | "expense" | "asset" | "liability" | "transfer";
+export type TransactionType = "income" | "expense" | "asset" | "liability" | "transfer" | "equity";
 export type StatementType = "profit_loss" | "balance_sheet";
 export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR";
 
@@ -21,6 +21,7 @@ export interface Transaction {
   bankAccountName?: string;
   balance?: number;
   accountId?: string;
+  aiSuggestion?: string;
 }
 
 // Vendor types
@@ -43,13 +44,20 @@ export interface VendorItem {
 export interface Category {
   id: string;
   name: string;
-  type: TransactionType | "equity";
+  type: TransactionType;
   statementType: StatementType;
   keywords?: string[];
 }
 
 // Financial data types
 export interface FinancialSummary {
+  totalIncome: number;
+  totalExpenses: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  netProfit: number;
+  cashBalance: number;
   income: number;
   expenses: number;
   netIncome: number;
@@ -82,6 +90,7 @@ export interface TableColumn {
   id: string;
   label: string;
   visible: boolean;
+  name?: string; // Add name property since it's being used in the code
 }
 
 export interface Column {
@@ -94,6 +103,7 @@ export interface ChartSectionProps {
   data: any[];
   title: string;
   description?: string;
+  refreshing?: boolean; // Add refreshing property
 }
 
 export interface CurrencySettings {
@@ -101,6 +111,7 @@ export interface CurrencySettings {
   symbol: string;
   position: 'before' | 'after';
   dateFormat: string;
+  locale: string; // Add locale property
 }
 
 // Embedding related types
@@ -112,4 +123,5 @@ export interface EmbeddingResult {
   type?: string;
   statement_type?: string;
   sample_description?: string;
+  vendor?: string; // Add vendor property
 }

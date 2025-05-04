@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,7 @@ const VendorEmbeddings: React.FC = () => {
       
       setSearchResults(matchData.map((result: EmbeddingResult) => ({
         ...result,
-        vendor_name: result.vendor_name || 'Unknown'
+        vendor: result.vendor_name || 'Unknown'
       })));
     } catch (err) {
       console.error('Error searching vendors:', err);

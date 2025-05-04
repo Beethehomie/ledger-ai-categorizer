@@ -1,4 +1,3 @@
-
 import { Transaction, Category } from '../types';
 
 export const mockCategories: Category[] = [
@@ -68,7 +67,7 @@ export const mockCategories: Category[] = [
   {
     id: '10',
     name: 'Owner Investment',
-    type: 'equity',
+    type: 'equity' as TransactionType,
     statementType: 'balance_sheet',
     keywords: ['investment', 'capital', 'owner', 'equity'],
   }
