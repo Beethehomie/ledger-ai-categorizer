@@ -430,7 +430,7 @@ export const useTransactions = (
     }
   };
 
-  const deleteTransaction = async (id: string): Promise<boolean> => {
+  const deleteTransaction = async (id: string) => {
     if (!session) {
       toast.error('You must be logged in to delete transactions');
       return false;
@@ -451,7 +451,7 @@ export const useTransactions = (
     } catch (err: any) {
       console.error('Error deleting transaction:', err);
       toast.error('Failed to delete transaction');
-      return false;
+      return { success: false, error: 'Failed to delete transaction' };
     }
   };
 
@@ -526,7 +526,7 @@ export const useTransactions = (
       if (error) {
         console.error('Error fetching transactions:', error);
         toast.error('Failed to fetch transactions');
-        return;
+        setTransactions([]);
       }
       
       if (data) {
@@ -562,9 +562,10 @@ export const useTransactions = (
         setTransactions(fetchedTransactions);
         toast.success('Transactions refreshed successfully');
       }
-    } catch (err) {
-      console.error('Error in fetchTransactions:', err);
-      toast.error('Failed to refresh transactions');
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      toast.error('Failed to fetch transactions');
+      setTransactions([]);
     } finally {
       setLoading(false);
     }

@@ -127,8 +127,8 @@ const VendorKeywordsList: React.FC = () => {
         confidence: vendor.confidence || 0.7
       }));
       
-      setVendors(formattedVendors);
-      setFilteredVendors(formattedVendors);
+      setVendors(formattedVendors as any[]);
+      setFilteredVendors(formattedVendors as any[]);
       setTotalItems(formattedVendors.length);
       setTotalPages(Math.ceil(formattedVendors.length / ITEMS_PER_PAGE));
       
@@ -175,7 +175,7 @@ const VendorKeywordsList: React.FC = () => {
         statement_type: v.statement_type,
         occurrences: v.occurrences,
         verified: v.verified ? 'Yes' : 'No',
-        confidence: v.confidence || 0
+        confidence: (v as any).confidence || 0
       }));
       
       const headers = Object.keys(vendorsForExport[0] || {}).join(',');

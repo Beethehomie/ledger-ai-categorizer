@@ -1,4 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Currency, CurrencySettings, FinancialGoal, TableColumn } from '@/types';
 import { currencySettings } from '@/utils/currencyUtils';
 

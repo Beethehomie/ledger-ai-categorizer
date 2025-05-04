@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -34,7 +33,13 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
 }) => {
   const [name, setName] = useState(editCategory?.name || '');
   const [type, setType] = useState<'income' | 'expense' | 'asset' | 'liability' | 'equity'>(
-    editCategory?.type || 'expense'
+    (editCategory?.type === 'income' || 
+     editCategory?.type === 'expense' || 
+     editCategory?.type === 'asset' || 
+     editCategory?.type === 'liability' || 
+     editCategory?.type === 'equity') 
+     ? editCategory.type 
+     : 'expense'
   );
   // Ensure statementType only accepts 'profit_loss' or 'balance_sheet'
   const [statementType, setStatementType] = useState<'profit_loss' | 'balance_sheet'>(

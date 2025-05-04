@@ -1,15 +1,16 @@
+
 import { CurrencySettings, Currency } from '@/types';
 
 export const currencySettings: Record<string, CurrencySettings> = {
-  USD: { code: 'USD', symbol: '$', position: 'before', dateFormat: 'MM/dd/yyyy', locale: 'en-US' },
-  EUR: { code: 'EUR', symbol: '€', position: 'after', dateFormat: 'dd/MM/yyyy', locale: 'de-DE' },
-  GBP: { code: 'GBP', symbol: '£', position: 'before', dateFormat: 'dd/MM/yyyy', locale: 'en-GB' },
-  JPY: { code: 'JPY', symbol: '¥', position: 'before', dateFormat: 'yyyy/MM/dd', locale: 'ja-JP' },
-  AUD: { code: 'AUD', symbol: 'A$', position: 'before', dateFormat: 'dd/MM/yyyy', locale: 'en-AU' },
-  CAD: { code: 'CAD', symbol: 'C$', position: 'before', dateFormat: 'MM/dd/yyyy', locale: 'en-CA' },
-  CHF: { code: 'CHF', symbol: 'CHF', position: 'before', dateFormat: 'dd.MM.yyyy', locale: 'de-CH' },
-  CNY: { code: 'CNY', symbol: '¥', position: 'before', dateFormat: 'yyyy/MM/dd', locale: 'zh-CN' },
-  INR: { code: 'INR', symbol: '₹', position: 'before', dateFormat: 'dd/MM/yyyy', locale: 'en-IN' }
+  USD: { code: 'USD', symbol: '$', position: 'before', dateFormat: 'MM/dd/yyyy', locale: 'en-US', decimalPlaces: 2 },
+  EUR: { code: 'EUR', symbol: '€', position: 'after', dateFormat: 'dd/MM/yyyy', locale: 'de-DE', decimalPlaces: 2 },
+  GBP: { code: 'GBP', symbol: '£', position: 'before', dateFormat: 'dd/MM/yyyy', locale: 'en-GB', decimalPlaces: 2 },
+  JPY: { code: 'JPY', symbol: '¥', position: 'before', dateFormat: 'yyyy/MM/dd', locale: 'ja-JP', decimalPlaces: 0 },
+  AUD: { code: 'AUD', symbol: 'A$', position: 'before', dateFormat: 'dd/MM/yyyy', locale: 'en-AU', decimalPlaces: 2 },
+  CAD: { code: 'CAD', symbol: 'C$', position: 'before', dateFormat: 'MM/dd/yyyy', locale: 'en-CA', decimalPlaces: 2 },
+  CHF: { code: 'CHF', symbol: 'CHF', position: 'before', dateFormat: 'dd.MM.yyyy', locale: 'de-CH', decimalPlaces: 2 },
+  CNY: { code: 'CNY', symbol: '¥', position: 'before', dateFormat: 'yyyy/MM/dd', locale: 'zh-CN', decimalPlaces: 2 },
+  INR: { code: 'INR', symbol: '₹', position: 'before', dateFormat: 'dd/MM/yyyy', locale: 'en-IN', decimalPlaces: 2 }
 };
 
 export const formatCurrency = (
@@ -21,8 +22,8 @@ export const formatCurrency = (
   return new Intl.NumberFormat(settings.locale, {
     style: 'currency',
     currency: settings.code,
-    minimumFractionDigits: settings.decimalPlaces,
-    maximumFractionDigits: settings.decimalPlaces
+    minimumFractionDigits: settings.decimalPlaces || 2,
+    maximumFractionDigits: settings.decimalPlaces || 2
   }).format(amount);
 };
 

@@ -1,4 +1,4 @@
-import { Transaction, Category } from '../types';
+import { Transaction, TransactionType } from '@/types';
 
 export const mockCategories: Category[] = [
   {

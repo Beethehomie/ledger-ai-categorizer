@@ -19,8 +19,8 @@ export const formatCurrency = (
   return new Intl.NumberFormat(settings.locale, {
     style: 'currency',
     currency: settings.code,
-    minimumFractionDigits: settings.decimalPlaces,
-    maximumFractionDigits: settings.decimalPlaces
+    minimumFractionDigits: settings.decimalPlaces || 2,
+    maximumFractionDigits: settings.decimalPlaces || 2
   }).format(amount);
 };
 

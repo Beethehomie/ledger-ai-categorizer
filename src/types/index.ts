@@ -111,7 +111,8 @@ export interface CurrencySettings {
   symbol: string;
   position: 'before' | 'after';
   dateFormat: string;
-  locale: string; // Add locale property
+  locale: string;
+  decimalPlaces?: number; // Add decimalPlaces property
 }
 
 // Embedding related types
