@@ -47,12 +47,16 @@ export async function findSimilarItems<T>(
   try {
     const embedding = await getEmbeddingForText(text);
     
+    // Define proper parameters with correct types
+    const params = {
+      query_embedding: embedding,
+      match_threshold: threshold,
+      match_count: limit
+    };
+    
+    // Use type assertion to handle the dynamic procedure name
     const { data, error } = await supabase
-      .rpc(procedure, {
-        query_embedding: embedding,
-        match_threshold: threshold,
-        match_count: limit
-      });
+      .rpc(procedure, params as any);
     
     if (error) {
       throw new Error(`Error finding similar items with ${procedure}: ${error.message}`);
