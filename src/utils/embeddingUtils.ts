@@ -31,55 +31,61 @@ export async function getEmbeddingForText(text: string): Promise<number[]> {
 }
 
 /**
- * Find similar vendors based on text description
+ * Generic function to find similar items based on semantic similarity
+ * @param procedure - The name of the RPC procedure to call ('match_vendors' or 'match_categories')
+ * @param text - The text to find similar items for
+ * @param limit - Maximum number of results to return
+ * @param threshold - Minimum similarity threshold (0-1)
+ * @returns Array of matching items with similarity scores
  */
-export async function findSimilarVendors(text: string, limit: number = 5, threshold: number = 0.5) {
+export async function findSimilarItems<T>(
+  procedure: string,
+  text: string,
+  limit: number = 5,
+  threshold: number = 0.5
+): Promise<T[]> {
   try {
     const embedding = await getEmbeddingForText(text);
     
     const { data, error } = await supabase
-      .rpc('match_vendors', {
+      .rpc(procedure, {
         query_embedding: embedding,
         match_threshold: threshold,
         match_count: limit
       });
     
     if (error) {
-      throw new Error(`Error finding similar vendors: ${error.message}`);
+      throw new Error(`Error finding similar items with ${procedure}: ${error.message}`);
     }
     
     return data || [];
   } catch (err) {
-    console.error("Error in findSimilarVendors:", err);
-    toast.error("Failed to find similar vendors");
+    console.error(`Error in findSimilarItems(${procedure}):`, err);
+    toast.error(`Failed to find similar items with ${procedure}`);
     return [];
   }
 }
 
 /**
+ * Find similar vendors based on text description
+ * @param text - The text to find similar vendors for
+ * @param limit - Maximum number of results to return
+ * @param threshold - Minimum similarity threshold (0-1)
+ * @returns Array of matching vendors with similarity scores
+ */
+export async function findSimilarVendors(text: string, limit: number = 5, threshold: number = 0.5) {
+  return findSimilarItems('match_vendors', text, limit, threshold);
+}
+
+/**
  * Find similar categories based on text description
+ * @param text - The text to find similar categories for
+ * @param limit - Maximum number of results to return
+ * @param threshold - Minimum similarity threshold (0-1)
+ * @returns Array of matching categories with similarity scores
  */
 export async function findSimilarCategories(text: string, limit: number = 5, threshold: number = 0.5) {
-  try {
-    const embedding = await getEmbeddingForText(text);
-    
-    const { data, error } = await supabase
-      .rpc('match_categories', {
-        query_embedding: embedding,
-        match_threshold: threshold,
-        match_count: limit
-      });
-    
-    if (error) {
-      throw new Error(`Error finding similar categories: ${error.message}`);
-    }
-    
-    return data || [];
-  } catch (err) {
-    console.error("Error in findSimilarCategories:", err);
-    toast.error("Failed to find similar categories");
-    return [];
-  }
+  return findSimilarItems('match_categories', text, limit, threshold);
 }
 
 /**
