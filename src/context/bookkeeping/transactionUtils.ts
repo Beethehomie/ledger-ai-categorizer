@@ -1,4 +1,3 @@
-
 import { Transaction } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
@@ -96,4 +95,36 @@ export const saveTransactionsToSupabase = async (
     console.error('Error in saveTransactionsToSupabase:', err);
     throw err;
   }
+};
+
+export const updateTransactionWithBankInfo = (transaction: Transaction, bankConnections: any[]) => {
+  // If transaction already has bank account info, return it as is
+  if (transaction.bankAccountName) {
+    return transaction;
+  }
+
+  // Try to find the bank connection by bankAccountId
+  if (transaction.bankAccountId) {
+    const bankConnection = bankConnections.find(conn => conn.id === transaction.bankAccountId);
+    if (bankConnection) {
+      return {
+        ...transaction,
+        bankAccountName: bankConnection.display_name || bankConnection.bank_name
+      };
+    }
+  }
+
+  // Try to find the bank connection by accountId as a fallback
+  if (transaction.accountId) {
+    const bankConnection = bankConnections.find(conn => conn.id === transaction.accountId);
+    if (bankConnection) {
+      return {
+        ...transaction,
+        bankAccountId: transaction.accountId,
+        bankAccountName: bankConnection.display_name || bankConnection.bank_name
+      };
+    }
+  }
+
+  return transaction;
 };

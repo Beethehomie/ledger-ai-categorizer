@@ -101,7 +101,7 @@ const TransactionEditor: React.FC<TransactionEditorProps> = ({
         vendorVerified: false,
         isVerified: false,
         bankAccountId,
-        bankAccountName: bankConnections.find(b => b.id === bankAccountId)?.display_name,
+        bankAccountName: bankConnections.find(b => b.id === bankAccountId)?.display_name || bankConnections.find(b => b.id === bankAccountId)?.bank_name,
         type: 'expense',
         statementType: 'profit_loss',
       };

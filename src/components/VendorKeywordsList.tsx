@@ -121,6 +121,7 @@ const VendorKeywordsList: React.FC = () => {
         }
       }
       
+      // Transform the vendors to include all required properties
       const formattedVendors = allVendors.map(vendor => ({
         id: vendor.id,
         vendor_name: vendor.vendor_name,
@@ -130,9 +131,11 @@ const VendorKeywordsList: React.FC = () => {
         occurrences: vendor.occurrences || 0,
         verified: vendor.verified || false,
         created_at: vendor.created_at,
+        updated_at: vendor.updated_at,
         last_used: vendor.last_used || vendor.created_at,
         confidence: vendor.confidence || 0.7,
-        sample_description: vendor.sample_description || '' // Add the sample_description property
+        sample_description: vendor.sample_description || '',
+        embedding: vendor.embedding || []
       }));
       
       setVendors(formattedVendors);

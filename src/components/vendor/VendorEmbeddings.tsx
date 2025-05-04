@@ -1,79 +1,110 @@
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Search, Sparkles } from "lucide-react";
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/utils/toast';
+import { EmbeddingResult } from '@/types';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { generateEmbeddings, findSimilarVendors, EmbeddingResult } from '@/utils/embeddingUtils';
+const VendorEmbeddings: React.FC = () => {
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState<EmbeddingResult[]>([]);
+  const [searching, setSearching] = useState(false);
 
-export const VendorEmbeddings = () => {
-  const [description, setDescription] = useState('');
-  const [results, setResults] = useState<EmbeddingResult[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const findSimilarVendors = async () => {
+    if (!searchText.trim()) {
+      toast.error('Please enter a search text');
+      return;
+    }
 
-  const handleSearch = async () => {
-    if (!description) return;
-    
-    setIsLoading(true);
     try {
-      const matches = await findSimilarVendors(description);
-      setResults(matches);
-    } catch (error) {
-      console.error('Error searching vendors:', error);
+      setSearching(true);
+      
+      // Get embeddings for the search text
+      const { data, error } = await supabase.functions.invoke('generate-embedding', {
+        body: { input: searchText }
+      });
+      
+      if (error) throw error;
+      
+      if (!data || !data.embedding) {
+        throw new Error('Failed to generate embedding for search');
+      }
+      
+      // Search for similar vendors using the embedding
+      const { data: matchData, error: matchError } = await supabase.rpc(
+        'match_vendors_by_embedding',
+        {
+          query_embedding: data.embedding,
+          match_threshold: 0.5,
+          match_count: 10
+        }
+      );
+      
+      if (matchError) throw matchError;
+      
+      setSearchResults(matchData.map((result: EmbeddingResult) => ({
+        ...result,
+        vendor_name: result.vendor_name || 'Unknown'
+      })));
+    } catch (err) {
+      console.error('Error searching vendors:', err);
+      toast.error('Failed to search for similar vendors');
     } finally {
-      setIsLoading(false);
+      setSearching(false);
     }
   };
 
   return (
-    <Card>
+    <Card className="hover:shadow-md transition-all animate-fade-in">
       <CardHeader>
-        <CardTitle>Vendor Similarity Search</CardTitle>
+        <CardTitle className="text-lg flex items-center">
+          <Sparkles className="h-4 w-4 mr-2 text-primary" />
+          Vendor Search by Description
+        </CardTitle>
         <CardDescription>
-          Search for similar vendors based on transaction descriptions
+          Find similar vendors by searching for keywords or descriptions
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex gap-2 mb-4">
-          <Input 
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter transaction description"
-            className="flex-1"
+        <div className="flex items-center space-x-2 mb-4">
+          <Input
+            type="text"
+            placeholder="Enter search text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
           />
-          <Button onClick={handleSearch} disabled={isLoading}>
-            {isLoading ? 'Searching...' : 'Search'}
+          <Button onClick={findSimilarVendors} disabled={searching}>
+            {searching ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div>
+            ) : (
+              <Search className="h-4 w-4 mr-2" />
+            )}
+            Search
           </Button>
         </div>
-
-        {results.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium">Results:</h3>
-            {results.map((result) => (
-              <div key={result.id} className="border rounded-lg p-3">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">{result.vendor}</span>
-                  <Badge variant={result.similarity > 0.8 ? 'default' : 'outline'}>
-                    {Math.round(result.similarity * 100)}% match
-                  </Badge>
-                </div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  Category: {result.category || 'Unknown'} • Type: {result.type || 'Unknown'}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {results.length === 0 && !isLoading && description && (
-          <div className="text-center py-4 text-muted-foreground">
-            No matching vendors found
+        {searchResults.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-muted-foreground">
+              Search Results:
+            </h4>
+            <ul className="list-none pl-0 mt-2">
+              {searchResults.map((result) => (
+                <li key={result.id} className="py-2 border-b border-gray-200 last:border-none">
+                  <div className="font-medium">{result.vendor_name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    Category: {result.category || 'N/A'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Similarity: {(result.similarity * 100).toFixed(2)}%
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </CardContent>
-      <CardFooter className="text-xs text-muted-foreground">
-        Results are based on semantic similarity using embeddings
-      </CardFooter>
     </Card>
   );
 };
