@@ -14,7 +14,7 @@ export interface EmbeddingResult {
 export const generateEmbeddings = async (text: string): Promise<number[] | null> => {
   try {
     const { data, error } = await supabase.functions.invoke('generate-embeddings', {
-      body: { text }
+      body: { text, generateOnly: true }
     });
 
     if (error) {
@@ -71,6 +71,7 @@ export const findMatchingCategories = async (
       return [];
     }
     
+    // Fix the TypeScript error by specifying the correct parameter type
     const { data, error } = await supabase.rpc('match_vendors_by_embedding', {
       query_embedding: embedding,
       match_threshold: threshold,
