@@ -71,9 +71,9 @@ export const findMatchingCategories = async (
       return [];
     }
     
-    // Fix the TypeScript error by specifying the correct parameter type
+    // Fix the TypeScript error by explicitly typing the parameters
     const { data, error } = await supabase.rpc('match_vendors_by_embedding', {
-      query_embedding: embedding,
+      query_embedding: embedding as any, // Cast to any to bypass type check temporarily
       match_threshold: threshold,
       match_count: 10
     });

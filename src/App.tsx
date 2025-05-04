@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from '@/context/AuthContext';
 import Home from './pages/Home';
 import Auth from './pages/Auth';
-import RequireAuth from './components/RequireAuth';
+import { RequireAuth } from './components/RequireAuth'; // Changed to named import
 
 function App() {
   return (
