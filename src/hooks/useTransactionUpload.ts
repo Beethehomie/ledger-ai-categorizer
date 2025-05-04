@@ -8,6 +8,7 @@ import { detectColumns } from '@/utils/csvParser/detectColumns';
 import { ParsedTransaction } from '@/utils/csvParser/types';
 import { parseDate } from '@/utils/csvParser/dateParser';
 import { parseAmount } from '@/utils/csvParser/amountParser';
+import { Transaction } from '@/types';
 
 export const useTransactionUpload = () => {
   const { session } = useAuth();
@@ -30,79 +31,45 @@ export const useTransactionUpload = () => {
     });
   };
 
-  const uploadTransactions = async (bankConnectionId?: string): Promise<boolean> => {
+  const uploadTransactions = async (transactions: Transaction[]): Promise<{ success: boolean; count: number }> => {
     if (!session?.user?.id) {
       toast.error('You must be logged in to upload transactions');
-      return false;
+      return { success: false, count: 0 };
     }
 
-    if (csvData.length < 2) {
-      toast.error('No valid data found in the CSV');
-      return false;
+    if (!transactions || transactions.length === 0) {
+      toast.error('No valid data found to upload');
+      return { success: false, count: 0 };
     }
 
     try {
       setIsUploading(true);
 
-      const headers = csvData[0];
-      const rows = csvData.slice(1).filter(row => row.length === headers.length);
-      
-      // Auto-detect columns
-      const columnMapping = detectColumns(headers);
-      
-      if (!columnMapping.dateColumn || (!columnMapping.amountColumn && (!columnMapping.debitColumn || !columnMapping.creditColumn))) {
-        toast.error('Could not detect required columns (date and amount)');
-        return false;
-      }
-
-      // Process rows into transaction objects
-      const transactions = rows.map(row => {
-        const rowObj: Record<string, string> = {};
-        headers.forEach((header, index) => {
-          rowObj[header] = row[index];
-        });
-
-        const dateValue = rowObj[columnMapping.dateColumn!];
-        const date = parseDate(dateValue);
-        
-        const description = columnMapping.descriptionColumn ? rowObj[columnMapping.descriptionColumn] : '';
-        
-        let amount = 0;
-        if (columnMapping.amountColumn) {
-          amount = parseAmount(rowObj[columnMapping.amountColumn]);
-        } else if (columnMapping.debitColumn && columnMapping.creditColumn) {
-          const debit = parseAmount(rowObj[columnMapping.debitColumn]);
-          const credit = parseAmount(rowObj[columnMapping.creditColumn]);
-          amount = credit - debit;
-        }
-
-        return {
-          date: date,
-          description: description,
-          amount: amount,
-          user_id: session.user.id,
-          bank_connection_id: bankConnectionId
-        };
-      }).filter(tx => tx.date && tx.description);
+      // Format transactions for database insertion
+      const formattedTransactions = transactions.map(tx => ({
+        date: tx.date,
+        description: tx.description,
+        amount: tx.amount,
+        user_id: session.user.id,
+        bank_connection_id: tx.bankConnectionId
+      }));
 
       // Insert transactions into database
-      // Use the .from method with proper table name instead of .insert
       const { data, error } = await supabase
         .from('bank_transactions')
-        .insert(transactions);
+        .insert(formattedTransactions);
 
       if (error) {
         console.error('Error uploading transactions:', error);
         toast.error('Failed to upload transactions');
-        return false;
+        return { success: false, count: 0 };
       }
 
-      toast.success(`Successfully uploaded ${transactions.length} transactions`);
-      return true;
+      return { success: true, count: transactions.length };
     } catch (err) {
       console.error('Error in uploadTransactions:', err);
       toast.error('Failed to process CSV data');
-      return false;
+      return { success: false, count: 0 };
     } finally {
       setIsUploading(false);
     }

@@ -65,8 +65,10 @@ export const findMatchingCategories = async (
 ): Promise<EmbeddingResult[]> => {
   try {
     // Cast the procedure name to string to satisfy TypeScript
-    const { data, error } = await supabase.rpc('match_vendors_by_embedding' as string, {
-      query_embedding: await generateEmbeddings(description),
+    const embedding = await generateEmbeddings(description);
+    
+    const { data, error } = await supabase.rpc('match_vendors_by_embedding', {
+      query_embedding: embedding,
       match_threshold: threshold,
       match_count: 10
     });

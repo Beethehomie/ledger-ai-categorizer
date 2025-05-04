@@ -12,7 +12,7 @@ export const TransactionUploader = () => {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<any[]>([]);
-  const { uploadTransactions, isLoading } = useTransactionUpload();
+  const { uploadTransactions, isUploading } = useTransactionUpload();
   const navigate = useNavigate();
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
@@ -206,9 +206,9 @@ export const TransactionUploader = () => {
                   </Button>
                   <Button 
                     onClick={handleUpload}
-                    disabled={isLoading}
+                    disabled={isUploading}
                   >
-                    {isLoading ? 'Uploading...' : 'Upload Transactions'}
+                    {isUploading ? 'Uploading...' : 'Upload Transactions'}
                   </Button>
                 </div>
               </>

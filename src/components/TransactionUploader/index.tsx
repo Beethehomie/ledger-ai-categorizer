@@ -13,7 +13,7 @@ import { FilePreview } from './FilePreview';
 export const TransactionUploader: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<Transaction[]>([]);
-  const { uploadTransactions, isLoading } = useTransactionUpload();
+  const { uploadTransactions, isUploading } = useTransactionUpload();
   const navigate = useNavigate();
 
   const handleFileSelection = async (file: File) => {
@@ -108,7 +108,7 @@ export const TransactionUploader: React.FC = () => {
             previewData={previewData}
             onCancel={resetFileSelection}
             onUpload={handleUpload}
-            isUploading={isLoading}
+            isUploading={isUploading}
           />
         )}
       </CardContent>
