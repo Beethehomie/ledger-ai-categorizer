@@ -15,6 +15,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { BookkeepingProvider } from "@/context/BookkeepingContext";
 import { RequireAuth } from "./components/RequireAuth";
+import { Demo } from "./components/ui/demo";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+                <Route path="/demo" element={<Demo />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
                 <Route path="/subscription" element={<RequireAuth><Subscription /></RequireAuth>} />
