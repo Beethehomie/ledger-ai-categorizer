@@ -81,3 +81,76 @@ export async function findSimilarCategories(text: string, limit: number = 5, thr
     return [];
   }
 }
+
+/**
+ * Interface for vendor match results
+ */
+export interface VendorMatch {
+  vendor_name: string;
+  category: string;
+  type: string;
+  statement_type: string;
+  similarity: number;
+  confidence?: number;
+  sample_description?: string;
+}
+
+/**
+ * Generate embeddings for vendors using Supabase Edge Function
+ */
+export async function generateVendorEmbeddings(batchSize: number = 50): Promise<any> {
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-vendor-embeddings', {
+      body: {
+        action: "generate",
+        batchSize
+      }
+    });
+
+    if (error) {
+      throw new Error(`Error generating vendor embeddings: ${error.message}`);
+    }
+
+    return {
+      success: true,
+      ...data
+    };
+  } catch (err) {
+    console.error("Error in generateVendorEmbeddings:", err);
+    toast.error("Failed to generate vendor embeddings");
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error occurred"
+    };
+  }
+}
+
+/**
+ * Find similar vendors by description using Supabase Edge Function
+ */
+export async function findSimilarVendorsByDescription(description: string): Promise<{success: boolean; results?: VendorMatch[]; error?: string}> {
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-vendor-embeddings', {
+      body: {
+        action: "search",
+        description
+      }
+    });
+
+    if (error) {
+      throw new Error(`Error finding similar vendors: ${error.message}`);
+    }
+
+    return {
+      success: true,
+      results: data.results || []
+    };
+  } catch (err) {
+    console.error("Error in findSimilarVendorsByDescription:", err);
+    toast.error("Failed to find similar vendors by description");
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error occurred"
+    };
+  }
+}

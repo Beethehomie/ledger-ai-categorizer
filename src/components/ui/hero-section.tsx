@@ -1,6 +1,7 @@
 
-import React from 'react';
-import { ArrowRight, ChevronRight, Menu, X } from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import { ArrowRight, ChevronRight, Menu, X } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { AnimatedGroup } from '@/components/ui/animated-group';
 import { cn } from '@/lib/utils';
@@ -66,7 +67,7 @@ export function HeroSection() {
                             }}
                             className="absolute inset-0 -z-20">
                             <img
-                                src="https://images.unsplash.com/photo-1535350356005-fd52b3b524fb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=3276&h=4095&q=80"
+                                src="https://images.unsplash.com/photo-1557264337-e8a93017fe92?q=80&w=2070&auto=format&fit=crop"
                                 alt="background"
                                 className="absolute inset-x-0 top-56 -z-20 hidden lg:top-32 dark:block"
                                 width="3276"
@@ -77,7 +78,7 @@ export function HeroSection() {
                         <div className="mx-auto max-w-7xl px-6">
                             <div className="text-center sm:mx-auto lg:mr-auto lg:mt-0">
                                 <AnimatedGroup variants={transitionVariants}>
-                                    <a
+                                    <Link
                                         href="#link"
                                         className="hover:bg-background dark:hover:border-t-border bg-muted group mx-auto flex w-fit items-center gap-4 rounded-full border p-1 pl-4 shadow-md shadow-black/5 transition-all duration-300 dark:border-t-white/5 dark:shadow-zinc-950">
                                         <span className="text-foreground text-sm">Introducing Support for AI Models</span>
@@ -93,7 +94,7 @@ export function HeroSection() {
                                                 </span>
                                             </div>
                                         </div>
-                                    </a>
+                                    </Link>
                         
                                     <h1
                                         className="mt-8 max-w-4xl mx-auto text-balance text-6xl md:text-7xl lg:mt-16 xl:text-[5.25rem]">
@@ -125,9 +126,9 @@ export function HeroSection() {
                                             asChild
                                             size="lg"
                                             className="rounded-xl px-5 text-base">
-                                            <a href="#link">
+                                            <Link href="#link">
                                                 <span className="text-nowrap">Start Building</span>
-                                            </a>
+                                            </Link>
                                         </Button>
                                     </div>
                                     <Button
@@ -136,9 +137,9 @@ export function HeroSection() {
                                         size="lg"
                                         variant="ghost"
                                         className="h-10.5 rounded-xl px-5">
-                                        <a href="#link">
+                                        <Link href="#link">
                                             <span className="text-nowrap">Request a demo</span>
-                                        </a>
+                                        </Link>
                                     </Button>
                                 </AnimatedGroup>
                             </div>
@@ -164,14 +165,14 @@ export function HeroSection() {
                                 <div className="inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background relative mx-auto max-w-6xl overflow-hidden rounded-2xl border p-4 shadow-lg shadow-zinc-950/15 ring-1">
                                     <img
                                         className="bg-background aspect-15/8 relative hidden rounded-2xl dark:block"
-                                        src="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2700&h=1440&q=80"
+                                        src="https://images.unsplash.com/photo-1584824486539-53bb4646bdbc?q=80&w=1974&auto=format&fit=crop"
                                         alt="app screen"
                                         width="2700"
                                         height="1440"
                                     />
                                     <img
                                         className="z-2 border-border/25 aspect-15/8 relative rounded-2xl border dark:hidden"
-                                        src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2700&h=1440&q=80"
+                                        src="https://images.unsplash.com/photo-1496171367470-9ed9a91ea931?q=80&w=2070&auto=format&fit=crop"
                                         alt="app screen"
                                         width="2700"
                                         height="1440"
@@ -184,88 +185,40 @@ export function HeroSection() {
                 <section className="bg-background pb-16 pt-16 md:pb-32">
                     <div className="group relative m-auto max-w-5xl px-6">
                         <div className="absolute inset-0 z-10 flex scale-95 items-center justify-center opacity-0 duration-500 group-hover:scale-100 group-hover:opacity-100">
-                            <a
+                            <Link
                                 href="/"
                                 className="block text-sm duration-150 hover:opacity-75">
                                 <span> Meet Our Customers</span>
 
                                 <ChevronRight className="ml-1 inline-block size-3" />
-                            </a>
+                            </Link>
                         </div>
                         <div className="group-hover:blur-xs mx-auto mt-12 grid max-w-2xl grid-cols-4 gap-x-12 gap-y-8 transition-all duration-500 group-hover:opacity-50 sm:gap-x-16 sm:gap-y-14">
                             <div className="flex">
-                                <img
-                                    className="mx-auto h-5 w-fit dark:invert"
-                                    src="https://html.tailus.io/blocks/customers/nvidia.svg"
-                                    alt="Nvidia Logo"
-                                    height="20"
-                                    width="auto"
-                                />
+                                <div className="mx-auto h-5 w-fit dark:invert">NVIDIA</div>
                             </div>
 
                             <div className="flex">
-                                <img
-                                    className="mx-auto h-4 w-fit dark:invert"
-                                    src="https://html.tailus.io/blocks/customers/column.svg"
-                                    alt="Column Logo"
-                                    height="16"
-                                    width="auto"
-                                />
+                                <div className="mx-auto h-4 w-fit dark:invert">COLUMN</div>
                             </div>
                             <div className="flex">
-                                <img
-                                    className="mx-auto h-4 w-fit dark:invert"
-                                    src="https://html.tailus.io/blocks/customers/github.svg"
-                                    alt="GitHub Logo"
-                                    height="16"
-                                    width="auto"
-                                />
+                                <div className="mx-auto h-4 w-fit dark:invert">GITHUB</div>
                             </div>
                             <div className="flex">
-                                <img
-                                    className="mx-auto h-5 w-fit dark:invert"
-                                    src="https://html.tailus.io/blocks/customers/nike.svg"
-                                    alt="Nike Logo"
-                                    height="20"
-                                    width="auto"
-                                />
+                                <div className="mx-auto h-5 w-fit dark:invert">NIKE</div>
                             </div>
                             <div className="flex">
-                                <img
-                                    className="mx-auto h-5 w-fit dark:invert"
-                                    src="https://html.tailus.io/blocks/customers/lemonsqueezy.svg"
-                                    alt="Lemon Squeezy Logo"
-                                    height="20"
-                                    width="auto"
-                                />
+                                <div className="mx-auto h-5 w-fit dark:invert">LEMON</div>
                             </div>
                             <div className="flex">
-                                <img
-                                    className="mx-auto h-4 w-fit dark:invert"
-                                    src="https://html.tailus.io/blocks/customers/laravel.svg"
-                                    alt="Laravel Logo"
-                                    height="16"
-                                    width="auto"
-                                />
+                                <div className="mx-auto h-4 w-fit dark:invert">LARAVEL</div>
                             </div>
                             <div className="flex">
-                                <img
-                                    className="mx-auto h-7 w-fit dark:invert"
-                                    src="https://html.tailus.io/blocks/customers/lilly.svg"
-                                    alt="Lilly Logo"
-                                    height="28"
-                                    width="auto"
-                                />
+                                <div className="mx-auto h-7 w-fit dark:invert">LILLY</div>
                             </div>
 
                             <div className="flex">
-                                <img
-                                    className="mx-auto h-6 w-fit dark:invert"
-                                    src="https://html.tailus.io/blocks/customers/openai.svg"
-                                    alt="OpenAI Logo"
-                                    height="24"
-                                    width="auto"
-                                />
+                                <div className="mx-auto h-6 w-fit dark:invert">OPENAI</div>
                             </div>
                         </div>
                     </div>
@@ -302,12 +255,12 @@ const HeroHeader = () => {
                 <div className={cn('mx-auto mt-2 max-w-6xl px-6 transition-all duration-300 lg:px-12', isScrolled && 'bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg lg:px-5')}>
                     <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
                         <div className="flex w-full justify-between lg:w-auto">
-                            <a
+                            <Link
                                 href="/"
                                 aria-label="home"
                                 className="flex items-center space-x-2">
                                 <Logo />
-                            </a>
+                            </Link>
 
                             <button
                                 onClick={() => setMenuState(!menuState)}
@@ -322,11 +275,11 @@ const HeroHeader = () => {
                             <ul className="flex gap-8 text-sm">
                                 {menuItems.map((item, index) => (
                                     <li key={index}>
-                                        <a
+                                        <Link
                                             href={item.href}
                                             className="text-muted-foreground hover:text-accent-foreground block duration-150">
                                             <span>{item.name}</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                 ))}
                             </ul>
@@ -337,11 +290,11 @@ const HeroHeader = () => {
                                 <ul className="space-y-6 text-base">
                                     {menuItems.map((item, index) => (
                                         <li key={index}>
-                                            <a
+                                            <Link
                                                 href={item.href}
                                                 className="text-muted-foreground hover:text-accent-foreground block duration-150">
                                                 <span>{item.name}</span>
-                                            </a>
+                                            </Link>
                                         </li>
                                     ))}
                                 </ul>
@@ -352,25 +305,25 @@ const HeroHeader = () => {
                                     variant="outline"
                                     size="sm"
                                     className={cn(isScrolled && 'lg:hidden')}>
-                                    <a href="#">
+                                    <Link href="#">
                                         <span>Login</span>
-                                    </a>
+                                    </Link>
                                 </Button>
                                 <Button
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled && 'lg:hidden')}>
-                                    <a href="#">
+                                    <Link href="#">
                                         <span>Sign Up</span>
-                                    </a>
+                                    </Link>
                                 </Button>
                                 <Button
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
-                                    <a href="#">
+                                    <Link href="#">
                                         <span>Get Started</span>
-                                    </a>
+                                    </Link>
                                 </Button>
                             </div>
                         </div>
