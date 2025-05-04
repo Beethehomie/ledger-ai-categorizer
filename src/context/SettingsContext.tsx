@@ -1,7 +1,8 @@
-
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Currency, CurrencySettings, FinancialGoal, TableColumn } from '@/types';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { currencySettings } from '@/utils/currencyUtils';
+import { toast } from '@/utils/toast';
 
 interface SettingsContextType {
   currency: Currency;
@@ -42,8 +43,8 @@ const defaultColumns: TableColumn[] = [
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currency, setCurrency] = useState<Currency>('USD');
-  const [darkMode, setDarkMode] = useState<boolean>(false);
+  const [currency, setCurrency] = useLocalStorage<Currency>('currency', 'USD');
+  const [darkMode, setDarkMode] = useLocalStorage<boolean>('darkMode', false);
   const [dateRange, setDateRange] = useState<{
     startDate: Date | undefined;
     endDate: Date | undefined;
@@ -51,8 +52,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     startDate: undefined,
     endDate: undefined,
   });
-  const [financialGoal, setFinancialGoal] = useState<FinancialGoal>(defaultGoal);
-  const [tableColumns, setTableColumns] = useState<TableColumn[]>(defaultColumns);
+  const [financialGoal, setFinancialGoal] = useLocalStorage<FinancialGoal>('financialGoal', defaultGoal);
+  const [tableColumns, setTableColumns] = useLocalStorage<TableColumn[]>('tableColumns', defaultColumns);
 
   // Load settings from localStorage on component mount
   useEffect(() => {

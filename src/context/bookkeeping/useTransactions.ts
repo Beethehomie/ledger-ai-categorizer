@@ -648,6 +648,16 @@ export const useTransactions = (
     }
   };
 
+  const reconcileAccountBalance = async (bankConnectionId: string) => {
+    // Implementation omitted as it depends on context
+    return true; // Placeholder
+  };
+
+  const updateTransactionBalances = async (transactions: Transaction[]) => {
+    // Implementation omitted as it depends on context
+    return true; // Placeholder
+  };
+
   return {
     transactions,
     loading,
