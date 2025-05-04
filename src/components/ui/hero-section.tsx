@@ -1,6 +1,6 @@
 
 import React from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { ArrowRight, ChevronRight, Menu, X } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { AnimatedGroup } from '@/components/ui/animated-group';
@@ -79,7 +79,7 @@ export function HeroSection() {
                             <div className="text-center sm:mx-auto lg:mr-auto lg:mt-0">
                                 <AnimatedGroup variants={transitionVariants}>
                                     <Link
-                                        href="#link"
+                                        to="#link"
                                         className="hover:bg-background dark:hover:border-t-border bg-muted group mx-auto flex w-fit items-center gap-4 rounded-full border p-1 pl-4 shadow-md shadow-black/5 transition-all duration-300 dark:border-t-white/5 dark:shadow-zinc-950">
                                         <span className="text-foreground text-sm">Introducing Support for AI Models</span>
                                         <span className="dark:border-background block h-4 w-0.5 border-l bg-white dark:bg-zinc-700"></span>
@@ -126,7 +126,7 @@ export function HeroSection() {
                                             asChild
                                             size="lg"
                                             className="rounded-xl px-5 text-base">
-                                            <Link href="#link">
+                                            <Link to="#link">
                                                 <span className="text-nowrap">Start Building</span>
                                             </Link>
                                         </Button>
@@ -137,7 +137,7 @@ export function HeroSection() {
                                         size="lg"
                                         variant="ghost"
                                         className="h-10.5 rounded-xl px-5">
-                                        <Link href="#link">
+                                        <Link to="#link">
                                             <span className="text-nowrap">Request a demo</span>
                                         </Link>
                                     </Button>
@@ -186,7 +186,7 @@ export function HeroSection() {
                     <div className="group relative m-auto max-w-5xl px-6">
                         <div className="absolute inset-0 z-10 flex scale-95 items-center justify-center opacity-0 duration-500 group-hover:scale-100 group-hover:opacity-100">
                             <Link
-                                href="/"
+                                to="/"
                                 className="block text-sm duration-150 hover:opacity-75">
                                 <span> Meet Our Customers</span>
 
@@ -256,7 +256,7 @@ const HeroHeader = () => {
                     <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
                         <div className="flex w-full justify-between lg:w-auto">
                             <Link
-                                href="/"
+                                to="/"
                                 aria-label="home"
                                 className="flex items-center space-x-2">
                                 <Logo />
@@ -276,7 +276,7 @@ const HeroHeader = () => {
                                 {menuItems.map((item, index) => (
                                     <li key={index}>
                                         <Link
-                                            href={item.href}
+                                            to={item.href}
                                             className="text-muted-foreground hover:text-accent-foreground block duration-150">
                                             <span>{item.name}</span>
                                         </Link>
@@ -291,7 +291,7 @@ const HeroHeader = () => {
                                     {menuItems.map((item, index) => (
                                         <li key={index}>
                                             <Link
-                                                href={item.href}
+                                                to={item.href}
                                                 className="text-muted-foreground hover:text-accent-foreground block duration-150">
                                                 <span>{item.name}</span>
                                             </Link>
@@ -305,7 +305,7 @@ const HeroHeader = () => {
                                     variant="outline"
                                     size="sm"
                                     className={cn(isScrolled && 'lg:hidden')}>
-                                    <Link href="#">
+                                    <Link to="#">
                                         <span>Login</span>
                                     </Link>
                                 </Button>
@@ -313,7 +313,7 @@ const HeroHeader = () => {
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled && 'lg:hidden')}>
-                                    <Link href="#">
+                                    <Link to="#">
                                         <span>Sign Up</span>
                                     </Link>
                                 </Button>
@@ -321,7 +321,7 @@ const HeroHeader = () => {
                                     asChild
                                     size="sm"
                                     className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
-                                    <Link href="#">
+                                    <Link to="#">
                                         <span>Get Started</span>
                                     </Link>
                                 </Button>

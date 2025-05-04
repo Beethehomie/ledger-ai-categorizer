@@ -39,7 +39,7 @@ export async function findSimilarVendors(text: string, limit: number = 5, thresh
     
     const { data, error } = await supabase
       .rpc('match_vendors', {
-        query_embedding: embedding as unknown as any, // Type assertion to bypass TypeScript's type checking
+        query_embedding: embedding,
         match_threshold: threshold,
         match_count: limit
       });
@@ -65,7 +65,7 @@ export async function findSimilarCategories(text: string, limit: number = 5, thr
     
     const { data, error } = await supabase
       .rpc('match_categories', {
-        query_embedding: embedding as unknown as any, // Type assertion to bypass TypeScript's type checking
+        query_embedding: embedding,
         match_threshold: threshold,
         match_count: limit
       });
