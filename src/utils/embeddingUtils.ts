@@ -56,7 +56,7 @@ export async function findSimilarItems<T>(
     
     // Use type assertion to handle the dynamic procedure name
     const { data, error } = await supabase
-      .rpc(procedure, params as any);
+      .rpc(procedure as any, params);
     
     if (error) {
       throw new Error(`Error finding similar items with ${procedure}: ${error.message}`);

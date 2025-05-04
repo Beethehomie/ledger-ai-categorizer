@@ -114,6 +114,10 @@ export default {
 				'pulse': {
 					'0%, 100%': { opacity: '1' },
 					'50%': { opacity: '0.7' }
+				},
+				'aurora': {
+					from: { 'background-position': '50% 50%, 50% 50%' },
+					to: { 'background-position': '350% 50%, 350% 50%' }
 				}
 			},
 			animation: {
@@ -122,7 +126,8 @@ export default {
 				'fade-in': 'fade-in 0.3s ease-out',
 				'slide-up': 'slide-up 0.4s ease-out',
 				'bounce': 'bounce 2s infinite ease-in-out',
-				'pulse': 'pulse 2s infinite ease-in-out'
+				'pulse': 'pulse 2s infinite ease-in-out',
+				'aurora': 'aurora 60s linear infinite'
 			}
 		}
 	},

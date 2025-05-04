@@ -408,6 +408,20 @@ export type Database = {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: string
       }
+      match_by_embedding: {
+        Args: {
+          source_table: string
+          embedding_column: string
+          return_columns: string
+          query_embedding: string
+          match_threshold?: number
+          match_count?: number
+        }
+        Returns: {
+          result: Json
+          similarity: number
+        }[]
+      }
       match_vendors_by_embedding: {
         Args:
           | { embedding: string }
