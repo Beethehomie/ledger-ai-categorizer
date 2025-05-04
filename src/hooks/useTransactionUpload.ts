@@ -11,12 +11,20 @@ export const useTransactionUpload = () => {
     setIsLoading(true);
 
     try {
+      // Get the current user ID
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+
       // Format transactions for database insertion
       const formattedTransactions = transactions.map(transaction => ({
         date: transaction.date,
         description: transaction.description,
         amount: transaction.amount,
-        user_id: supabase.auth.getUser().then(({ data }) => data.user?.id)
+        user_id: userId
       }));
 
       // Insert transactions in batches of 50
@@ -29,14 +37,13 @@ export const useTransactionUpload = () => {
         
         const { data, error } = await supabase
           .from('transactions')
-          .insert(batch)
-          .select();
+          .insert(batch);
 
         if (error) {
           console.error('Error uploading batch:', error);
           errorCount += batch.length;
-        } else {
-          successCount += data.length;
+        } else if (data) {
+          successCount += batch.length;
         }
       }
 
