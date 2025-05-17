@@ -65,7 +65,7 @@ const ReconcileDialog: React.FC<ReconcileDialogProps> = ({
           <div className="flex flex-col space-y-2">
             <Label htmlFor="calculated-balance">Calculated Balance</Label>
             <div className="flex items-center border rounded-md px-3 py-2 bg-muted/40">
-              <span className="text-muted-foreground">{formatCurrency(currentBalance || 0, currency)}</span>
+              <span className="text-muted-foreground">{formatCurrency(currentBalance || 0, currency.code)}</span>
             </div>
           </div>
           
@@ -73,7 +73,7 @@ const ReconcileDialog: React.FC<ReconcileDialogProps> = ({
             <Label htmlFor="end-balance">Statement Ending Balance</Label>
             <Input
               id="end-balance"
-              placeholder={`Enter balance (e.g., ${formatCurrency(1000, currency)})`}
+              placeholder={`Enter balance (e.g., ${formatCurrency(1000, currency.code)})`}
               value={endBalance}
               onChange={(e) => setEndBalance(e.target.value)}
               className="col-span-3"
@@ -93,7 +93,7 @@ const ReconcileDialog: React.FC<ReconcileDialogProps> = ({
                   <span className="text-sm text-amber-700">
                     Balance difference: {formatCurrency(
                       Math.abs((parseFloat(endBalance.replace(/[^0-9.-]+/g, '')) || 0) - (currentBalance || 0)), 
-                      currency
+                      currency.code
                     )}
                   </span>
                 </>

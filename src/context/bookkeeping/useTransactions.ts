@@ -660,6 +660,55 @@ export const useTransactions = (
     return true; // Placeholder
   };
 
+  const verifyTransaction = async (id: string, category: string, type: Transaction['type'], statementType: Transaction['statementType']) => {
+    try {
+      const { data, error } = await supabase
+        .from('bank_transactions')
+        .update({ 
+          category,
+          type,
+          statement_type: statementType,
+          is_verified: true 
+        })
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error verifying transaction:', error);
+        toast.error(`Failed to verify transaction: ${error.message}`);
+        return false;
+      }
+      
+      await fetchTransactions();
+      return true;
+    } catch (err) {
+      console.error('Error in verifyTransaction:', err);
+      toast.error('An unexpected error occurred when verifying the transaction.');
+      return false;
+    }
+  };
+
+  const verifyVendor = async (vendorName: string, approved: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('vendor_categorizations')
+        .update({ verified: approved })
+        .eq('vendor_name', vendorName);
+      
+      if (error) {
+        console.error('Error verifying vendor:', error);
+        toast.error(`Failed to verify vendor: ${error.message}`);
+        return;
+      }
+      
+      // Refetch vendors after updating
+      await fetchTransactions();
+      toast.success(`Vendor "${vendorName}" has been ${approved ? 'approved' : 'rejected'}`);
+    } catch (err) {
+      console.error('Error in verifyVendor:', err);
+      toast.error('An unexpected error occurred when verifying the vendor.');
+    }
+  };
+
   return {
     transactions,
     loading,
@@ -676,6 +725,8 @@ export const useTransactions = (
     fetchTransactions,
     deleteTransaction,
     recalculateRunningBalances,
-    getBankAccountIdFromConnection: getAccountIdFromConnection
+    getBankAccountIdFromConnection: getAccountIdFromConnection,
+    verifyTransaction,
+    verifyVendor
   };
 };

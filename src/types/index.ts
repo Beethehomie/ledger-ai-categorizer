@@ -2,7 +2,7 @@
 // Basic type definitions
 export type TransactionType = "income" | "expense" | "asset" | "liability" | "transfer" | "equity";
 export type StatementType = "profit_loss" | "balance_sheet";
-export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR";
+export type Currency = "USD" | "EUR" | "GBP" | "JPY" | "AUD" | "CAD" | "CHF" | "CNY" | "INR" | string;
 
 // Transaction types
 export interface Transaction {
@@ -90,7 +90,7 @@ export interface TableColumn {
   id: string;
   label: string;
   visible: boolean;
-  name?: string; // Add name property since it's being used in the code
+  name?: string;
 }
 
 export interface Column {
@@ -103,7 +103,7 @@ export interface ChartSectionProps {
   data: any[];
   title: string;
   description?: string;
-  refreshing?: boolean; // Add refreshing property
+  refreshing?: boolean;
 }
 
 export interface CurrencySettings {
@@ -112,7 +112,7 @@ export interface CurrencySettings {
   position: 'before' | 'after';
   dateFormat: string;
   locale: string;
-  decimalPlaces?: number; // Add decimalPlaces property
+  decimalPlaces?: number;
 }
 
 // Embedding related types
@@ -124,5 +124,5 @@ export interface EmbeddingResult {
   type?: string;
   statement_type?: string;
   sample_description?: string;
-  vendor?: string; // Add vendor property
+  vendor?: string;
 }

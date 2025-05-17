@@ -13,6 +13,7 @@ export type CurrencySettings = {
 export type TableColumn = {
   id: string;
   name: string;
+  label?: string;
   visible: boolean;
 };
 
@@ -25,6 +26,7 @@ export type SettingsContextType = {
   toggleAdvancedFeatures: () => void;
   tableColumns: TableColumn[];
   setTableColumns: (columns: TableColumn[]) => void;
+  toggleColumn: (columnId: string, visible: boolean) => void;
   defaultDateRange: [Date | null, Date | null];
   setDefaultDateRange: (range: [Date | null, Date | null]) => void;
 };
@@ -43,13 +45,14 @@ const defaultSettings: SettingsContextType = {
   showAdvancedFeatures: false,
   toggleAdvancedFeatures: () => {},
   tableColumns: [
-    { id: 'date', name: 'Date', visible: true },
-    { id: 'description', name: 'Description', visible: true },
-    { id: 'amount', name: 'Amount', visible: true },
-    { id: 'category', name: 'Category', visible: true },
-    { id: 'vendor', name: 'Vendor', visible: true }
+    { id: 'date', name: 'Date', label: 'Date', visible: true },
+    { id: 'description', name: 'Description', label: 'Description', visible: true },
+    { id: 'amount', name: 'Amount', label: 'Amount', visible: true },
+    { id: 'category', name: 'Category', label: 'Category', visible: true },
+    { id: 'vendor', name: 'Vendor', label: 'Vendor', visible: true }
   ],
   setTableColumns: () => {},
+  toggleColumn: () => {},
   defaultDateRange: [null, null],
   setDefaultDateRange: () => {},
 };
@@ -111,6 +114,12 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     setShowAdvancedFeatures(!showAdvancedFeatures);
   };
 
+  const toggleColumn = (columnId: string, visible: boolean) => {
+    setTableColumns(tableColumns.map(col => 
+      col.id === columnId ? { ...col, visible } : col
+    ));
+  };
+
   // Combine all the state and functions
   const value = {
     darkMode,
@@ -121,6 +130,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     toggleAdvancedFeatures,
     tableColumns,
     setTableColumns,
+    toggleColumn,
     defaultDateRange,
     setDefaultDateRange,
   };

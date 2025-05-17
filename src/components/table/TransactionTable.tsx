@@ -1,39 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
+  TableHead,
   TableHeader,
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Transaction } from "@/types";
+import {
+  CheckCircle,
+  Sparkles,
+  Store,
+  Building,
+  Download,
+  RefreshCw,
+  Scale,
+  Edit,
+  CheckCircle2,
+  AlertCircle,
+  Plus
+} from "lucide-react";
+import { Transaction, Category, Vendor, VendorItem, TableColumn } from "@/types";
 import { useBookkeeping } from "@/context/BookkeepingContext";
 import { useSettings } from "@/context/SettingsContext";
+import { cn } from '@/lib/utils';
 import { toast } from '@/utils/toast';
-import { isBalanceReconciled } from '@/utils/csvParser';
-import { TooltipProvider } from "@/components/ui/tooltip";
-import TableHeaderComponent from './TableHeader';
-import TransactionRow from './TransactionRow';
-import { useTableSort } from '@/hooks/useTableSort';
-import { useTransactionFilter } from '@/hooks/useTransactionFilter';
-import ReconcileDialog from '../ReconcileDialog';
-import VendorNameEditor from '../vendor/VendorNameEditor';
-import BusinessContextQuestionnaire from '../business/BusinessContextQuestionnaire';
-import { exportToCSV } from '@/utils/csvParser';
-import ConfidenceScore from './ConfidenceScore';
-import { supabase } from '@/integrations/supabase/client';
-import { logError } from '@/utils/errorLogger';
-import { useAuth } from '@/hooks/auth';
+import { formatCurrency, formatDate } from '@/utils/currencyUtils';
+import ColumnSelector, { Column } from './ColumnSelector';
+import ReconcileDialog from './ReconcileDialog';
+import { exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import VendorEditor from './VendorEditor';
+import TableHeaderComponent from './table/TableHeader';
+import TransactionRow from './table/TransactionRow';
+import ConfidenceScore from './table/ConfidenceScore';
 
 interface TransactionTableProps {
   filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor' | 'review';
@@ -51,11 +59,13 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   expectedEndBalance
 }) => {
   const { 
-    updateTransaction,
-    deleteTransaction,
-    vendors,
+    categories, 
+    verifyTransaction, 
+    analyzeTransactionWithAI,
+    aiAnalyzeLoading,
     getBankConnectionById,
-    getVendorsList
+    updateTransaction,
+    vendors
   } = useBookkeeping();
   
   const {
@@ -64,33 +74,156 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     toggleColumn
   } = useSettings();
   
-  // Add the session from useAuth hook
-  const { session } = useAuth();
-
-  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [sortField, setSortField] = useState<string>('date');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [isReconcileDialogOpen, setIsReconcileDialogOpen] = useState(false);
-  const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
-  const [currentTransaction, setCurrentTransaction] = useState<Transaction | undefined>();
   const [reconciliationBalance, setReconciliationBalance] = useState<number | undefined>(expectedEndBalance);
-  const [allVendors, setAllVendors] = useState<string[]>([]);
-  const [processing, setProcessing] = useState(false);
+  const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  
+  const filteredTransactions = transactions.filter(transaction => {
+    if (filter === 'unverified') {
+      return !transaction.isVerified;
+    } else if (filter === 'profit_loss') {
+      return transaction.statementType === 'profit_loss';
+    } else if (filter === 'balance_sheet') {
+      return transaction.statementType === 'balance_sheet';
+    } else if (filter === 'by_vendor' && vendorName) {
+      return transaction.vendor === vendorName;
+    } else if (filter === 'review') {
+      return transaction.confidenceScore !== undefined && transaction.confidenceScore < 0.5 && !transaction.isVerified;
+    }
+    return true;
+  });
 
-  const { sortField, sortDirection, handleSort, sortTransactions } = useTableSort();
-  const { filterTransactions } = useTransactionFilter();
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    if (sortField === 'date') {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+    } else if (sortField === 'amount') {
+      return sortDirection === 'asc' ? a.amount - b.amount : b.amount - a.amount;
+    } else if (sortField === 'description') {
+      return sortDirection === 'asc'
+        ? a.description.localeCompare(b.description)
+        : b.description.localeCompare(a.description);
+    } else if (sortField === 'vendor') {
+      return sortDirection === 'asc'
+        ? (a.vendor || '').localeCompare(b.vendor || '')
+        : (b.vendor || '').localeCompare(a.vendor || '');
+    }
+    return 0;
+  });
 
-  useEffect(() => {
-    const vendorNames = vendors.map(v => v.name);
-    const transactionVendors = transactions
-      .map(t => t.vendor)
-      .filter((v): v is string => v !== undefined && v !== null && v !== "");
+  const handleSort = (field: string) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const categoriesByType: Record<string, Category[]> = {
+    income: categories.filter(c => c.type === 'income'),
+    expense: categories.filter(c => c.type === 'expense'),
+    asset: categories.filter(c => c.type === 'asset'),
+    liability: categories.filter(c => c.type === 'liability'),
+    equity: categories.filter(c => c.type === 'equity'),
+  };
+
+  const handleVerify = (transaction: Transaction, categoryName: string) => {
+    const selectedCategory = categories.find(c => c.name === categoryName);
+    if (selectedCategory) {
+      verifyTransaction(
+        transaction.id,
+        categoryName,
+        selectedCategory.type,
+        selectedCategory.statementType
+      );
+    }
+  };
+
+  const handleAIAnalyze = async (transaction: Transaction) => {
+    setProcessingId(transaction.id);
+    try {
+      const result = await analyzeTransactionWithAI(transaction);
+      
+      if (result && result.category) {
+        toast.success(
+          `AI Suggestion: ${result.category} (Confidence: ${Math.round(result.confidence * 100)}%)`
+        );
+      } else {
+        toast.error('Could not get AI suggestion for this transaction');
+      }
+    } catch (error) {
+      console.error('Error in AI analysis:', error);
+      toast.error('Failed to analyze transaction with AI');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const getBankName = (transaction: Transaction) => {
+    if (!transaction.bankAccountId) return "Unknown";
     
-    const combinedVendors = Array.from(new Set([...vendorNames, ...transactionVendors]));
-    
-    setAllVendors(combinedVendors);
-  }, [vendors, transactions]);
+    const connection = getBankConnectionById(transaction.bankAccountId);
+    return connection?.display_name || connection?.bank_name || "Unknown";
+  };
 
-  const filteredTransactions = filterTransactions(transactions, filter, vendorName);
-  const sortedTransactions = sortTransactions(filteredTransactions);
+  const handleVendorChange = (transaction: Transaction, vendorName: string) => {
+    if (vendorName === 'add-new') {
+      setIsVendorEditorOpen(true);
+      return;
+    }
+    
+    const updatedTransaction = { ...transaction, vendor: vendorName };
+    updateTransaction(updatedTransaction);
+    
+    const vendorInfo = vendors.find(v => v.name === vendorName);
+    if (vendorInfo && vendorInfo.category && !transaction.isVerified) {
+      verifyTransaction(
+        transaction.id,
+        vendorInfo.category,
+        vendorInfo.type,
+        vendorInfo.statementType
+      );
+    }
+  };
+
+  const handleAddVendor = async (newVendor: Vendor) => {
+    if (vendors.some(v => v.name === newVendor.name)) {
+      toast.error(`Vendor "${newVendor.name}" already exists`);
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newVendor),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add vendor');
+      }
+      
+      toast.success(`Added new vendor: ${newVendor.name}`);
+      setIsVendorEditorOpen(false);
+      
+      if (onRefresh) {
+        onRefresh();
+      }
+      
+    } catch (err) {
+      console.error('Error adding vendor:', err);
+      toast.error('Failed to add vendor. Please try again.');
+    }
+  };
 
   const handleReconcile = (endBalance: number) => {
     setReconciliationBalance(endBalance);
@@ -118,31 +251,45 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     }
   };
 
-  const handleVendorChange = (transaction: Transaction, vendorName: string) => {
-    if (vendorName === 'add-new') {
-      setCurrentTransaction(transaction);
-      setIsVendorEditorOpen(true);
-      return;
+  const isAccountReconciled = reconciliationBalance !== undefined && 
+                              transactions.length > 0 && 
+                              isBalanceReconciled(transactions, reconciliationBalance);
+
+  const renderConfidenceScore = (score?: number) => {
+    if (score === undefined) return null;
+    
+    const scorePercent = Math.round(score * 100);
+    let color = 'text-finance-red';
+    
+    if (scorePercent >= 90) {
+      color = 'text-finance-green';
+    } else if (scorePercent >= 70) {
+      color = 'text-finance-yellow';
+    } else if (scorePercent >= 50) {
+      color = 'text-amber-500';
     }
     
-    const updatedTransaction = { ...transaction, vendor: vendorName };
-    updateTransaction(updatedTransaction);
+    return (
+      <div className="flex items-center gap-1">
+        <div className={cn("text-xs font-medium", color)}>
+          {scorePercent}%
+        </div>
+        <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div 
+            className={cn("h-full rounded-full", color.replace('text', 'bg'))} 
+            style={{ width: `${scorePercent}%` }}
+          ></div>
+        </div>
+      </div>
+    );
   };
 
-  const getBankName = (transaction: Transaction) => {
-    if (!transaction.bankAccountId) return "Unknown";
-    const connection = getBankConnectionById(transaction.bankAccountId);
-    return connection?.display_name || connection?.bank_name || "Unknown";
-  };
+  const uniqueVendors = Array.from(new Set(transactions.map(t => t.vendor).filter(Boolean) as string[])).sort();
 
-  const isAccountReconciled = reconciliationBalance !== undefined && 
-    transactions.length > 0 && 
-    isBalanceReconciled(transactions, reconciliationBalance);
-
-  const mapTableColumnsToColumnSelector = () => {
+  const mapTableColumnsToColumnSelector = (): Column[] => {
     return tableColumns.map(col => ({
       id: col.id,
-      label: col.label || col.name,
+      label: col.name || col.id, // Use name as label or fallback to id
       visible: col.visible
     }));
   };
@@ -151,220 +298,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     const column = tableColumns.find(col => col.id === columnId);
     if (column) {
       toggleColumn(columnId, !column.visible);
-    }
-  };
-
-  const handleSelectTransaction = (transactionId: string, isSelected: boolean) => {
-    setSelectedTransactions(prev => 
-      isSelected 
-        ? [...prev, transactionId]
-        : prev.filter(id => id !== transactionId)
-    );
-  };
-
-  const handleSelectAllTransactions = (checked: boolean) => {
-    if (checked) {
-      setSelectedTransactions(sortedTransactions.map(t => t.id));
-    } else {
-      setSelectedTransactions([]);
-    }
-  };
-
-  const batchExtractVendors = async () => {
-    if (selectedTransactions.length === 0) {
-      toast.error('No transactions selected');
-      return;
-    }
-
-    setProcessing(true);
-    
-    try {
-      // Collect all selected transactions
-      const selectedTxs = transactions.filter(t => selectedTransactions.includes(t.id));
-      
-      if (selectedTxs.length === 0) {
-        throw new Error('No valid transactions selected');
-      }
-      
-      let businessContext = {};
-      let country = "ZA";
-      
-      // Get business context for better categorization
-      if (session?.user) {
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select('business_context')
-          .eq('id', session.user.id)
-          .maybeSingle();
-          
-        if (!error && data?.business_context) {
-          businessContext = data.business_context;
-          // Fix the type issue by safely accessing the country property
-          if (typeof data.business_context === 'object' && data.business_context !== null) {
-            const typedContext = data.business_context as Record<string, any>;
-            country = typedContext.country || "ZA";
-          }
-        }
-      }
-      
-      // Process transactions in batches to avoid timeouts
-      const BATCH_SIZE = 10;
-      let successCount = 0;
-      let failCount = 0;
-      
-      for (let i = 0; i < selectedTxs.length; i += BATCH_SIZE) {
-        const batchTxs = selectedTxs.slice(i, i + BATCH_SIZE);
-        
-        try {
-          // Call the edge function with batch processing
-          const { data, error } = await supabase.functions.invoke('analyze-transaction-vendor', {
-            body: { 
-              transactions: batchTxs,
-              existingVendors: allVendors,
-              country: country,
-              context: businessContext
-            }
-          });
-          
-          if (error) throw error;
-          
-          if (!data || !Array.isArray(data)) {
-            throw new Error('Invalid response from analyze-transaction-vendor');
-          }
-          
-          // Process each result
-          for (const result of data) {
-            if (result.error) {
-              console.error(`Error processing transaction ${result.transactionId}:`, result.error);
-              failCount++;
-              continue;
-            }
-            
-            const transaction = transactions.find(t => t.id === result.transactionId);
-            if (!transaction) {
-              failCount++;
-              continue;
-            }
-            
-            const vendorName = result.vendor;
-            const updatedTransaction = { 
-              ...transaction,
-              vendor: vendorName
-            };
-            
-            if (!result.isExisting && result.category) {
-              updatedTransaction.category = result.category;
-              updatedTransaction.confidenceScore = result.confidence;
-              updatedTransaction.type = result.type;
-              updatedTransaction.statementType = result.statementType;
-            }
-            
-            await updateTransaction(updatedTransaction);
-            successCount++;
-          }
-        } catch (err) {
-          logError("batchProcessTransactions", err);
-          failCount += batchTxs.length;
-        }
-      }
-      
-      if (successCount > 0) {
-        toast.success(`Successfully extracted vendors for ${successCount} transactions`);
-      }
-      
-      if (failCount > 0) {
-        toast.error(`Failed to extract vendors for ${failCount} transactions`);
-      }
-    } catch (err) {
-      logError("batchExtractVendors", err);
-      toast.error('Failed to process batch vendor extraction');
-    } finally {
-      setProcessing(false);
-      setSelectedTransactions([]);
-    }
-  };
-
-  const batchDeleteTransactions = async () => {
-    if (selectedTransactions.length === 0) {
-      toast.error('No transactions selected');
-      return;
-    }
-
-    if (!confirm(`Are you sure you want to delete ${selectedTransactions.length} transactions?`)) {
-      return;
-    }
-
-    setProcessing(true);
-    
-    try {
-      let successCount = 0;
-      let failCount = 0;
-      
-      for (const id of selectedTransactions) {
-        try {
-          await deleteTransaction(id);
-          successCount++;
-        } catch (err) {
-          logError("batchDeleteTransactions", err);
-          failCount++;
-        }
-      }
-      
-      if (successCount > 0) {
-        toast.success(`Successfully deleted ${successCount} transactions`);
-      }
-      
-      if (failCount > 0) {
-        toast.error(`Failed to delete ${failCount} transactions`);
-      }
-    } catch (err) {
-      logError("batchDeleteTransactions", err);
-      toast.error('Failed to process batch deletion');
-    } finally {
-      setProcessing(false);
-      setSelectedTransactions([]);
-    }
-  };
-
-  const batchAssignVendor = async (vendorName: string) => {
-    if (selectedTransactions.length === 0) {
-      toast.error('No transactions selected');
-      return;
-    }
-
-    setProcessing(true);
-    
-    try {
-      let successCount = 0;
-      let failCount = 0;
-      
-      for (const id of selectedTransactions) {
-        const transaction = transactions.find(t => t.id === id);
-        if (!transaction) continue;
-
-        try {
-          const updatedTransaction = { ...transaction, vendor: vendorName };
-          await updateTransaction(updatedTransaction);
-          successCount++;
-        } catch (err) {
-          logError("batchAssignVendor", err);
-          failCount++;
-        }
-      }
-      
-      if (successCount > 0) {
-        toast.success(`Successfully assigned vendor "${vendorName}" to ${successCount} transactions`);
-      }
-      
-      if (failCount > 0) {
-        toast.error(`Failed to assign vendor to ${failCount} transactions`);
-      }
-    } catch (err) {
-      logError("batchAssignVendor", err);
-      toast.error('Failed to process batch vendor assignment');
-    } finally {
-      setProcessing(false);
-      setSelectedTransactions([]);
     }
   };
 
@@ -377,87 +310,73 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           isAccountReconciled={isAccountReconciled}
           onRefresh={handleRefresh}
           onExport={handleExportCSV}
-          onUpload={() => setIsVendorEditorOpen(true)}
+          onUpload={() => setIsUploadDialogOpen(true)}
           onReconcile={() => setIsReconcileDialogOpen(true)}
-          onAddVendor={() => {
-            setCurrentTransaction(undefined);
-            setIsVendorEditorOpen(true);
-          }}
+          onAddVendor={() => setIsVendorEditorOpen(true)}
           onToggleColumn={handleToggleColumn}
           columns={mapTableColumnsToColumnSelector()}
         />
-        
-        {selectedTransactions.length > 0 && (
-          <div className="bg-muted/30 p-3 rounded-md flex items-center justify-between">
-            <div>
-              <span className="font-medium">{selectedTransactions.length} transactions selected</span>
-            </div>
-            <div className="flex gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={processing}>
-                    Batch Actions
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Batch Actions</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={batchExtractVendors}>
-                    Extract Vendors
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsVendorEditorOpen(true)}>
-                    Assign Vendor
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={batchDeleteTransactions}
-                  >
-                    Delete Transactions
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setSelectedTransactions([])}
-                disabled={processing}
-              >
-                Clear Selection
-              </Button>
-            </div>
-          </div>
-        )}
         
         <div className="w-full overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableCell className="w-10 p-4">
-                  <Checkbox 
-                    checked={selectedTransactions.length > 0 && selectedTransactions.length === sortedTransactions.length}
-                    onCheckedChange={handleSelectAllTransactions}
-                    aria-label="Select all transactions"
-                    disabled={processing}
-                  />
-                </TableCell>
-                {tableColumns.filter(column => column.visible).map(column => (
-                  <TableCell 
-                    key={column.id} 
-                    className="cursor-pointer"
-                    onClick={() => handleSort(column.id)}
-                  >
-                    {column.name || column.label} 
-                    {sortField === column.id && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
-                  </TableCell>
-                ))}
+                {tableColumns.find(col => col.id === 'date')?.visible && (
+                  <TableHead className="w-[100px] cursor-pointer" onClick={() => handleSort('date')}>
+                    Date {sortField === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'description')?.visible && (
+                  <TableHead className="cursor-pointer" onClick={() => handleSort('description')}>
+                    Description {sortField === 'description' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'vendor')?.visible && (
+                  <TableHead className="cursor-pointer" onClick={() => handleSort('vendor')}>
+                    Vendor {sortField === 'vendor' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'amount')?.visible && (
+                  <TableHead className="cursor-pointer text-right" onClick={() => handleSort('amount')}>
+                    Amount {sortField === 'amount' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'category')?.visible && (
+                  <TableHead>Category</TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'statementType')?.visible && (
+                  <TableHead>Statement Type</TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'bankAccount')?.visible && (
+                  <TableHead>Bank Account</TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'balance')?.visible && (
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {isAccountReconciled && (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      )}
+                      Running Balance
+                    </div>
+                  </TableHead>
+                )}
+                
+                {tableColumns.find(col => col.id === 'confidence')?.visible !== false && (
+                  <TableHead>Confidence</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={tableColumns.filter(col => col.visible).length + 2} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={tableColumns.filter(col => col.visible).length + 1} className="text-center py-6 text-muted-foreground">
                     No transactions to display
                   </TableCell>
                 </TableRow>
@@ -468,14 +387,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                     transaction={transaction}
                     currency={currency}
                     tableColumns={tableColumns}
-                    uniqueVendors={allVendors}
+                    uniqueVendors={uniqueVendors}
                     onVendorChange={handleVendorChange}
                     getBankName={getBankName}
                     renderConfidenceScore={(score) => (
                       <ConfidenceScore score={score} />
                     )}
-                    isSelected={selectedTransactions.includes(transaction.id)}
-                    onSelectChange={handleSelectTransaction}
                   />
                 ))
               )}
@@ -490,19 +407,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           onReconcile={handleReconcile}
         />
         
-        <VendorNameEditor
+        <VendorEditor
           isOpen={isVendorEditorOpen}
           onClose={() => setIsVendorEditorOpen(false)}
-          onSave={(vendor) => {
-            if (selectedTransactions.length > 0) {
-              batchAssignVendor(vendor.name);
-            } else {
-              if (onRefresh) onRefresh();
-            }
-            setIsVendorEditorOpen(false);
-          }}
-          isProcessing={processing}
-          transaction={currentTransaction}
+          onSave={handleAddVendor}
         />
       </div>
     </TooltipProvider>

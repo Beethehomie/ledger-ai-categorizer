@@ -379,7 +379,10 @@ const AdminContent: React.FC = () => {
               )}
             </Button>
           </div>
-          <VendorKeywordsList />
+          <VendorKeywordsList
+            vendorName="default"
+            onClose={() => {}}
+          />
         </TabsContent>
         
         <TabsContent value="subscribers" className="border rounded-lg p-4">

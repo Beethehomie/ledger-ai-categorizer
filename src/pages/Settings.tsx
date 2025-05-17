@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,12 +32,18 @@ const SettingsPage: React.FC = () => {
     // Validate that the currency is one of the allowed types
     const validCurrencies: Currency[] = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'CNY', 'INR'];
     if (validCurrencies.includes(value as Currency)) {
-      setCurrency(value as Currency);
+      setCurrency({
+        ...currency,
+        code: value as Currency
+      });
       toast.success(`Currency updated to ${value}`);
     } else {
       console.error(`Invalid currency: ${value}`);
       // Default to USD if invalid
-      setCurrency('USD');
+      setCurrency({
+        ...currency,
+        code: 'USD'
+      });
     }
   };
 
@@ -235,7 +240,7 @@ const SettingsPage: React.FC = () => {
                       <Tooltip key={curr}>
                         <TooltipTrigger asChild>
                           <Button
-                            variant={currency === curr ? "default" : "outline"}
+                            variant={currency.code === curr ? "default" : "outline"}
                             size="sm"
                             onClick={() => handleSetCurrency(curr)}
                             className="rounded-xl hover-scale"

@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import Dashboard from '@/components/Dashboard';
 import { User, LogOut, Wallet, PieChart, FileText, Settings, ShieldAlert, Download, Upload, CreditCard, RefreshCw, AlertTriangle, Briefcase } from 'lucide-react';
@@ -49,7 +48,10 @@ const Index = () => {
                 Upload CSV
               </Button>
               
-              <CurrencySelector value={currency} onChange={setCurrency} />
+              <CurrencySelector 
+                value={currency.code}
+                onChange={(value) => setCurrency({...currency, code: value})}
+              />
               
               <div className="flex items-center gap-2">
                 <div className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-all cursor-pointer">
