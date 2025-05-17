@@ -34,14 +34,14 @@ import { useSettings } from "@/context/SettingsContext";
 import { cn } from '@/lib/utils';
 import { toast } from '@/utils/toast';
 import { formatCurrency, formatDate } from '@/utils/currencyUtils';
-import ColumnSelector, { Column } from './ColumnSelector';
-import ReconcileDialog from './ReconcileDialog';
+import { TableHeader } from "@/components/table/TableHeader";
+import { TransactionRow } from "@/components/table/TransactionRow";
+import ConfidenceScore from "@/components/table/ConfidenceScore";
+import { ColumnSelector } from "@/components/table/ColumnSelector";
+import { ReconcileDialog } from "@/components/table/ReconcileDialog";
+import { VendorEditor } from "@/components/table/VendorEditor";
 import { exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import VendorEditor from './VendorEditor';
-import TableHeaderComponent from './table/TableHeader';
-import TransactionRow from './table/TransactionRow';
-import ConfidenceScore from './table/ConfidenceScore';
 
 interface TransactionTableProps {
   filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor' | 'review';
@@ -304,7 +304,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   return (
     <TooltipProvider>
       <div className="space-y-4 animate-fade-in">
-        <TableHeaderComponent
+        <TableHeader
           filter={filter}
           vendorName={vendorName}
           isAccountReconciled={isAccountReconciled}
