@@ -11,13 +11,17 @@ const ConfidenceScore: React.FC<ConfidenceScoreProps> = ({ score }) => {
   
   const scorePercent = Math.round(score * 100);
   let color = 'text-finance-red';
+  let bgColor = 'bg-red-500';
   
   if (scorePercent >= 90) {
-    color = 'text-finance-green';
+    color = 'text-green-600';
+    bgColor = 'bg-green-500';
   } else if (scorePercent >= 70) {
-    color = 'text-finance-yellow';
+    color = 'text-yellow-600';
+    bgColor = 'bg-yellow-500';
   } else if (scorePercent >= 50) {
     color = 'text-amber-500';
+    bgColor = 'bg-amber-500';
   }
   
   return (
@@ -27,9 +31,9 @@ const ConfidenceScore: React.FC<ConfidenceScoreProps> = ({ score }) => {
       </div>
       <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
         <div 
-          className={cn("h-full rounded-full", color.replace('text', 'bg'))} 
+          className={cn("h-full rounded-full", bgColor)} 
           style={{ width: `${scorePercent}%` }}
-        />
+        ></div>
       </div>
     </div>
   );

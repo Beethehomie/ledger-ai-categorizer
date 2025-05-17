@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -122,6 +123,7 @@ const VendorKeywordsList: React.FC<VendorKeywordsListProps> = ({ vendorName, onC
     }
   };
 
+  // Create a typed similarity object with optional confidence
   const similarity = similarVendor ? {
     vendor_name: similarVendor.vendor_name,
     category: similarVendor.category,
@@ -135,15 +137,13 @@ const VendorKeywordsList: React.FC<VendorKeywordsListProps> = ({ vendorName, onC
     updated_at: similarVendor.updated_at,
     last_used: similarVendor.last_used,
     id: similarVendor.id,
-    // Add confidence here
     confidence: similarVendor.confidence
   } : null;
 
-  // Wherever confidence is used, we need to make sure it's properly typed
-  // These are the lines that need fixing:
-  const confidenceScore = similarVendor?.confidence || 0;
-  // And:
-  const confidencePercent = Math.round((similarity?.confidence || 0) * 100);
+  // Use optional chaining and nullish coalescing for confidence
+  const confidenceScore = similarVendor?.confidence ?? 0;
+  // And safely access confidence with nullish coalescing
+  const confidencePercent = Math.round((similarity?.confidence ?? 0) * 100);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewKeyword(e.target.value);
@@ -190,8 +190,8 @@ const VendorKeywordsList: React.FC<VendorKeywordsListProps> = ({ vendorName, onC
               <h4 className="text-md font-semibold mb-2">Similar Vendor:</h4>
               <p>Name: {similarVendor.vendor_name}</p>
               <p>Category: {similarVendor.category}</p>
-              {/* Display other relevant details */}
-              {similarity && similarity.confidence !== undefined && (
+              {/* Display other relevant details with optional chaining */}
+              {similarity?.confidence !== undefined && (
                 <p>Confidence: {confidencePercent}%</p>
               )}
             </div>

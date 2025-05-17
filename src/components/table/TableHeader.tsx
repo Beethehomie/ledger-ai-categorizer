@@ -1,27 +1,29 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import {
+  Download,
+  RefreshCw,
+  Scale,
+  Plus,
+  ArrowUpDown,
+  MoreHorizontal,
+  Store
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { 
-  RefreshCw, 
-  FileDown, 
-  FileUp, 
-  CheckCircle, 
-  MoreVertical, 
-  PlusCircle,
-  CheckSquare 
-} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toast } from '@/utils/toast';
+import { Column } from '@/components/table/ColumnSelector';
 import { cn } from "@/lib/utils";
+import ColumnSelector from './ColumnSelector';
 
 interface TableHeaderProps {
-  filter: string;
+  filter?: string;
   vendorName?: string;
   isAccountReconciled?: boolean;
   onRefresh?: () => void;
@@ -29,9 +31,8 @@ interface TableHeaderProps {
   onUpload?: () => void;
   onReconcile?: () => void;
   onAddVendor?: () => void;
-  onToggleColumn?: (column: string) => void;
-  onBusinessContext?: () => void;
-  columns?: { id: string; label: string; visible: boolean }[];
+  onToggleColumn: (columnId: string) => void;
+  columns: Column[];
 }
 
 const TableHeaderComponent: React.FC<TableHeaderProps> = ({
@@ -44,166 +45,139 @@ const TableHeaderComponent: React.FC<TableHeaderProps> = ({
   onReconcile,
   onAddVendor,
   onToggleColumn,
-  onBusinessContext,
   columns
 }) => {
-  const getTitle = () => {
-    switch (filter) {
-      case 'unverified':
-        return 'Unverified Transactions';
-      case 'profit_loss':
-        return 'Profit & Loss Transactions';
-      case 'balance_sheet':
-        return 'Balance Sheet Transactions';
-      case 'by_vendor':
-        return vendorName ? `Vendor: ${vendorName}` : 'Transactions by Vendor';
-      case 'review':
-        return 'Transactions for Review';
-      default:
-        return 'All Transactions';
-    }
-  };
+  const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false);
+  
+  let title = 'All Transactions';
+  if (filter === 'unverified') title = 'Unverified Transactions';
+  else if (filter === 'profit_loss') title = 'Profit & Loss Transactions';
+  else if (filter === 'balance_sheet') title = 'Balance Sheet Transactions';
+  else if (filter === 'by_vendor' && vendorName) title = `${vendorName} Transactions`;
+  else if (filter === 'review') title = 'Transactions Needing Review';
   
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-      <div>
-        <h3 className="font-semibold text-lg leading-none tracking-tight">
-          {getTitle()}
-          {isAccountReconciled && (
-            <span className="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-              <CheckCircle className="h-3.5 w-3.5 text-green-500 mr-1" />
-              Reconciled
-            </span>
-          )}
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Manage your financial transactions
-        </p>
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+      <div className="flex items-center">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        {isAccountReconciled && (
+          <div className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+            Reconciled
+          </div>
+        )}
       </div>
       
       <div className="flex items-center gap-2">
-        {onExport && (
-          <Button 
-            variant="outline" 
+        {filter === 'by_vendor' && onAddVendor && (
+          <Button
             size="sm"
-            onClick={onExport}
-            className="hidden md:flex"
-          >
-            <FileDown className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-        )}
-        
-        {onUpload && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onUpload}
-            className="hidden md:flex"
-          >
-            <FileUp className="h-4 w-4 mr-2" />
-            Upload
-          </Button>
-        )}
-        
-        {onAddVendor && (
-          <Button 
-            variant="outline" 
-            size="sm"
+            variant="outline"
             onClick={onAddVendor}
-            className="hidden md:flex"
+            className="hidden sm:flex"
           >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Add Vendor
-          </Button>
-        )}
-        
-        {onBusinessContext && (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={onBusinessContext}
-            className="hidden md:flex"
-          >
-            <CheckSquare className="h-4 w-4 mr-2" />
-            Business Context
+            <Store className="h-4 w-4 mr-1" />
+            Edit Vendor
           </Button>
         )}
         
         {onReconcile && (
-          <Button 
-            variant="outline" 
-            size="sm"
+          <Button
+            size="sm" 
+            variant="outline"
             onClick={onReconcile}
-            className="hidden md:flex"
-            disabled={isAccountReconciled}
+            className="hidden sm:flex"
           >
-            <CheckCircle className={cn("h-4 w-4 mr-2", isAccountReconciled && "text-green-500")} />
+            <Scale className="h-4 w-4 mr-1" />
             Reconcile
           </Button>
         )}
         
-        {onRefresh && (
-          <Button 
-            variant="outline" 
-            size="icon"
-            onClick={onRefresh}
+        {onExport && (
+          <Button
+            size="sm" 
+            variant="outline"
+            onClick={onExport}
+            className="hidden sm:flex"
           >
-            <RefreshCw className="h-4 w-4" />
+            <Download className="h-4 w-4 mr-1" />
+            Export
           </Button>
         )}
         
-        {(columns && onToggleColumn) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Columns</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {columns.map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  checked={column.visible}
-                  onCheckedChange={() => onToggleColumn(column.id)}
-                >
-                  {column.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-              
-              <DropdownMenuSeparator />
-              
-              {/* Mobile-only options */}
-              <div className="md:hidden">
-                {onExport && (
-                  <DropdownMenuCheckboxItem onClick={onExport}>
-                    <FileDown className="h-4 w-4 mr-2" /> Export
-                  </DropdownMenuCheckboxItem>
-                )}
-                
-                {onUpload && (
-                  <DropdownMenuCheckboxItem onClick={onUpload}>
-                    <FileUp className="h-4 w-4 mr-2" /> Upload
-                  </DropdownMenuCheckboxItem>
-                )}
-                
-                {onBusinessContext && (
-                  <DropdownMenuCheckboxItem onClick={onBusinessContext}>
-                    <CheckSquare className="h-4 w-4 mr-2" /> Business Context
-                  </DropdownMenuCheckboxItem>
-                )}
-                
-                {onReconcile && (
-                  <DropdownMenuCheckboxItem onClick={onReconcile} disabled={isAccountReconciled}>
-                    <CheckCircle className="h-4 w-4 mr-2" /> Reconcile
-                  </DropdownMenuCheckboxItem>
-                )}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {onRefresh && (
+          <Button
+            size="sm" 
+            variant="outline"
+            onClick={onRefresh}
+            className="hidden sm:flex"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Refresh
+          </Button>
         )}
+        
+        <Popover open={isColumnSelectorOpen} onOpenChange={setIsColumnSelectorOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm" 
+              variant="outline"
+              className="hidden sm:flex"
+            >
+              <ArrowUpDown className="h-4 w-4 mr-1" />
+              Columns
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent side="bottom" align="end" className="w-[200px] p-0">
+            <ColumnSelector columns={columns} onToggle={onToggleColumn} />
+          </PopoverContent>
+        </Popover>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              className="sm:hidden"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              Actions
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {filter === 'by_vendor' && onAddVendor && (
+              <DropdownMenuItem onClick={onAddVendor}>
+                <Store className="h-4 w-4 mr-2" />
+                Edit Vendor
+              </DropdownMenuItem>
+            )}
+            
+            {onReconcile && (
+              <DropdownMenuItem onClick={onReconcile}>
+                <Scale className="h-4 w-4 mr-2" />
+                Reconcile
+              </DropdownMenuItem>
+            )}
+            
+            {onExport && (
+              <DropdownMenuItem onClick={onExport}>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </DropdownMenuItem>
+            )}
+            
+            {onRefresh && (
+              <DropdownMenuItem onClick={onRefresh}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </DropdownMenuItem>
+            )}
+            
+            <DropdownMenuItem onClick={() => setIsColumnSelectorOpen(true)}>
+              <ArrowUpDown className="h-4 w-4 mr-2" />
+              Columns
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
