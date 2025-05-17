@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Table,
@@ -19,7 +20,7 @@ import { exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ReconcileDialog from './ReconcileDialog';
 import VendorEditor from './table/VendorEditor';
-import ColumnSelector, { Column } from './table/ColumnSelector';
+import { ColumnSelector, Column } from './table/ColumnSelector';
 import ConfidenceScore from './table/ConfidenceScore';
 import { Category, Vendor } from '@/types';
 

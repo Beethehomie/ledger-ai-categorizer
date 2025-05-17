@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Table,
@@ -34,12 +35,12 @@ import { useSettings } from "@/context/SettingsContext";
 import { cn } from '@/lib/utils';
 import { toast } from '@/utils/toast';
 import { formatCurrency, formatDate } from '@/utils/currencyUtils';
-import { TableHeader } from "@/components/table/TableHeader";
-import { TransactionRow } from "@/components/table/TransactionRow";
+import TableHeader from "@/components/table/TableHeader";
+import TransactionRow from "@/components/table/TransactionRow";
 import ConfidenceScore from "@/components/table/ConfidenceScore";
-import { ColumnSelector } from "@/components/table/ColumnSelector";
-import { ReconcileDialog } from "@/components/table/ReconcileDialog";
-import { VendorEditor } from "@/components/table/VendorEditor";
+import { ColumnSelector, Column } from "@/components/table/ColumnSelector";
+import ReconcileDialog from "@/components/table/ReconcileDialog";
+import VendorEditor from "@/components/table/VendorEditor";
 import { exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 

@@ -25,7 +25,7 @@ interface TableHeaderProps {
   columns: Column[];
 }
 
-const TableHeaderComponent: React.FC<TableHeaderProps> = ({
+const TableHeader: React.FC<TableHeaderProps> = ({
   filter,
   vendorName,
   isAccountReconciled,
@@ -111,4 +111,4 @@ const TableHeaderComponent: React.FC<TableHeaderProps> = ({
   );
 };
 
-export default TableHeaderComponent;
+export default TableHeader;

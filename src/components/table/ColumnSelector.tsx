@@ -55,3 +55,5 @@ export const ColumnSelector: React.FC<ColumnSelectorProps> = ({
     </Dialog>
   );
 };
+
+export default ColumnSelector;

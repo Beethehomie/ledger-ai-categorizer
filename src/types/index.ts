@@ -1,4 +1,3 @@
-
 // Basic type definitions
 export type TransactionType = "income" | "expense" | "asset" | "liability" | "transfer" | "equity";
 export type StatementType = "profit_loss" | "balance_sheet";
@@ -88,9 +87,9 @@ export interface FinancialGoal {
 // UI related types
 export interface TableColumn {
   id: string;
-  label: string;
-  visible: boolean;
   name?: string;
+  label?: string;
+  visible: boolean;
 }
 
 export interface Column {
@@ -107,12 +106,13 @@ export interface ChartSectionProps {
 }
 
 export interface CurrencySettings {
-  code: Currency;
+  code: string;
   symbol: string;
-  position: 'before' | 'after';
+  position: 'prefix' | 'suffix';
+  precision: number;
+  decimalSeparator: string;
+  thousandSeparator: string;
   dateFormat: string;
-  locale: string;
-  decimalPlaces?: number;
 }
 
 // Embedding related types

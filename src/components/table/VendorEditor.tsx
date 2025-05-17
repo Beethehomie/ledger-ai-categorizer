@@ -1,137 +1,113 @@
 
 import React, { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Vendor, Transaction } from '@/types';
-import { toast } from '@/utils/toast';
-import { Loader2 } from 'lucide-react';
-import { addVendor } from '@/services/vendorService';
-import { useBookkeeping } from '@/context/BookkeepingContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Vendor } from "@/types";
 
 interface VendorEditorProps {
-  onSave: (vendor: Vendor) => void;
   isOpen: boolean;
   onClose: () => void;
-  isProcessing?: boolean;
-  transaction?: Transaction;
+  onSave: (vendor: Vendor) => void;
 }
 
-const VendorEditor: React.FC<VendorEditorProps> = ({
-  onSave,
-  isOpen,
-  onClose,
-  isProcessing = false,
-  transaction
-}) => {
-  const [newVendor, setNewVendor] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { updateTransaction } = useBookkeeping();
-
-  const handleSave = async () => {
-    if (!newVendor.trim()) {
-      toast.error('Please enter a valid vendor name');
+const VendorEditor: React.FC<VendorEditorProps> = ({ isOpen, onClose, onSave }) => {
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [type, setType] = useState('expense');
+  const [statementType, setStatementType] = useState('profit_loss');
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!name.trim()) {
       return;
     }
-
-    setIsSubmitting(true);
-
-    // Create a default vendor with just the name
-    const vendor: Vendor = {
-      name: newVendor.trim(),
-      category: transaction?.category || '', // Use transaction category if available
-      type: transaction?.type || 'expense', // Use transaction type if available
-      statementType: transaction?.statementType || 'profit_loss', // Use transaction statement type if available
-      occurrences: 1,
-      verified: false
-    };
-
-    try {
-      // Save directly to database through service
-      const result = await addVendor(vendor);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to add vendor');
-      }
-      
-      // Update the transaction with the new vendor if provided
-      if (transaction) {
-        const updatedTransaction = {
-          ...transaction,
-          vendor: vendor.name,
-          vendorVerified: false
-        };
-        await updateTransaction(updatedTransaction);
-      }
-      
-      // Call the onSave callback to update local state
-      onSave(vendor);
-      toast.success(`Vendor "${vendor.name}" added successfully`);
-      handleDialogClose();
-    } catch (error) {
-      console.error('Error saving vendor:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save vendor');
-      setIsSubmitting(false);
-    }
+    
+    onSave({
+      name,
+      category,
+      type: type as 'expense' | 'income' | 'asset' | 'liability' | 'equity',
+      statementType: statementType as 'profit_loss' | 'balance_sheet'
+    });
+    
+    setName('');
+    setCategory('');
+    setType('expense');
+    setStatementType('profit_loss');
   };
-  
-  // Reset form when dialog closes
-  const handleDialogClose = () => {
-    setNewVendor('');
-    setIsSubmitting(false);
-    onClose();
-  };
-
-  const isLoading = isSubmitting || isProcessing;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Vendor</DialogTitle>
-          <DialogDescription>
-            Enter the vendor name. The category and type will be determined when categorizing transactions.
-          </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="vendor-name" className="text-right">
-              Vendor Name
-            </Label>
-            <Input
-              id="vendor-name"
-              value={newVendor}
-              onChange={(e) => setNewVendor(e.target.value)}
-              className="col-span-3"
-              placeholder="Enter vendor name"
-              autoFocus
-              disabled={isLoading}
-            />
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="vendor-name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="vendor-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="vendor-category" className="text-right">
+                Category
+              </Label>
+              <Input
+                id="vendor-category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="vendor-type" className="text-right">
+                Type
+              </Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="asset">Asset</SelectItem>
+                  <SelectItem value="liability">Liability</SelectItem>
+                  <SelectItem value="equity">Equity</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="vendor-statement-type" className="text-right">
+                Statement Type
+              </Label>
+              <Select value={statementType} onValueChange={setStatementType}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="profit_loss">Profit & Loss</SelectItem>
+                  <SelectItem value="balance_sheet">Balance Sheet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleDialogClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Add Vendor'
-            )}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit">Add Vendor</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

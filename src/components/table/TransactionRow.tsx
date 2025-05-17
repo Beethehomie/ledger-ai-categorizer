@@ -2,7 +2,7 @@
 import React from 'react';
 import { TableRow, TableCell } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/utils/currencyUtils";
-import { Transaction, Currency, CurrencySettings, TableColumn } from "@/types";
+import { Transaction, TableColumn, CurrencySettings } from "@/types";
 import {
   Select,
   SelectContent,
@@ -10,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckCircle, AlertTriangle } from "lucide-react";
 import { cn } from '@/lib/utils';
 
 interface TransactionRowProps {
@@ -34,7 +33,6 @@ const TransactionRow: React.FC<TransactionRowProps> = ({
 }) => {
   return (
     <TableRow
-      key={transaction.id}
       className={cn(
         "hover:bg-muted/30 transition-colors",
         transaction.isVerified ? "bg-green-50/30" : ""
