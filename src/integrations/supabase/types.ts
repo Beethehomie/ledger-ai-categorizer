@@ -77,7 +77,7 @@ export type Database = {
       }
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: string
+        Returns: unknown
       }
       match_by_embedding: {
         Args: {
@@ -106,15 +106,7 @@ export type Database = {
               match_threshold: number
               match_count: number
             }
-        Returns: {
-          id: string
-          vendor_name: string
-          category: string
-          type: string
-          sample_description: string
-          statement_type: string
-          similarity: number
-        }[]
+        Returns: undefined
       }
       sparsevec_out: {
         Args: { "": unknown }

@@ -1,100 +1,81 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Currency, CurrencySettings, FinancialGoal, TableColumn } from '@/types';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { currencySettings } from '@/utils/currencyUtils';
-import { toast } from '@/utils/toast';
 
-interface SettingsContextType {
-  currency: Currency;
-  setCurrency: (currency: Currency) => void;
-  darkMode: boolean;
-  toggleDarkMode: () => void;
-  dateRange: {
-    startDate: Date | undefined;
-    endDate: Date | undefined;
-  };
-  setDateRange: (startDate: Date | undefined, endDate: Date | undefined) => void;
-  financialGoal: FinancialGoal;
-  updateFinancialGoal: (goal: FinancialGoal) => void;
-  tableColumns: TableColumn[];
-  toggleColumn: (columnId: string, visible: boolean) => void;
-  resetColumns: () => void;
-}
-
-const defaultGoal: FinancialGoal = {
-  id: 'default-goal',
-  name: 'Financial Goal',
-  targetAmount: 100000,
-  currentAmount: 45000,
+// Define types for our settings
+export type CurrencySettings = {
+  symbol: string;
+  code: string;
+  name: string;
+  decimalPlaces: number;
 };
 
-const defaultColumns: TableColumn[] = [
-  { id: 'date', label: 'Date', visible: true },
-  { id: 'description', label: 'Description', visible: true },
-  { id: 'vendor', label: 'Vendor', visible: true },
-  { id: 'amount', label: 'Amount', visible: true },
-  { id: 'category', label: 'Category', visible: true },
-  { id: 'statementType', label: 'Statement Type', visible: true },
-  { id: 'bankAccount', label: 'Bank Account', visible: true },
-  { id: 'status', label: 'Status', visible: true },
-  { id: 'actions', label: 'Actions', visible: true },
-];
+export type TableColumn = {
+  id: string;
+  name: string;
+  visible: boolean;
+};
 
-const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+export type SettingsContextType = {
+  darkMode: boolean;
+  toggleDarkMode: () => void;
+  currency: CurrencySettings;
+  setCurrency: (currency: CurrencySettings) => void;
+  showAdvancedFeatures: boolean;
+  toggleAdvancedFeatures: () => void;
+  tableColumns: TableColumn[];
+  setTableColumns: (columns: TableColumn[]) => void;
+  defaultDateRange: [Date | null, Date | null];
+  setDefaultDateRange: (range: [Date | null, Date | null]) => void;
+};
+
+// Default settings values
+const defaultSettings: SettingsContextType = {
+  darkMode: false,
+  toggleDarkMode: () => {},
+  currency: {
+    symbol: '$',
+    code: 'USD',
+    name: 'US Dollar',
+    decimalPlaces: 2
+  },
+  setCurrency: () => {},
+  showAdvancedFeatures: false,
+  toggleAdvancedFeatures: () => {},
+  tableColumns: [
+    { id: 'date', name: 'Date', visible: true },
+    { id: 'description', name: 'Description', visible: true },
+    { id: 'amount', name: 'Amount', visible: true },
+    { id: 'category', name: 'Category', visible: true },
+    { id: 'vendor', name: 'Vendor', visible: true }
+  ],
+  setTableColumns: () => {},
+  defaultDateRange: [null, null],
+  setDefaultDateRange: () => {},
+};
+
+// Create the settings context
+const SettingsContext = createContext<SettingsContextType>(defaultSettings);
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currency, setCurrency] = useLocalStorage<Currency>('currency', 'USD');
-  const [darkMode, setDarkMode] = useLocalStorage<boolean>('darkMode', false);
-  const [dateRange, setDateRange] = useState<{
-    startDate: Date | undefined;
-    endDate: Date | undefined;
-  }>({
-    startDate: undefined,
-    endDate: undefined,
-  });
-  const [financialGoal, setFinancialGoal] = useLocalStorage<FinancialGoal>('financialGoal', defaultGoal);
-  const [tableColumns, setTableColumns] = useLocalStorage<TableColumn[]>('tableColumns', defaultColumns);
+  // Use localStorage to persist settings
+  const [darkMode, setDarkMode] = useLocalStorage<boolean>('darkMode', defaultSettings.darkMode);
+  const [currency, setCurrency] = useLocalStorage<CurrencySettings>('currency', defaultSettings.currency);
+  const [showAdvancedFeatures, setShowAdvancedFeatures] = useLocalStorage<boolean>(
+    'showAdvancedFeatures', 
+    defaultSettings.showAdvancedFeatures
+  );
+  const [tableColumns, setTableColumns] = useLocalStorage<TableColumn[]>(
+    'tableColumns', 
+    defaultSettings.tableColumns
+  );
+  const [defaultDateRange, setDefaultDateRange] = useLocalStorage<[Date | null, Date | null]>(
+    'defaultDateRange',
+    defaultSettings.defaultDateRange
+  );
 
-  // Load settings from localStorage on component mount
+  // Apply dark mode effect
   useEffect(() => {
-    const savedCurrency = localStorage.getItem('currency');
-    if (savedCurrency && Object.keys(currencySettings).includes(savedCurrency)) {
-      setCurrency(savedCurrency as Currency);
-    }
-
-    const savedDarkMode = localStorage.getItem('darkMode');
-    if (savedDarkMode) {
-      setDarkMode(savedDarkMode === 'true');
-    }
-
-    const savedGoal = localStorage.getItem('financialGoal');
-    if (savedGoal) {
-      try {
-        setFinancialGoal(JSON.parse(savedGoal));
-      } catch (error) {
-        console.error('Error parsing saved goal:', error);
-      }
-    }
-
-    const savedColumns = localStorage.getItem('tableColumns');
-    if (savedColumns) {
-      try {
-        setTableColumns(JSON.parse(savedColumns));
-      } catch (error) {
-        console.error('Error parsing saved columns:', error);
-      }
-    }
-  }, []);
-
-  // Save settings to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('currency', currency);
-  }, [currency]);
-
-  useEffect(() => {
-    localStorage.setItem('darkMode', String(darkMode));
-    
-    // Apply dark mode to the document
     if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -102,48 +83,46 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [darkMode]);
 
+  // Effect to sync with system preference
   useEffect(() => {
-    localStorage.setItem('financialGoal', JSON.stringify(financialGoal));
-  }, [financialGoal]);
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setDarkMode(e.matches);
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [setDarkMode]);
 
+  // Effect to initialize darkMode from system preference if not set
   useEffect(() => {
-    localStorage.setItem('tableColumns', JSON.stringify(tableColumns));
-  }, [tableColumns]);
+    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (localStorage.getItem('darkMode') === null) {
+      setDarkMode(isDarkMode);
+    }
+  }, [setDarkMode]);
 
+  // Toggle functions
   const toggleDarkMode = () => {
-    setDarkMode(prev => !prev);
+    setDarkMode(!darkMode);
   };
 
-  const updateFinancialGoal = (goal: FinancialGoal) => {
-    setFinancialGoal(goal);
+  const toggleAdvancedFeatures = () => {
+    setShowAdvancedFeatures(!showAdvancedFeatures);
   };
 
-  const toggleColumn = (columnId: string, visible: boolean) => {
-    setTableColumns(prev =>
-      prev.map(col => (col.id === columnId ? { ...col, visible } : col))
-    );
-  };
-
-  const resetColumns = () => {
-    setTableColumns(defaultColumns);
-  };
-
-  const handleSetDateRange = (startDate: Date | undefined, endDate: Date | undefined) => {
-    setDateRange({ startDate, endDate });
-  };
-
+  // Combine all the state and functions
   const value = {
-    currency,
-    setCurrency,
     darkMode,
     toggleDarkMode,
-    dateRange,
-    setDateRange: handleSetDateRange,
-    financialGoal,
-    updateFinancialGoal,
+    currency,
+    setCurrency,
+    showAdvancedFeatures,
+    toggleAdvancedFeatures,
     tableColumns,
-    toggleColumn,
-    resetColumns,
+    setTableColumns,
+    defaultDateRange,
+    setDefaultDateRange,
   };
 
   return (
@@ -155,7 +134,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
 export const useSettings = (): SettingsContextType => {
   const context = useContext(SettingsContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useSettings must be used within a SettingsProvider');
   }
   return context;
