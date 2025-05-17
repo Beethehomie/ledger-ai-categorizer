@@ -1,7 +1,6 @@
 
 import { Transaction } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/utils/toast';
 
 /**
  * Process transactions before saving them to the database
@@ -50,7 +49,7 @@ export const saveTransactionsToSupabase = async (
         is_verified: transaction.isVerified || false,
         vendor_verified: transaction.vendorVerified || false,
         confidence_score: transaction.confidenceScore || null,
-        bank_connection_id: transaction.bankAccountId || null,
+        bank_account_id: transaction.bankAccountId || null,
         balance: transaction.balance || null,
         account_id: transaction.accountId || null
       }));
@@ -78,7 +77,7 @@ export const saveTransactionsToSupabase = async (
           vendor: t.vendor || undefined,
           vendorVerified: t.vendor_verified || false,
           confidenceScore: t.confidence_score ? Number(t.confidence_score) : undefined,
-          bankAccountId: t.bank_connection_id || undefined,
+          bankAccountId: t.bank_account_id || undefined,
           balance: t.balance ? Number(t.balance) : undefined,
           accountId: t.account_id || undefined,
         }));
@@ -96,4 +95,42 @@ export const saveTransactionsToSupabase = async (
     console.error('Error in saveTransactionsToSupabase:', err);
     throw err;
   }
+};
+
+export const findDuplicatesInDatabase = async (
+  transactions: Transaction[]
+): Promise<Transaction[]> => {
+  // This is a simplified implementation - in a real app, we'd need
+  // a more sophisticated algorithm to detect duplicates
+  const duplicates: Transaction[] = [];
+  
+  for (const transaction of transactions) {
+    const { data } = await supabase
+      .from('bank_transactions')
+      .select('id, date, description, amount')
+      .eq('date', transaction.date)
+      .eq('amount', transaction.amount)
+      .limit(1);
+      
+    if (data && data.length > 0) {
+      duplicates.push(transaction);
+    }
+  }
+  
+  return duplicates;
+};
+
+export const reconcileAccountBalance = async (
+  bankConnectionId: string
+): Promise<boolean> => {
+  // In a real app, we'd implement logic to check if the account is reconciled
+  return true;
+};
+
+export const getBankAccountIdFromConnection = async (
+  bankConnectionId: string
+): Promise<string | null> => {
+  // In a real app, we'd query the database for the account ID
+  // associated with this bank connection
+  return bankConnectionId;
 };

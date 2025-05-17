@@ -1,14 +1,14 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Transaction, Vendor, FinancialSummary, Category } from '@/types';
 import { toast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
-import { isCSVFormatValid } from '@/utils/csvParser';
+import { calculateRunningBalance, exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
 import { BankConnectionRow } from '@/types/supabase';
 import { processTransactions, saveTransactionsToSupabase } from '@/context/transactionUtils';
+import { findDuplicatesInDatabase, reconcileAccountBalance, getBankAccountIdFromConnection } from '@/services/bookkeepingService';
 
 export const useTransactions = () => {
   const { user } = useAuth();
@@ -16,24 +16,25 @@ export const useTransactions = () => {
   const [loading, setLoading] = useState(true);
   const [bankConnections, setBankConnections] = useState<BankConnectionRow[]>([]);
   const [aiAnalyzeLoading, setAIAnalyzeLoading] = useState(false);
-  const queryClient = useQuery({
+  
+  const { data: queryData } = useQuery({
     queryKey: ['transactions'],
-    queryFn: fetchTransactions,
+    queryFn: async () => await fetchTransactions(),
     enabled: !!user,
-  }).data;
+  });
+
+  useEffect(() => {
+    if (queryData) {
+      setTransactions(queryData);
+      setLoading(false);
+    }
+  }, [queryData]);
 
   useEffect(() => {
     if (user) {
       fetchBankConnections();
     }
   }, [user]);
-
-  useEffect(() => {
-    if (queryClient) {
-      setTransactions(queryClient);
-      setLoading(false);
-    }
-  }, [queryClient]);
 
   const fetchTransactions = useCallback(async () => {
     if (!user) return [];
@@ -171,25 +172,26 @@ export const useTransactions = () => {
   }, [bankConnections]);
 
   const uploadCSV = useCallback(async (
-    preparedTransactions: Transaction[], 
-    bankConnectId?: string,
-    initialBalance?: number,
-    balanceDate?: Date
+    preparedTransactions: Transaction[],
+    bankConnectionId?: string, 
+    initialBalance: number = 0,
+    balanceDate: Date = new Date(),
+    endBalance?: number
   ) => {
     if (!user || !preparedTransactions.length) return;
 
     try {
       let bankAccountId: string | null = null;
       
-      if (bankConnectId) {
+      if (bankConnectionId) {
         // Get account ID from bank connection
-        bankAccountId = await getAccountIdFromConnection(bankConnectId);
+        bankAccountId = await getAccountIdFromConnection(bankConnectionId);
       }
 
       // Add bank account and account ID to transactions
       const transactionsWithAccount = preparedTransactions.map(t => ({
         ...t,
-        bankAccountId: bankConnectId || undefined,
+        bankAccountId: bankConnectionId || undefined,
         accountId: bankAccountId || undefined
       }));
 
@@ -387,7 +389,7 @@ export const useTransactions = () => {
     });
   };
 
-  const getVendorsCount = useCallback((): Record<string, number> => {
+  const getVendorsCount = useCallback(() => {
     const counts: Record<string, number> = {};
     
     transactions.forEach(transaction => {

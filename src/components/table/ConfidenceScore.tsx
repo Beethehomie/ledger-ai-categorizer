@@ -10,7 +10,7 @@ const ConfidenceScore: React.FC<ConfidenceScoreProps> = ({ score }) => {
   if (score === undefined) return null;
   
   const scorePercent = Math.round(score * 100);
-  let color = 'text-finance-red';
+  let color = 'text-red-600';
   let bgColor = 'bg-red-500';
   
   if (scorePercent >= 90) {

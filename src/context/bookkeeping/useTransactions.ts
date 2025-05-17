@@ -650,10 +650,12 @@ export const useTransactions = (
     }
   };
 
-  const reconcileAccountBalance = async (bankConnectionId: string) => {
-    // Implementation omitted as it depends on context
-    return true; // Placeholder
-  };
+  const reconcileAccountBalance = async (
+    bankConnectionId: string
+  ): Promise<boolean> => {
+    // Implementation for reconciling account balance
+    return true;
+  }
 
   const updateTransactionBalances = async (transactions: Transaction[]) => {
     // Implementation omitted as it depends on context

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Table,
@@ -19,9 +18,10 @@ import { toast } from '@/utils/toast';
 import { exportToCSV, isBalanceReconciled } from '@/utils/csvParser';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ReconcileDialog from './ReconcileDialog';
-import VendorEditor from './VendorEditor';
-import ColumnSelector, { Column } from './ColumnSelector';
+import VendorEditor from './table/VendorEditor';
+import ColumnSelector, { Column } from './table/ColumnSelector';
 import ConfidenceScore from './table/ConfidenceScore';
+import { Category, Vendor } from '@/types';
 
 interface TransactionTableProps {
   filter?: 'all' | 'unverified' | 'profit_loss' | 'balance_sheet' | 'by_vendor' | 'review';
@@ -61,6 +61,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const [reconciliationBalance, setReconciliationBalance] = useState<number | undefined>(expectedEndBalance);
   const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [isColumnsDialogOpen, setIsColumnsDialogOpen] = useState(false);
   
   const filteredTransactions = transactions.filter(transaction => {
     if (filter === 'unverified') {
@@ -240,7 +241,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
   const mapTableColumnsToColumnSelector = (): Column[] => {
     return tableColumns.map(col => ({
       id: col.id,
-      label: col.label || col.id,
+      label: col.name || col.id, // Use name as label or fallback to id
       visible: col.visible
     }));
   };
@@ -383,6 +384,13 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
           isOpen={isVendorEditorOpen}
           onClose={() => setIsVendorEditorOpen(false)}
           onSave={handleAddVendor}
+        />
+        
+        <ColumnSelector 
+          columns={mapTableColumnsToColumnSelector()}
+          onToggle={columnId => toggleColumn(columnId, !tableColumns.find(col => col.id === columnId)?.visible)}
+          open={isColumnsDialogOpen}
+          onOpenChange={setIsColumnsDialogOpen}
         />
       </div>
     </TooltipProvider>
